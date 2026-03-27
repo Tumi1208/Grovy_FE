@@ -1,4 +1,7 @@
-import { createOrder } from '../src/services/orderService';
+import {
+  buildCreateOrderPayload,
+  createOrder,
+} from '../src/services/orderService';
 
 describe('orderService', () => {
   beforeEach(() => {
@@ -7,6 +10,42 @@ describe('orderService', () => {
 
   afterEach(() => {
     jest.resetAllMocks();
+  });
+
+  it('builds a create-order payload from cart items', () => {
+    const payload = buildCreateOrderPayload({
+      customerId: 'demo-customer-1',
+      customerName: ' Demo Customer ',
+      phone: ' 0123456789 ',
+      address: ' 123 Sample Street ',
+      cartItems: [
+        {
+          product: {
+            id: 'prod-001',
+            name: 'Fresh Avocado',
+            price: 3.49,
+          },
+          quantity: 2,
+        },
+      ],
+      totalAmount: 6.979,
+    });
+
+    expect(payload).toEqual({
+      customerId: 'demo-customer-1',
+      customerName: 'Demo Customer',
+      phone: '0123456789',
+      address: '123 Sample Street',
+      items: [
+        {
+          productId: 'prod-001',
+          name: 'Fresh Avocado',
+          quantity: 2,
+          price: 3.49,
+        },
+      ],
+      totalAmount: 6.98,
+    });
   });
 
   it('posts a new order to the backend API', async () => {

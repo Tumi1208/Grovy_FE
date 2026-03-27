@@ -5,15 +5,18 @@ import { COLORS } from '../../constants/colors';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
-import { createOrder } from '../../services/orderService';
+import {
+  buildCreateOrderPayload,
+  createOrder,
+} from '../../services/orderService';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 function CheckoutScreen({ navigation }) {
   const { items, subtotal, clearCart } = useCart();
   const { currentUser } = useApp();
-  const [customerName, setCustomerName] = useState('Tom Nguyen');
-  const [phone, setPhone] = useState('0123456789');
-  const [address, setAddress] = useState('123 Sample Street');
+  const [customerName, setCustomerName] = useState(currentUser?.name || '');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,19 +34,15 @@ function CheckoutScreen({ navigation }) {
     setErrorMessage('');
 
     try {
-      const order = await createOrder({
+      const orderPayload = buildCreateOrderPayload({
         customerId: currentUser?.id || null,
-        customerName: customerName.trim(),
-        phone: phone.trim(),
-        address: address.trim(),
-        items: items.map(item => ({
-          productId: item.product.id,
-          name: item.product.name,
-          quantity: item.quantity,
-          price: item.product.price,
-        })),
-        totalAmount: Number(subtotal.toFixed(2)),
+        customerName,
+        phone,
+        address,
+        cartItems: items,
+        totalAmount: subtotal,
       });
+      const order = await createOrder(orderPayload);
 
       clearCart();
       navigation.reset({
@@ -51,7 +50,7 @@ function CheckoutScreen({ navigation }) {
         routes: [
           {
             name: CUSTOMER_ROUTES.ORDER_SUCCESS,
-            params: { orderId: order.id },
+            params: { order },
           },
         ],
       });
@@ -140,8 +139,9 @@ function CheckoutScreen({ navigation }) {
 
       <View style={styles.noteBox}>
         <Text style={styles.noteText}>
-          Orders are sent to the backend API, while the cart itself remains
-          local UI state until a later persistence step.
+          This step uses the current cart items to build a simple order payload
+          for the backend API. The cart stays local until a later persistence
+          step.
         </Text>
       </View>
 

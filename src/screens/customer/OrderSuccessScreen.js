@@ -3,9 +3,13 @@ import { StyleSheet, Text, View } from 'react-native';
 import PrimaryButton from '../../components/PrimaryButton';
 import { COLORS } from '../../constants/colors';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 function OrderSuccessScreen({ navigation, route }) {
-  const orderId = route.params?.orderId;
+  const order = route.params?.order;
+  const itemCount = Array.isArray(order?.items)
+    ? order.items.reduce((sum, item) => sum + item.quantity, 0)
+    : 0;
 
   return (
     <View style={styles.container}>
@@ -14,8 +18,20 @@ function OrderSuccessScreen({ navigation, route }) {
         <Text style={styles.subtitle}>
           The MVP purchase flow is now connected to the Grovy backend.
         </Text>
-        {orderId ? (
-          <Text style={styles.orderId}>Order reference: {orderId}</Text>
+
+        {order?.id ? (
+          <View style={styles.summaryBox}>
+            <Text style={styles.summaryText}>Order reference: {order.id}</Text>
+            <Text style={styles.summaryText}>Status: {order.status}</Text>
+            <Text style={styles.summaryText}>Items: {itemCount}</Text>
+            <Text style={styles.summaryText}>
+              Total: {formatCurrency(order.totalAmount || 0)}
+            </Text>
+            <Text style={styles.summaryText}>
+              Deliver to: {order.customerName}
+            </Text>
+            <Text style={styles.summaryText}>{order.address}</Text>
+          </View>
         ) : null}
       </View>
 
@@ -56,10 +72,13 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     lineHeight: 22,
   },
-  orderId: {
+  summaryBox: {
+    marginTop: 16,
+  },
+  summaryText: {
     color: COLORS.primaryDark,
     fontWeight: '600',
-    marginTop: 12,
+    lineHeight: 22,
   },
 });
 

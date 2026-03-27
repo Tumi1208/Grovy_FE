@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { getProductImageSource } from '../../assets/productImages';
 import PrimaryButton from '../../components/PrimaryButton';
+import ProductImage from '../../components/ProductImage';
 import { COLORS } from '../../constants/colors';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import { useCart } from '../../context/CartContext';
@@ -8,47 +10,65 @@ import { getProductById } from '../../services/productService';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 function ProductDetailScreen({ navigation, route }) {
-  const [product, setProduct] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Render the tapped product immediately, then refresh it from the API.
+  const initialProduct = route.params?.initialProduct || null;
+  const productId = route.params?.productId || initialProduct?.id || null;
+  const [product, setProduct] = useState(initialProduct);
+  const [isLoading, setIsLoading] = useState(!initialProduct);
   const [errorMessage, setErrorMessage] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const { addToCart, totalItems } = useCart();
-  const productId = route.params?.productId;
 
   useEffect(() => {
     let isMounted = true;
 
-    if (!productId) {
-      setIsLoading(false);
-      return () => {
-        isMounted = false;
-      };
-    }
+    async function fetchProduct() {
+      if (!productId) {
+        if (isMounted) {
+          setProduct(initialProduct);
+          setErrorMessage('No product was selected.');
+          setIsLoading(false);
+        }
+        return;
+      }
 
-    getProductById(productId)
-      .then(item => {
+      if (isMounted) {
+        setProduct(initialProduct);
+        setErrorMessage('');
+        setIsLoading(true);
+      }
+
+      try {
+        const item = await getProductById(productId);
+
         if (isMounted) {
           setProduct(item);
           setErrorMessage('');
         }
-      })
-      .catch(error => {
+      } catch (error) {
         if (isMounted) {
-          setProduct(null);
+          setProduct(initialProduct);
           setErrorMessage(error.message || 'Could not load this product.');
         }
-      })
-      .finally(() => {
+      } finally {
         if (isMounted) {
           setIsLoading(false);
         }
-      });
+      }
+    }
+
+    fetchProduct();
 
     return () => {
       isMounted = false;
     };
-  }, [productId]);
+  }, [initialProduct, productId, reloadKey]);
 
-  if (isLoading) {
+  function handleRetry() {
+    setReloadKey(currentValue => currentValue + 1);
+  }
+
+  if (isLoading && !product) {
     return (
       <View style={styles.centered}>
         <Text style={styles.emptyTitle}>Loading product...</Text>
@@ -70,17 +90,39 @@ function ProductDetailScreen({ navigation, route }) {
             'The selected product could not be loaded from the backend.'}
         </Text>
         <View style={styles.buttonSpacer} />
+        <PrimaryButton title="Retry" onPress={handleRetry} />
+        <View style={styles.buttonSpacer} />
         <PrimaryButton
           title="Back to Home"
           onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
+          variant="secondary"
         />
       </View>
     );
   }
 
+  const imageSource = getProductImageSource(product);
+
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      {isLoading ? (
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            Refreshing this product from the backend...
+          </Text>
+        </View>
+      ) : null}
+
+      {errorMessage ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>
+            {errorMessage} Showing the product selected from the backend list.
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.card}>
+        <ProductImage name={product.name} source={imageSource} style={styles.image} />
         <Text style={styles.category}>{product.category}</Text>
         <Text style={styles.name}>{product.name}</Text>
         <Text style={styles.price}>{formatCurrency(product.price)}</Text>
@@ -104,6 +146,7 @@ function ProductDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   content: {
     padding: 16,
+    paddingBottom: 24,
   },
   centered: {
     flex: 1,
@@ -118,6 +161,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     padding: 20,
     marginBottom: 20,
+  },
+  image: {
+    height: 220,
+    marginBottom: 20,
+    width: '100%',
   },
   category: {
     color: COLORS.primary,
@@ -150,6 +198,26 @@ const styles = StyleSheet.create({
   caption: {
     color: COLORS.muted,
     marginBottom: 16,
+  },
+  infoBox: {
+    backgroundColor: '#EDFDF4',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  infoText: {
+    color: COLORS.primaryDark,
+    lineHeight: 22,
+  },
+  errorBox: {
+    backgroundColor: '#FFF5F5',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: COLORS.danger,
+    lineHeight: 22,
   },
   buttonSpacer: {
     height: 12,

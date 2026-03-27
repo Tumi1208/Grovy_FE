@@ -1,14 +1,17 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import ProductImage from './ProductImage';
 import { COLORS } from '../constants/colors';
 import { formatCurrency } from '../utils/formatCurrency';
 
-function ProductCard({ product, onPress }) {
+function ProductCard({ imageSource, product, onPress }) {
   return (
     <Pressable
       onPress={() => onPress(product)}
       style={({ pressed }) => [styles.card, pressed && styles.pressedCard]}
     >
+      <ProductImage name={product.name} source={imageSource} style={styles.image} />
+
       <View style={styles.headerRow}>
         <Text style={styles.name}>{product.name}</Text>
         <Text style={styles.price}>{formatCurrency(product.price)}</Text>
@@ -33,6 +36,11 @@ const styles = StyleSheet.create({
   },
   pressedCard: {
     opacity: 0.9,
+  },
+  image: {
+    height: 156,
+    marginBottom: 16,
+    width: '100%',
   },
   headerRow: {
     flexDirection: 'row',

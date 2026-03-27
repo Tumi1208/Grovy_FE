@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { getProductImageSource } from '../../assets/productImages';
 import PrimaryButton from '../../components/PrimaryButton';
 import ProductCard from '../../components/ProductCard';
 import { COLORS } from '../../constants/colors';
@@ -11,77 +12,106 @@ function ListSeparator() {
   return <View style={styles.separator} />;
 }
 
+function HomeScreenHeader({ totalItems, onOpenCart }) {
+  return (
+    <View style={styles.header}>
+      <Text style={styles.title}>Simple grocery MVP</Text>
+      <Text style={styles.subtitle}>
+        Browse products from the Grovy backend, inspect item details, and move
+        through the checkout flow with the Express API.
+      </Text>
+      <PrimaryButton
+        title={`View Cart (${totalItems})`}
+        onPress={onOpenCart}
+        variant="secondary"
+      />
+    </View>
+  );
+}
+
+function HomeScreenEmptyState({ errorMessage, isLoading, onRetry }) {
+  if (isLoading) {
+    return <Text style={styles.emptyState}>Loading products from backend...</Text>;
+  }
+
+  if (errorMessage) {
+    return (
+      <View style={styles.emptyWrapper}>
+        <Text style={styles.emptyState}>{errorMessage}</Text>
+        <PrimaryButton title="Retry" onPress={onRetry} />
+      </View>
+    );
+  }
+
+  return <Text style={styles.emptyState}>No products available yet.</Text>;
+}
+
 function HomeScreen({ navigation }) {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const { totalItems } = useCart();
 
-  async function loadProducts() {
-    setIsLoading(true);
-    setErrorMessage('');
-
-    try {
-      const items = await getProducts();
-      setProducts(items);
-    } catch (error) {
-      setProducts([]);
-      setErrorMessage(
-        error.message || 'Could not load products from the Grovy backend.',
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   useEffect(() => {
+    let isMounted = true;
+
+    async function loadProducts() {
+      if (isMounted) {
+        setIsLoading(true);
+        setErrorMessage('');
+      }
+
+      try {
+        const items = await getProducts();
+
+        if (isMounted) {
+          setProducts(items);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setProducts([]);
+          setErrorMessage(
+            error.message || 'Could not load products from the Grovy backend.',
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
     loadProducts();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [reloadKey]);
 
   function handleReloadProducts() {
-    loadProducts();
+    setReloadKey(currentValue => currentValue + 1);
   }
 
   function handleOpenProduct(product) {
     navigation.navigate(CUSTOMER_ROUTES.PRODUCT_DETAIL, {
       productId: product.id,
+      initialProduct: product,
     });
   }
 
-  function renderHeader() {
-    return (
-      <View style={styles.header}>
-        <Text style={styles.title}>Simple grocery MVP</Text>
-        <Text style={styles.subtitle}>
-          Browse products from the Grovy backend, inspect item details, and move
-          through the checkout flow with the Express API.
-        </Text>
-        <PrimaryButton
-          title={`View Cart (${totalItems})`}
-          onPress={() => navigation.navigate(CUSTOMER_ROUTES.CART)}
-          variant="secondary"
-        />
-      </View>
-    );
+  function handleOpenCart() {
+    navigation.navigate(CUSTOMER_ROUTES.CART);
   }
 
-  function renderEmptyState() {
-    if (isLoading) {
-      return (
-        <Text style={styles.emptyState}>Loading products from backend...</Text>
-      );
-    }
-
-    if (errorMessage) {
-      return (
-        <View style={styles.emptyWrapper}>
-          <Text style={styles.emptyState}>{errorMessage}</Text>
-          <PrimaryButton title="Retry" onPress={handleReloadProducts} />
-        </View>
-      );
-    }
-
-    return <Text style={styles.emptyState}>No products available yet.</Text>;
+  function renderProductItem({ item }) {
+    return (
+      <ProductCard
+        imageSource={getProductImageSource(item)}
+        product={item}
+        onPress={handleOpenProduct}
+      />
+    );
   }
 
   return (
@@ -90,11 +120,17 @@ function HomeScreen({ navigation }) {
       data={products}
       ItemSeparatorComponent={ListSeparator}
       keyExtractor={item => item.id}
-      ListEmptyComponent={renderEmptyState}
-      ListHeaderComponent={renderHeader}
-      renderItem={({ item }) => (
-        <ProductCard product={item} onPress={handleOpenProduct} />
-      )}
+      ListEmptyComponent={
+        <HomeScreenEmptyState
+          errorMessage={errorMessage}
+          isLoading={isLoading}
+          onRetry={handleReloadProducts}
+        />
+      }
+      ListHeaderComponent={
+        <HomeScreenHeader totalItems={totalItems} onOpenCart={handleOpenCart} />
+      }
+      renderItem={renderProductItem}
     />
   );
 }

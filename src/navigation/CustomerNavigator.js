@@ -7,6 +7,7 @@ import CartScreen from '../screens/customer/CartScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
 import HomeScreen from '../screens/customer/HomeScreen';
 import OrderSuccessScreen from '../screens/customer/OrderSuccessScreen';
+import PlaceholderTabScreen from '../screens/customer/PlaceholderTabScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
 
 const Stack = createNativeStackNavigator();
@@ -32,6 +33,21 @@ function CustomerNavigator() {
         <Stack.Screen
           name={CUSTOMER_ROUTES.HOME}
           component={HomeScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name={CUSTOMER_ROUTES.EXPLORE}
+          component={PlaceholderTabScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name={CUSTOMER_ROUTES.FAVOURITE}
+          component={PlaceholderTabScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name={CUSTOMER_ROUTES.ACCOUNT}
+          component={PlaceholderTabScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

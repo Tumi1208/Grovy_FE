@@ -1,5 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import CustomerBottomNav from '../../components/CustomerBottomNav';
 import PrimaryButton from '../../components/PrimaryButton';
 import { COLORS } from '../../constants/colors';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
@@ -10,22 +12,18 @@ function CartScreen({ navigation }) {
   const { items, subtotal, totalItems, removeFromCart, updateQuantity } =
     useCart();
 
-  if (items.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>Your cart is empty.</Text>
-        <Text style={styles.emptySubtitle}>
-          Add a few products from the home screen to continue the MVP flow.
-        </Text>
-        <PrimaryButton
-          title="Browse Products"
-          onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
-        />
-      </View>
-    );
-  }
-
-  return (
+  const content = items.length === 0 ? (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyTitle}>Your cart is empty.</Text>
+      <Text style={styles.emptySubtitle}>
+        Add a few products from the home screen to continue the MVP flow.
+      </Text>
+      <PrimaryButton
+        title="Browse Products"
+        onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
+      />
+    </View>
+  ) : (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.summaryText}>{totalItems} item(s) in your cart</Text>
 
@@ -84,12 +82,36 @@ function CartScreen({ navigation }) {
       />
     </ScrollView>
   );
+
+  return (
+    <SafeAreaView edges={['bottom']} style={styles.safeArea}>
+      <View style={styles.screen}>
+        {content}
+
+        <View style={styles.bottomNavWrap}>
+          <CustomerBottomNav
+            activeRoute={CUSTOMER_ROUTES.CART}
+            navigation={navigation}
+            totalItems={totalItems}
+          />
+        </View>
+      </View>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FBF7F2',
+  },
+  screen: {
+    flex: 1,
+    backgroundColor: '#FBF7F2',
+  },
   content: {
     padding: 16,
-    paddingBottom: 24,
+    paddingBottom: 120,
   },
   summaryText: {
     color: COLORS.muted,
@@ -185,6 +207,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 24,
+    paddingBottom: 120,
   },
   emptyTitle: {
     color: COLORS.text,
@@ -196,6 +219,12 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     lineHeight: 22,
     marginBottom: 20,
+  },
+  bottomNavWrap: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 18,
   },
 });
 

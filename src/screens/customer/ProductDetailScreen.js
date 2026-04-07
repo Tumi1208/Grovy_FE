@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProductImageSource } from '../../assets/productImages';
 import PrimaryButton from '../../components/PrimaryButton';
 import ProductImage from '../../components/ProductImage';
-import { COLORS } from '../../constants/colors';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import { useCart } from '../../context/CartContext';
 import { getProductDetailById } from '../../services/productService';
@@ -19,40 +18,124 @@ import { formatCurrency } from '../../utils/formatCurrency';
 
 const MIN_QUANTITY = 1;
 
+const UI_COLORS = Object.freeze({
+  screen: '#F7F3EC',
+  surface: '#FFFFFF',
+  surfaceMuted: '#FAF7F2',
+  border: '#E9E1D7',
+  text: '#201A17',
+  mutedText: '#7B736A',
+  hero: '#DCC6EC',
+  heroGlowPrimary: '#E8D8F3',
+  heroGlowSecondary: '#F4E8FB',
+  accent: '#D71920',
+  accentPressed: '#B9151C',
+  accentSoft: '#FFE9EA',
+  successSoft: '#EBF7EE',
+  successText: '#2B7A4B',
+  errorSoft: '#FFF1F1',
+  shadow: '#2C160B',
+  buttonShadow: '#801A1E',
+  minus: '#B7AEB8',
+});
+
+const UI_SPACING = Object.freeze({
+  screen: 20,
+  section: 18,
+  card: 24,
+});
+
+const UI_RADIUS = Object.freeze({
+  circle: 28,
+  pill: 999,
+  panel: 34,
+  card: 30,
+  button: 22,
+  stepper: 24,
+});
+
 function normalizeRouteProductId(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function IconButton({ label, onPress, title }) {
+function TopActionButton({ children, onPress, accessibilityLabel, style }) {
   return (
     <Pressable
+      accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
-      accessibilityLabel={title}
-      android_ripple={{ color: '#E7F0E6' }}
+      android_ripple={{ color: '#EEE8E0' }}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.iconButton,
-        pressed && styles.pressedButton,
+        styles.topActionButton,
+        style,
+        pressed && styles.topActionButtonPressed,
       ]}
     >
-      <Text style={styles.iconButtonLabel}>{label}</Text>
+      {children}
     </Pressable>
   );
 }
 
-function QuantityButton({ disabled = false, label, onPress }) {
+function QuantityButton({
+  accent = false,
+  disabled = false,
+  label,
+  onPress,
+}) {
   return (
     <Pressable
-      android_ripple={{ color: '#E7F0E6' }}
+      android_ripple={{ color: '#F3EEE8' }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.quantityButton,
         disabled && styles.quantityButtonDisabled,
-        pressed && !disabled && styles.pressedButton,
+        pressed && !disabled && styles.quantityButtonPressed,
       ]}
     >
-      <Text style={styles.quantityButtonLabel}>{label}</Text>
+      <Text
+        style={[
+          styles.quantityButtonLabel,
+          accent ? styles.quantityButtonLabelAccent : null,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function AddToCartButton({
+  disabled = false,
+  onPress,
+  quantity,
+  totalPriceLabel,
+}) {
+  return (
+    <Pressable
+      android_ripple={{ color: '#D1383D' }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.addToCartButton,
+        disabled && styles.addToCartButtonDisabled,
+        pressed && !disabled && styles.addToCartButtonPressed,
+      ]}
+    >
+      <View style={styles.addToCartCopy}>
+        <Text style={styles.addToCartTitle}>
+          {disabled ? 'Out of Stock' : 'Add to Cart'}
+        </Text>
+        <Text style={styles.addToCartSubtitle}>
+          {disabled ? 'This item is currently unavailable.' : `${quantity} item(s) selected`}
+        </Text>
+      </View>
+
+      {!disabled ? (
+        <View style={styles.addToCartTotalBadge}>
+          <Text style={styles.addToCartTotalValue}>{totalPriceLabel}</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -139,7 +222,7 @@ function ProductDetailScreen({ navigation, route }) {
       return;
     }
 
-    const maxQuantity = product?.stock > 0 ? product.stock : quantity + 1;
+    const maxQuantity = product.stock;
 
     setQuantity(currentValue => Math.min(maxQuantity, currentValue + 1));
   }
@@ -161,10 +244,10 @@ function ProductDetailScreen({ navigation, route }) {
     return (
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.centeredState}>
-          <ActivityIndicator color={COLORS.primaryDark} size="large" />
+          <ActivityIndicator color={UI_COLORS.accent} size="large" />
           <Text style={styles.stateTitle}>Loading product detail...</Text>
           <Text style={styles.stateDescription}>
-            Fetching the latest data from the Grovy backend.
+            Fetching the latest product data from the Grovy backend.
           </Text>
         </View>
       </SafeAreaView>
@@ -196,6 +279,7 @@ function ProductDetailScreen({ navigation, route }) {
   const isOutOfStock = product.stock <= 0;
   const isIncreaseDisabled =
     isOutOfStock || (product.stock > 0 && quantity >= product.stock);
+  const totalPriceLabel = formatCurrency(product.price * quantity);
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -203,25 +287,29 @@ function ProductDetailScreen({ navigation, route }) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topBar}>
-          <IconButton label="<" onPress={handleBack} title="Go back" />
+        <View style={styles.headerRow}>
+          <TopActionButton accessibilityLabel="Go back" onPress={handleBack}>
+            <Text style={styles.backIcon}>‹</Text>
+          </TopActionButton>
 
-          <Pressable
-            android_ripple={{ color: '#E7F0E6' }}
+          <View style={styles.headerCopy}>
+            <Text style={styles.headerEyebrow}>Grovy</Text>
+            <Text style={styles.headerTitle}>Product Detail</Text>
+          </View>
+
+          <TopActionButton
+            accessibilityLabel="Open cart"
             onPress={handleOpenCart}
-            style={({ pressed }) => [
-              styles.cartBadge,
-              pressed && styles.pressedButton,
-            ]}
+            style={styles.cartActionButton}
           >
-            <Text style={styles.cartBadgeValue}>{totalItems}</Text>
-            <Text style={styles.cartBadgeLabel}>Cart</Text>
-          </Pressable>
+            <Text style={styles.cartCount}>{totalItems}</Text>
+            <Text style={styles.cartLabel}>Cart</Text>
+          </TopActionButton>
         </View>
 
         {loading ? (
           <View style={styles.infoBanner}>
-            <ActivityIndicator color={COLORS.primaryDark} size="small" />
+            <ActivityIndicator color={UI_COLORS.successText} size="small" />
             <Text style={styles.infoBannerText}>
               Refreshing product detail from the API.
             </Text>
@@ -236,67 +324,90 @@ function ProductDetailScreen({ navigation, route }) {
           </View>
         ) : null}
 
-        <View style={styles.imageCard}>
-          <View style={styles.imageGlowLarge} />
-          <View style={styles.imageGlowSmall} />
-          <View style={styles.categoryPill}>
-            <Text style={styles.categoryPillLabel}>{product.category}</Text>
+        <View style={styles.heroCard}>
+          <View style={styles.heroGlowPrimary} />
+          <View style={styles.heroGlowSecondary} />
+
+          <View style={styles.heroMetaRow}>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeLabel}>{product.category}</Text>
+            </View>
+
+            <View
+              style={[
+                styles.stockBadge,
+                isOutOfStock && styles.stockBadgeMuted,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.stockBadgeLabel,
+                  isOutOfStock && styles.stockBadgeLabelMuted,
+                ]}
+              >
+                {isOutOfStock ? 'Unavailable' : `${product.stock} left`}
+              </Text>
+            </View>
           </View>
+
           <ProductImage
             name={product.name}
             resizeMode="contain"
             source={imageSource}
-            style={styles.image}
+            style={styles.productImage}
           />
         </View>
 
-        <View style={styles.detailCard}>
-          <Text style={styles.name}>{product.name}</Text>
-          <Text style={styles.price}>{formatCurrency(product.price)}</Text>
+        <View style={styles.detailSheet}>
+          <Text style={styles.productName}>{product.name}</Text>
 
-          <View style={styles.sectionBlock}>
-            <Text style={styles.sectionLabel}>Description</Text>
-            <Text style={styles.description}>{product.description}</Text>
-          </View>
-        </View>
+          <View style={styles.priceRow}>
+            <View>
+              <Text style={styles.priceLabel}>Price</Text>
+              <Text style={styles.priceValue}>{formatCurrency(product.price)}</Text>
+            </View>
 
-        <View style={styles.metaRow}>
-          <View style={styles.metaCard}>
-            <Text style={styles.metaLabel}>Availability</Text>
-            <Text style={styles.metaValue}>
-              {isOutOfStock ? 'Out of stock' : `${product.stock} in stock`}
-            </Text>
+            <View style={styles.priceHintPill}>
+              <Text style={styles.priceHintText}>Fresh pick</Text>
+            </View>
           </View>
 
-          <View style={styles.metaCard}>
-            <Text style={styles.metaLabel}>Quantity</Text>
-            <View style={styles.stepper}>
+          <View style={styles.descriptionSection}>
+            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.descriptionText}>{product.description}</Text>
+          </View>
+
+          <View style={styles.purchaseCard}>
+            <View style={styles.purchaseHeader}>
+              <Text style={styles.sectionTitle}>Quantity</Text>
+              <Text style={styles.quantityHelper}>
+                {isOutOfStock ? 'Out of stock' : `Max ${product.stock}`}
+              </Text>
+            </View>
+
+            <View style={styles.quantityStepper}>
               <QuantityButton
                 disabled={isOutOfStock || quantity <= MIN_QUANTITY}
-                label="-"
+                label="−"
                 onPress={handleDecreaseQuantity}
               />
               <Text style={styles.quantityValue}>{quantity}</Text>
               <QuantityButton
+                accent
                 disabled={isIncreaseDisabled}
                 label="+"
                 onPress={handleIncreaseQuantity}
               />
             </View>
           </View>
+
+          <AddToCartButton
+            disabled={isOutOfStock}
+            onPress={handleAddToCart}
+            quantity={quantity}
+            totalPriceLabel={totalPriceLabel}
+          />
         </View>
-
-        <PrimaryButton
-          disabled={isOutOfStock}
-          onPress={handleAddToCart}
-          title={isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-        />
-
-        <Text style={styles.footerNote}>
-          {isOutOfStock
-            ? 'This item is unavailable right now, so the CTA is disabled.'
-            : `${quantity} item(s) will be added, then the flow moves to Cart for demo.`}
-        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -305,12 +416,12 @@ function ProductDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F7F1',
+    backgroundColor: UI_COLORS.screen,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: UI_SPACING.screen,
     paddingTop: 8,
-    paddingBottom: 32,
+    paddingBottom: 36,
   },
   centeredState: {
     flex: 1,
@@ -319,7 +430,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   stateTitle: {
-    color: COLORS.text,
+    color: UI_COLORS.text,
     fontSize: 24,
     fontWeight: '800',
     textAlign: 'center',
@@ -327,7 +438,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   stateDescription: {
-    color: COLORS.muted,
+    color: UI_COLORS.mutedText,
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
@@ -335,228 +446,358 @@ const styles = StyleSheet.create({
   stateSpacer: {
     height: 24,
   },
-  topBar: {
+  buttonSpacer: {
+    height: 12,
+  },
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
-  iconButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: '#DCE7D9',
+  headerCopy: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 12,
   },
-  iconButtonLabel: {
-    color: COLORS.text,
-    fontSize: 20,
+  headerEyebrow: {
+    color: UI_COLORS.mutedText,
+    fontSize: 11,
     fontWeight: '700',
-    marginTop: -1,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    marginBottom: 3,
   },
-  cartBadge: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#DCE7D9',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignItems: 'center',
-    minWidth: 86,
-  },
-  cartBadgeValue: {
-    color: COLORS.primaryDark,
+  headerTitle: {
+    color: UI_COLORS.text,
     fontSize: 18,
     fontWeight: '800',
   },
-  cartBadgeLabel: {
-    color: '#65756A',
+  topActionButton: {
+    width: 56,
+    height: 56,
+    borderRadius: UI_RADIUS.circle,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: UI_COLORS.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 3,
+  },
+  cartActionButton: {
+    width: 72,
+    borderRadius: 22,
+  },
+  topActionButtonPressed: {
+    opacity: 0.92,
+  },
+  backIcon: {
+    color: UI_COLORS.text,
+    fontSize: 28,
+    fontWeight: '500',
+    lineHeight: 30,
+    marginLeft: -2,
+  },
+  cartCount: {
+    color: UI_COLORS.accent,
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 22,
+  },
+  cartLabel: {
+    color: UI_COLORS.mutedText,
     fontSize: 12,
     fontWeight: '600',
-  },
-  pressedButton: {
-    opacity: 0.9,
+    marginTop: 2,
   },
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#EDF7EE',
-    borderRadius: 20,
+    backgroundColor: UI_COLORS.successSoft,
+    borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 14,
   },
   infoBannerText: {
-    color: COLORS.primaryDark,
+    color: UI_COLORS.successText,
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
   },
   errorBanner: {
-    backgroundColor: '#FFF1F1',
-    borderRadius: 20,
+    backgroundColor: UI_COLORS.errorSoft,
+    borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 14,
   },
   errorBannerText: {
-    color: COLORS.danger,
+    color: UI_COLORS.accent,
     fontSize: 14,
     lineHeight: 21,
   },
-  imageCard: {
-    backgroundColor: '#EAF4E4',
-    borderRadius: 32,
-    padding: 20,
-    minHeight: 320,
+  heroCard: {
+    backgroundColor: UI_COLORS.hero,
+    borderRadius: UI_RADIUS.panel,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 26,
     overflow: 'hidden',
     position: 'relative',
+  },
+  heroGlowPrimary: {
+    position: 'absolute',
+    top: -30,
+    right: -20,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: UI_COLORS.heroGlowPrimary,
+  },
+  heroGlowSecondary: {
+    position: 'absolute',
+    left: -28,
+    bottom: -36,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: UI_COLORS.heroGlowSecondary,
+  },
+  heroMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 18,
   },
-  imageGlowLarge: {
-    position: 'absolute',
-    top: -44,
-    right: -24,
-    width: 176,
-    height: 176,
-    borderRadius: 88,
-    backgroundColor: '#D9EBD2',
+  categoryBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    borderRadius: UI_RADIUS.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  imageGlowSmall: {
-    position: 'absolute',
-    left: -20,
-    bottom: -26,
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    backgroundColor: '#D4E7CF',
-  },
-  categoryPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.surface,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 18,
-  },
-  categoryPillLabel: {
-    color: '#4B6350',
+  categoryBadgeLabel: {
+    color: UI_COLORS.text,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  image: {
+  stockBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    borderRadius: UI_RADIUS.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  stockBadgeMuted: {
+    backgroundColor: 'rgba(255, 255, 255, 0.76)',
+  },
+  stockBadgeLabel: {
+    color: UI_COLORS.successText,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  stockBadgeLabelMuted: {
+    color: UI_COLORS.mutedText,
+  },
+  productImage: {
     width: '100%',
-    height: 230,
+    height: 255,
+    alignSelf: 'center',
     backgroundColor: 'transparent',
   },
-  detailCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: '#E0E8DA',
-    padding: 20,
-    marginBottom: 16,
+  detailSheet: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.panel,
+    marginTop: -24,
+    padding: UI_SPACING.card,
+    shadowColor: UI_COLORS.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 16,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 22,
+    elevation: 3,
   },
-  name: {
-    color: COLORS.text,
+  productName: {
+    color: UI_COLORS.text,
+    fontSize: 33,
+    fontWeight: '800',
+    lineHeight: 39,
+    marginBottom: 18,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 22,
+  },
+  priceLabel: {
+    color: UI_COLORS.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  priceValue: {
+    color: UI_COLORS.text,
     fontSize: 30,
     fontWeight: '800',
-    lineHeight: 36,
-    marginBottom: 10,
+    lineHeight: 34,
   },
-  price: {
-    color: '#D92C20',
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 18,
-  },
-  sectionBlock: {
-    borderTopWidth: 1,
-    borderTopColor: '#EDF1EA',
-    paddingTop: 16,
-  },
-  sectionLabel: {
-    color: '#5F7064',
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
-  description: {
-    color: '#39453D',
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 18,
-  },
-  metaCard: {
-    flex: 1,
-    backgroundColor: COLORS.surface,
-    borderRadius: 24,
+  priceHintPill: {
+    backgroundColor: UI_COLORS.surfaceMuted,
+    borderRadius: UI_RADIUS.pill,
     borderWidth: 1,
-    borderColor: '#E0E8DA',
-    padding: 18,
+    borderColor: UI_COLORS.border,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  metaLabel: {
-    color: '#6D7B71',
-    fontSize: 13,
+  priceHintText: {
+    color: UI_COLORS.mutedText,
+    fontSize: 12,
     fontWeight: '700',
-    textTransform: 'uppercase',
+  },
+  descriptionSection: {
+    borderTopWidth: 1,
+    borderTopColor: UI_COLORS.border,
+    paddingTop: 18,
+    marginBottom: 22,
+  },
+  sectionTitle: {
+    color: UI_COLORS.text,
+    fontSize: 15,
+    fontWeight: '800',
     marginBottom: 10,
   },
-  metaValue: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 24,
+  descriptionText: {
+    color: UI_COLORS.mutedText,
+    fontSize: 16,
+    lineHeight: 25,
   },
-  stepper: {
+  purchaseCard: {
+    backgroundColor: UI_COLORS.surfaceMuted,
+    borderRadius: UI_RADIUS.card,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 18,
+    marginBottom: 18,
+  },
+  purchaseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  quantityHelper: {
+    color: UI_COLORS.mutedText,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  quantityStepper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.stepper,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   quantityButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: '#F5F8F3',
-    borderWidth: 1,
-    borderColor: '#DCE7D9',
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: UI_COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: UI_COLORS.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+  quantityButtonPressed: {
+    opacity: 0.88,
   },
   quantityButtonDisabled: {
-    opacity: 0.45,
+    opacity: 0.42,
   },
   quantityButtonLabel: {
-    color: COLORS.text,
-    fontSize: 24,
+    color: UI_COLORS.minus,
+    fontSize: 28,
     fontWeight: '700',
-    lineHeight: 26,
+    lineHeight: 30,
+  },
+  quantityButtonLabelAccent: {
+    color: UI_COLORS.accent,
   },
   quantityValue: {
-    color: COLORS.text,
-    fontSize: 22,
+    color: UI_COLORS.text,
+    fontSize: 24,
     fontWeight: '800',
   },
-  footerNote: {
-    color: '#6D7B71',
-    fontSize: 13,
-    lineHeight: 20,
-    textAlign: 'center',
-    marginTop: 12,
+  addToCartButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: UI_COLORS.accent,
+    borderRadius: UI_RADIUS.button,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    shadowColor: UI_COLORS.buttonShadow,
+    shadowOffset: {
+      width: 0,
+      height: 14,
+    },
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
+    elevation: 5,
   },
-  buttonSpacer: {
-    height: 12,
+  addToCartButtonPressed: {
+    backgroundColor: UI_COLORS.accentPressed,
+  },
+  addToCartButtonDisabled: {
+    opacity: 0.6,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  addToCartCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  addToCartTitle: {
+    color: UI_COLORS.surface,
+    fontSize: 19,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  addToCartSubtitle: {
+    color: 'rgba(255, 255, 255, 0.84)',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  addToCartTotalBadge: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  addToCartTotalValue: {
+    color: UI_COLORS.accent,
+    fontSize: 14,
+    fontWeight: '800',
   },
 });
 

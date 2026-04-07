@@ -10,6 +10,9 @@ export const AUTH_ROUTES = {
 
 export const CUSTOMER_ROUTES = {
   HOME: 'CustomerHome',
+  EXPLORE: 'CustomerExplore',
+  FAVOURITE: 'CustomerFavourite',
+  ACCOUNT: 'CustomerAccount',
   PRODUCT_DETAIL: 'CustomerProductDetail',
   CART: 'CustomerCart',
   CHECKOUT: 'CustomerCheckout',

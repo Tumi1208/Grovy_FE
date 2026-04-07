@@ -32,12 +32,12 @@ function CustomerNavigator() {
         <Stack.Screen
           name={CUSTOMER_ROUTES.HOME}
           component={HomeScreen}
-          options={{ title: 'Grovy' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name={CUSTOMER_ROUTES.PRODUCT_DETAIL}
           component={ProductDetailScreen}
-          options={{ title: 'Product Detail' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name={CUSTOMER_ROUTES.CART}

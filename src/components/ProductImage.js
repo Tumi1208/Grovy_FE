@@ -2,12 +2,12 @@ import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../constants/colors';
 
-function ProductImage({ name, source, style }) {
+function ProductImage({ name, resizeMode = 'cover', source, style }) {
   if (source) {
     return (
       <Image
         accessibilityLabel={name ? `${name} image` : 'Product image'}
-        resizeMode="cover"
+        resizeMode={resizeMode}
         source={source}
         style={[styles.image, style]}
       />

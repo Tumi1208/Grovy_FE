@@ -9,7 +9,7 @@ export async function getProducts() {
   return Array.isArray(data?.items) ? data.items.map(normalizeProduct) : [];
 }
 
-export async function getProductById(productId) {
+export async function getProductDetailById(productId) {
   const normalizedProductId =
     typeof productId === 'string' ? productId.trim() : '';
 
@@ -22,4 +22,8 @@ export async function getProductById(productId) {
   );
 
   return normalizeProduct(product);
+}
+
+export async function getProductById(productId) {
+  return getProductDetailById(productId);
 }

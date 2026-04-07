@@ -6,10 +6,26 @@ const initialState = {
   items: [],
 };
 
+function normalizeCartQuantity(value, fallback = 1) {
+  const parsedValue = Math.floor(Number(value));
+
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return fallback;
+  }
+
+  return parsedValue;
+}
+
 function cartReducer(state, action) {
   switch (action.type) {
     case 'ADD_TO_CART': {
-      const product = action.payload;
+      const { product, quantity } = action.payload || {};
+
+      if (!product?.id) {
+        return state;
+      }
+
+      const normalizedQuantity = normalizeCartQuantity(quantity);
       const existingItem = state.items.find(
         item => item.product.id === product.id,
       );
@@ -19,7 +35,10 @@ function cartReducer(state, action) {
           ...state,
           items: state.items.map(item =>
             item.product.id === product.id
-              ? { ...item, quantity: item.quantity + 1 }
+              ? {
+                  ...item,
+                  quantity: item.quantity + normalizedQuantity,
+                }
               : item,
           ),
         };
@@ -27,7 +46,7 @@ function cartReducer(state, action) {
 
       return {
         ...state,
-        items: [...state.items, { product, quantity: 1 }],
+        items: [...state.items, { product, quantity: normalizedQuantity }],
       };
     }
     case 'UPDATE_QUANTITY': {
@@ -74,7 +93,11 @@ export function CartProvider({ children }) {
     items: state.items,
     subtotal,
     totalItems,
-    addToCart: product => dispatch({ type: 'ADD_TO_CART', payload: product }),
+    addToCart: (product, quantity = 1) =>
+      dispatch({
+        type: 'ADD_TO_CART',
+        payload: { product, quantity },
+      }),
     updateQuantity: (productId, quantity) =>
       dispatch({
         type: 'UPDATE_QUANTITY',

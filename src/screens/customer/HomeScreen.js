@@ -1,149 +1,157 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getProductImageSource } from '../../assets/productImages';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
+import HomeProductCard, {
+  HomeCategoryCard,
+} from '../../components/home/HomeProductCard';
 import PrimaryButton from '../../components/PrimaryButton';
-import ProductCard from '../../components/ProductCard';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import { useCart } from '../../context/CartContext';
-import { useFavourite } from '../../context/FavouriteContext';
+import {
+  buildHomeScreenData,
+  filterHomeSectionProducts,
+} from '../../data/homeScreenData';
 import { getProducts } from '../../services/productService';
 
-const PROMO_BANNER_IMAGE = require('../../assets/images/products/Vegetable-Bag copy.png');
-
 const HOME_COLORS = Object.freeze({
-  screen: '#FBF7F2',
+  screen: '#FCFCFC',
   surface: '#FFFFFF',
-  text: '#211A16',
-  muted: '#8A8178',
-  accent: '#D71920',
-  banner: '#FDE5D8',
-  bannerShape: '#FFD3C6',
-  shadow: '#2A160B',
+  text: '#181725',
+  muted: '#7C7C7C',
+  subtle: '#F2F3F2',
+  accent: '#53B175',
+  banner: '#FDEDDC',
+  bannerAccent: '#F8A44C',
+  bannerSoft: '#E9F7EE',
+  border: '#E2E2E2',
+  shadow: '#1F1B17',
 });
 
 function normalizeSearchValue(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 
-function truncateText(value, limit = 52) {
-  if (typeof value !== 'string' || !value.trim()) {
-    return '';
-  }
-
-  const normalizedValue = value.trim();
-
-  if (normalizedValue.length <= limit) {
-    return normalizedValue;
-  }
-
-  return `${normalizedValue.slice(0, limit).trimEnd()}...`;
-}
-
-function LocationPinGlyph() {
-  return (
-    <View style={styles.locationPin}>
-      <View style={styles.locationPinInner} />
-    </View>
-  );
-}
-
-function SearchGlyph({ color = '#312B26' }) {
+function SearchGlyph() {
   return (
     <View style={styles.searchGlyph}>
-      <View style={[styles.searchGlyphCircle, { borderColor: color }]} />
-      <View style={[styles.searchGlyphHandle, { backgroundColor: color }]} />
+      <View style={styles.searchGlyphCircle} />
+      <View style={styles.searchGlyphHandle} />
     </View>
   );
 }
 
-function HomeHeader({
-  featuredProduct,
-  onChangeSearch,
-  onClearSearch,
-  onOpenFeaturedProduct,
-  onSeeAll,
-  searchQuery,
+function HomeLogo() {
+  return (
+    <View style={styles.logoWrap}>
+      <View style={styles.logoMark}>
+        <View style={styles.logoLeafLeft} />
+        <View style={styles.logoLeafRight} />
+      </View>
+      <Text style={styles.logoText}>Grovy</Text>
+    </View>
+  );
+}
+
+function SectionHeader({ onSeeAll, title }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {onSeeAll ? (
+        <Pressable onPress={onSeeAll}>
+          <Text style={styles.sectionLink}>See all</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function HomeBanner({ banner, onPress }) {
+  return (
+    <Pressable
+      android_ripple={{ color: '#F7D7B7' }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.banner,
+        pressed && styles.bannerPressed,
+      ]}
+    >
+      <View style={styles.bannerCirclePrimary} />
+      <View style={styles.bannerCircleSecondary} />
+
+      <View style={styles.bannerCopy}>
+        <Text style={styles.bannerTitle}>{banner.title}</Text>
+        <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+      </View>
+
+      <Image
+        resizeMode="contain"
+        source={banner.imageSource}
+        style={styles.bannerImage}
+      />
+    </Pressable>
+  );
+}
+
+function HomeSectionRow({
+  items,
+  onAddToCart,
+  onOpenProduct,
 }) {
-  const hasSearch = searchQuery.trim().length > 0;
-  const bannerTitle = featuredProduct?.name || 'Fresh groceries';
-  const bannerSubtitle =
-    truncateText(featuredProduct?.description, 56) || 'Daily essentials';
+  if (!items.length) {
+    return null;
+  }
 
   return (
-    <View style={styles.header}>
-      <View style={styles.locationRow}>
-        <View style={styles.locationInfo}>
-          <LocationPinGlyph />
-          <View>
-            <Text style={styles.locationLabel}>Delivery to</Text>
-            <View style={styles.locationValueRow}>
-              <Text style={styles.locationValue}>Current location</Text>
-              <Text style={styles.locationArrow}>⌄</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.searchBar}>
-        <SearchGlyph />
-        <TextInput
-          onChangeText={onChangeSearch}
-          placeholder="Search Store"
-          placeholderTextColor="#8D877F"
-          style={styles.searchInput}
-          value={searchQuery}
+    <ScrollView
+      horizontal
+      contentContainerStyle={styles.horizontalSectionContent}
+      showsHorizontalScrollIndicator={false}
+    >
+      {items.map((item, index) => (
+        <HomeProductCard
+          key={item.id}
+          imageSource={item.imageSource}
+          onAddToCart={onAddToCart}
+          onPress={onOpenProduct}
+          product={item}
+          style={index === items.length - 1 ? null : styles.productCardSpacing}
         />
-        {hasSearch ? (
-          <Pressable onPress={onClearSearch} style={styles.clearSearchButton}>
-            <Text style={styles.clearSearchButtonLabel}>×</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      ))}
+    </ScrollView>
+  );
+}
 
-      <Pressable
-        android_ripple={{ color: '#F7D5C7' }}
-        onPress={onOpenFeaturedProduct}
-        style={({ pressed }) => [
-          styles.promoBanner,
-          pressed && styles.promoBannerPressed,
-        ]}
-      >
-        <View style={styles.promoShape} />
-        <View style={styles.promoCopy}>
-          <Text style={styles.promoEyebrow}>Grovy Picks</Text>
-          <Text numberOfLines={2} style={styles.promoTitle}>
-            {bannerTitle}
-          </Text>
-          <Text numberOfLines={2} style={styles.promoSubtitle}>
-            {bannerSubtitle}
-          </Text>
-        </View>
+function HomeGroceriesGrid({
+  items,
+  onAddToCart,
+  onOpenProduct,
+}) {
+  if (!items.length) {
+    return null;
+  }
 
-        <Image
-          resizeMode="contain"
-          source={PROMO_BANNER_IMAGE}
-          style={styles.promoImage}
+  return (
+    <View style={styles.groceriesGrid}>
+      {items.map((item, index) => (
+        <HomeProductCard
+          key={item.id}
+          imageSource={item.imageSource}
+          onAddToCart={onAddToCart}
+          onPress={onOpenProduct}
+          product={item}
+          style={index % 2 === 0 ? styles.groceriesCardLeft : styles.groceriesCardRight}
         />
-      </Pressable>
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Popular Product</Text>
-
-        <Pressable onPress={onSeeAll}>
-          <Text style={styles.seeAllText}>See All</Text>
-        </Pressable>
-      </View>
+      ))}
     </View>
   );
 }
@@ -159,10 +167,9 @@ function HomeScreenEmptyState({
     return (
       <View style={styles.emptyCard}>
         <ActivityIndicator color={HOME_COLORS.accent} size="small" />
-        <View style={styles.loadingSpacer} />
-        <Text style={styles.emptyTitle}>Loading products...</Text>
+        <Text style={styles.emptyTitle}>Loading Home...</Text>
         <Text style={styles.emptySubtitle}>
-          Pulling the latest catalog from the backend.
+          Pulling Grovy products and mapping them into the Home frame.
         </Text>
       </View>
     );
@@ -171,9 +178,9 @@ function HomeScreenEmptyState({
   if (errorMessage) {
     return (
       <View style={styles.emptyCard}>
-        <Text style={styles.emptyTitle}>Could not load the catalog.</Text>
+        <Text style={styles.emptyTitle}>Could not load Home.</Text>
         <Text style={styles.emptySubtitle}>{errorMessage}</Text>
-        <View style={styles.emptyActionSpacer} />
+        <View style={styles.emptySpacer} />
         <PrimaryButton title="Retry" onPress={onRetry} />
       </View>
     );
@@ -182,11 +189,11 @@ function HomeScreenEmptyState({
   if (hasProducts) {
     return (
       <View style={styles.emptyCard}>
-        <Text style={styles.emptyTitle}>No products match your search.</Text>
+        <Text style={styles.emptyTitle}>No Home items match this search.</Text>
         <Text style={styles.emptySubtitle}>
-          Clear the current keyword to see all products again.
+          Clear the keyword to return to the original Figma-style Home layout.
         </Text>
-        <View style={styles.emptyActionSpacer} />
+        <View style={styles.emptySpacer} />
         <PrimaryButton
           title="Clear Search"
           onPress={onResetFilters}
@@ -200,7 +207,8 @@ function HomeScreenEmptyState({
     <View style={styles.emptyCard}>
       <Text style={styles.emptyTitle}>No products available yet.</Text>
       <Text style={styles.emptySubtitle}>
-        The backend responded successfully, but the catalog is still empty.
+        The backend responded successfully, but there is not enough data to fill
+        the Home frame.
       </Text>
     </View>
   );
@@ -213,7 +221,6 @@ function HomeScreen({ navigation }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const { addToCart, totalItems } = useCart();
-  const { isFavourite, toggleFavourite } = useFavourite();
 
   useEffect(() => {
     let isMounted = true;
@@ -256,15 +263,12 @@ function HomeScreen({ navigation }) {
   }
 
   function handleOpenProduct(product) {
-    const normalizedProductId =
-      typeof product?.id === 'string' ? product.id.trim() : '';
-
-    if (!normalizedProductId) {
+    if (!product?.id) {
       return;
     }
 
     navigation.navigate(CUSTOMER_ROUTES.PRODUCT_DETAIL, {
-      productId: normalizedProductId,
+      productId: product.id,
       initialProduct: product,
     });
   }
@@ -285,43 +289,107 @@ function HomeScreen({ navigation }) {
     navigation.navigate(CUSTOMER_ROUTES.EXPLORE);
   }
 
+  const homeData = useMemo(() => buildHomeScreenData(products), [products]);
   const normalizedSearchQuery = normalizeSearchValue(searchQuery);
-  const filteredProducts = products.filter(product => {
-    if (!normalizedSearchQuery) {
-      return true;
-    }
-
-    return `${product.name} ${product.description} ${product.category}`
-      .toLowerCase()
-      .includes(normalizedSearchQuery);
-  });
-
-  const featuredProduct = products[0] || null;
-
-  function renderProductItem({ item }) {
-    return (
-      <ProductCard
-        imageSource={getProductImageSource(item)}
-        isFavourite={isFavourite(item.id)}
-        onAddToCart={handleQuickAddToCart}
-        onPress={handleOpenProduct}
-        onToggleFavourite={toggleFavourite}
-        product={item}
-        style={styles.productCardCell}
-      />
-    );
-  }
+  const exclusiveOffer = filterHomeSectionProducts(
+    homeData.exclusiveOffer,
+    normalizedSearchQuery,
+  );
+  const bestSelling = filterHomeSectionProducts(
+    homeData.bestSelling,
+    normalizedSearchQuery,
+  );
+  const groceries = filterHomeSectionProducts(
+    homeData.groceries,
+    normalizedSearchQuery,
+  );
+  const hasVisibleContent =
+    exclusiveOffer.length > 0 ||
+    bestSelling.length > 0 ||
+    groceries.length > 0 ||
+    !normalizedSearchQuery;
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
-        <FlatList
-          columnWrapperStyle={styles.productRow}
+        <ScrollView
           contentContainerStyle={styles.content}
-          data={filteredProducts}
-          keyExtractor={item => item.id}
           keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <HomeLogo />
+            <Text style={styles.locationLabel}>HCMC, Vietnam</Text>
+          </View>
+
+          <View style={styles.searchBar}>
+            <SearchGlyph />
+            <TextInput
+              onChangeText={setSearchQuery}
+              placeholder="Search Store"
+              placeholderTextColor="#7C7C7C"
+              style={styles.searchInput}
+              value={searchQuery}
+            />
+            {searchQuery.trim() ? (
+              <Pressable onPress={handleResetFilters} style={styles.clearButton}>
+                <Text style={styles.clearButtonLabel}>x</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          <HomeBanner
+            banner={homeData.banner}
+            onPress={() =>
+              homeData.exclusiveOffer[0]
+                ? handleOpenProduct(homeData.exclusiveOffer[0])
+                : null
+            }
+          />
+
+          {hasVisibleContent ? (
+            <>
+              <SectionHeader onSeeAll={handleOpenExplore} title="Exclusive Offer" />
+              <HomeSectionRow
+                items={exclusiveOffer}
+                onAddToCart={handleQuickAddToCart}
+                onOpenProduct={handleOpenProduct}
+              />
+
+              <SectionHeader onSeeAll={handleOpenExplore} title="Best Selling" />
+              <HomeSectionRow
+                items={bestSelling}
+                onAddToCart={handleQuickAddToCart}
+                onOpenProduct={handleOpenProduct}
+              />
+
+              <SectionHeader onSeeAll={handleOpenExplore} title="Groceries" />
+              <ScrollView
+                horizontal
+                contentContainerStyle={styles.horizontalSectionContent}
+                showsHorizontalScrollIndicator={false}
+                style={styles.categoryRow}
+              >
+                {homeData.groceryCategories.map((category, index) => (
+                  <HomeCategoryCard
+                    key={category.id}
+                    category={category}
+                    style={
+                      index === homeData.groceryCategories.length - 1
+                        ? null
+                        : styles.categorySpacing
+                    }
+                  />
+                ))}
+              </ScrollView>
+
+              <HomeGroceriesGrid
+                items={groceries}
+                onAddToCart={handleQuickAddToCart}
+                onOpenProduct={handleOpenProduct}
+              />
+            </>
+          ) : (
             <HomeScreenEmptyState
               errorMessage={errorMessage}
               hasProducts={products.length > 0}
@@ -329,30 +397,15 @@ function HomeScreen({ navigation }) {
               onResetFilters={handleResetFilters}
               onRetry={handleReloadProducts}
             />
-          }
-          ListHeaderComponent={
-            <HomeHeader
-              featuredProduct={featuredProduct}
-              onChangeSearch={setSearchQuery}
-              onClearSearch={handleResetFilters}
-              onOpenFeaturedProduct={() =>
-                featuredProduct ? handleOpenProduct(featuredProduct) : null
-              }
-              onSeeAll={handleOpenExplore}
-              searchQuery={searchQuery}
-            />
-          }
-          numColumns={2}
-          renderItem={renderProductItem}
-          showsVerticalScrollIndicator={false}
-          style={styles.list}
-        />
+          )}
+        </ScrollView>
 
         <View style={styles.bottomNavWrap}>
           <CustomerBottomNav
             activeRoute={CUSTOMER_ROUTES.HOME}
             navigation={navigation}
             totalItems={totalItems}
+            variant="figma"
           />
         </View>
       </View>
@@ -369,95 +422,84 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: HOME_COLORS.screen,
   },
-  list: {
-    flex: 1,
-    backgroundColor: HOME_COLORS.screen,
-  },
   content: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 132,
+    paddingHorizontal: 25,
+    paddingTop: 12,
+    paddingBottom: 130,
   },
   header: {
-    paddingTop: 8,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  logoWrap: {
+    alignItems: 'center',
     marginBottom: 8,
   },
-  locationRow: {
-    marginBottom: 18,
-  },
-  locationInfo: {
-    flexDirection: 'row',
+  logoMark: {
+    width: 34,
+    height: 22,
     alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginBottom: 6,
+    position: 'relative',
   },
-  locationPin: {
-    width: 18,
+  logoLeafLeft: {
+    position: 'absolute',
+    left: 6,
+    top: 2,
+    width: 12,
     height: 18,
-    borderRadius: 9,
-    backgroundColor: HOME_COLORS.accent,
-    transform: [{ rotate: '45deg' }],
-    marginRight: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderTopLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    backgroundColor: '#53B175',
+    transform: [{ rotate: '-18deg' }],
   },
-  locationPinInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: HOME_COLORS.surface,
-    transform: [{ rotate: '-45deg' }],
+  logoLeafRight: {
+    position: 'absolute',
+    right: 6,
+    top: 2,
+    width: 12,
+    height: 18,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    backgroundColor: '#53B175',
+    transform: [{ rotate: '18deg' }],
+  },
+  logoText: {
+    color: HOME_COLORS.text,
+    fontSize: 19,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   locationLabel: {
-    color: HOME_COLORS.muted,
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  locationValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationValue: {
     color: HOME_COLORS.text,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  locationArrow: {
-    color: HOME_COLORS.muted,
     fontSize: 18,
-    marginLeft: 6,
-    marginTop: -2,
+    fontWeight: '700',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: HOME_COLORS.surface,
-    borderRadius: 18,
+    backgroundColor: HOME_COLORS.subtle,
+    borderRadius: 19,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginBottom: 18,
-    shadowColor: HOME_COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-    elevation: 2,
+    minHeight: 52,
+    marginBottom: 20,
   },
   searchGlyph: {
     width: 18,
     height: 18,
+    marginRight: 10,
     position: 'relative',
-    marginRight: 12,
   },
   searchGlyphCircle: {
     position: 'absolute',
-    top: 1,
     left: 1,
+    top: 1,
     width: 11,
     height: 11,
-    borderRadius: 5.5,
     borderWidth: 1.8,
+    borderRadius: 5.5,
+    borderColor: '#181725',
   },
   searchGlyphHandle: {
     position: 'absolute',
@@ -466,118 +508,141 @@ const styles = StyleSheet.create({
     width: 6,
     height: 2,
     borderRadius: 1,
+    backgroundColor: '#181725',
     transform: [{ rotate: '45deg' }],
   },
   searchInput: {
     flex: 1,
     color: HOME_COLORS.text,
-    fontSize: 16,
-    paddingVertical: 9,
+    fontSize: 14,
+    fontWeight: '600',
+    paddingVertical: 14,
   },
-  clearSearchButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#E4DED6',
+  clearButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#C7C7C7',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
-  clearSearchButtonLabel: {
-    color: '#8D877F',
-    fontSize: 18,
-    lineHeight: 18,
-  },
-  promoBanner: {
-    backgroundColor: HOME_COLORS.banner,
-    borderRadius: 28,
-    overflow: 'hidden',
-    minHeight: 176,
-    marginBottom: 24,
-    paddingVertical: 20,
-    paddingLeft: 20,
-    position: 'relative',
-  },
-  promoBannerPressed: {
-    opacity: 0.94,
-  },
-  promoShape: {
-    position: 'absolute',
-    right: -22,
-    top: -12,
-    width: 164,
-    height: 164,
-    borderRadius: 82,
-    backgroundColor: HOME_COLORS.bannerShape,
-  },
-  promoCopy: {
-    width: '54%',
-    zIndex: 1,
-  },
-  promoEyebrow: {
-    color: '#A35A40',
+  clearButtonLabel: {
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginBottom: 8,
+    lineHeight: 14,
   },
-  promoTitle: {
-    color: HOME_COLORS.text,
-    fontSize: 25,
-    fontWeight: '800',
-    lineHeight: 30,
-    marginBottom: 8,
+  banner: {
+    minHeight: 116,
+    borderRadius: 18,
+    backgroundColor: HOME_COLORS.banner,
+    overflow: 'hidden',
+    marginBottom: 28,
+    paddingLeft: 24,
+    justifyContent: 'center',
+    position: 'relative',
   },
-  promoSubtitle: {
-    color: '#6B625A',
-    fontSize: 14,
-    lineHeight: 20,
+  bannerPressed: {
+    opacity: 0.95,
   },
-  promoImage: {
+  bannerCirclePrimary: {
     position: 'absolute',
-    right: -6,
+    right: 42,
+    top: -12,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: HOME_COLORS.bannerAccent,
+    opacity: 0.15,
+  },
+  bannerCircleSecondary: {
+    position: 'absolute',
+    left: 138,
+    bottom: -18,
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: HOME_COLORS.bannerSoft,
+  },
+  bannerCopy: {
+    width: '52%',
+    zIndex: 1,
+  },
+  bannerTitle: {
+    color: HOME_COLORS.text,
+    fontSize: 19,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  bannerSubtitle: {
+    color: '#FC5A5A',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 6,
+  },
+  bannerImage: {
+    position: 'absolute',
+    right: 8,
     bottom: 0,
-    width: 190,
-    height: 170,
+    width: 158,
+    height: 108,
   },
   sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 18,
   },
   sectionTitle: {
     color: HOME_COLORS.text,
     fontSize: 24,
-    fontWeight: '800',
-  },
-  seeAllText: {
-    color: HOME_COLORS.accent,
-    fontSize: 14,
     fontWeight: '700',
+    lineHeight: 29,
   },
-  productRow: {
+  sectionLink: {
+    color: HOME_COLORS.accent,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  horizontalSectionContent: {
+    paddingRight: 25,
+  },
+  productCardSpacing: {
+    marginRight: 15,
+  },
+  categoryRow: {
+    marginBottom: 22,
+  },
+  categorySpacing: {
+    marginRight: 15,
+  },
+  groceriesGrid: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  productCardCell: {
-    flexBasis: '48%',
-    maxWidth: '48%',
+  groceriesCardLeft: {
+    width: '48%',
+  },
+  groceriesCardRight: {
+    width: '48%',
   },
   emptyCard: {
     backgroundColor: HOME_COLORS.surface,
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 24,
     alignItems: 'center',
-    marginTop: 12,
+    borderWidth: 1,
+    borderColor: HOME_COLORS.border,
   },
   emptyTitle: {
     color: HOME_COLORS.text,
     fontSize: 22,
     fontWeight: '700',
-    marginBottom: 8,
     textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 8,
   },
   emptySubtitle: {
     color: HOME_COLORS.muted,
@@ -585,17 +650,14 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
   },
-  emptyActionSpacer: {
+  emptySpacer: {
     height: 16,
-  },
-  loadingSpacer: {
-    height: 14,
   },
   bottomNavWrap: {
     position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 18,
+    left: 25,
+    right: 25,
+    bottom: 16,
   },
 });
 

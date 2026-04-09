@@ -180,11 +180,11 @@ function CartScreen({ navigation }) {
               android_ripple={{ color: '#D1383D' }}
               onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
               style={({ pressed }) => [
-                styles.checkoutButton,
-                pressed && styles.checkoutButtonPressed,
+                styles.emptyStateButton,
+                pressed && styles.emptyStateButtonPressed,
               ]}
             >
-              <Text style={styles.checkoutButtonLabel}>Continue Shopping</Text>
+              <Text style={styles.emptyStateButtonLabel}>Continue Shopping</Text>
             </Pressable>
           </View>
         )}
@@ -372,6 +372,33 @@ const styles = StyleSheet.create({
     color: CART_COLORS.muted,
     lineHeight: 22,
     marginBottom: 24,
+    textAlign: 'center',
+  },
+  emptyStateButton: {
+    minWidth: 220,
+    backgroundColor: CART_COLORS.accent,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 18,
+    marginTop: 8,
+    shadowColor: CART_COLORS.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  emptyStateButtonPressed: {
+    backgroundColor: CART_COLORS.accentPressed,
+  },
+  emptyStateButtonLabel: {
+    color: CART_COLORS.surface,
+    fontSize: 18,
+    fontWeight: '700',
     textAlign: 'center',
   },
   checkoutButton: {

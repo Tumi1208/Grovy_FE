@@ -5,6 +5,7 @@ import { CUSTOMER_ROUTES } from '../constants/routes';
 import { CartProvider } from '../context/CartContext';
 import { FavouriteProvider } from '../context/FavouriteContext';
 import AccountScreen from '../screens/customer/AccountScreen';
+import CategoryProductsScreen from '../screens/customer/CategoryProductsScreen';
 import CartScreen from '../screens/customer/CartScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
 import ExploreScreen from '../screens/customer/ExploreScreen';
@@ -42,6 +43,11 @@ function CustomerNavigator() {
           <Stack.Screen
             name={CUSTOMER_ROUTES.EXPLORE}
             component={ExploreScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name={CUSTOMER_ROUTES.CATEGORY_PRODUCTS}
+            component={CategoryProductsScreen}
             options={{ headerShown: false }}
           />
           <Stack.Screen

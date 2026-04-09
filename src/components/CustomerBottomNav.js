@@ -84,6 +84,7 @@ function BottomNavigationItem({
   icon,
   label,
   onPress,
+  variant = 'default',
 }) {
   return (
     <Pressable
@@ -91,6 +92,7 @@ function BottomNavigationItem({
       onPress={onPress}
       style={({ pressed }) => [
         styles.navItem,
+        variant === 'figma' && styles.navItemFigma,
         pressed && styles.navItemPressed,
       ]}
     >
@@ -107,7 +109,12 @@ function BottomNavigationItem({
   );
 }
 
-function CustomerBottomNav({ activeRoute, navigation, totalItems = 0 }) {
+function CustomerBottomNav({
+  activeRoute,
+  navigation,
+  totalItems = 0,
+  variant = 'default',
+}) {
   const items = [
     {
       route: CUSTOMER_ROUTES.HOME,
@@ -146,7 +153,7 @@ function CustomerBottomNav({ activeRoute, navigation, totalItems = 0 }) {
   }
 
   return (
-    <View style={styles.navBar}>
+    <View style={[styles.navBar, variant === 'figma' && styles.navBarFigma]}>
       {items.map(item => {
         const isActive = activeRoute === item.route;
 
@@ -158,6 +165,7 @@ function CustomerBottomNav({ activeRoute, navigation, totalItems = 0 }) {
             icon={item.renderIcon(isActive)}
             label={item.label}
             onPress={() => handleNavigate(item.route)}
+            variant={variant}
           />
         );
       })}
@@ -183,12 +191,30 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 5,
   },
+  navBarFigma: {
+    borderRadius: 18,
+    paddingHorizontal: 6,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 60,
     borderRadius: 18,
+  },
+  navItemFigma: {
+    minHeight: 54,
+    borderRadius: 12,
   },
   navItemPressed: {
     opacity: 0.9,

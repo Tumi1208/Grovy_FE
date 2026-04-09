@@ -1,25 +1,28 @@
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import { useCart } from '../../context/CartContext';
 
 const PLACEHOLDER_CONTENT = Object.freeze({
   [CUSTOMER_ROUTES.EXPLORE]: {
-    title: 'Find Products',
+    title: 'Explore',
     subtitle:
-      'Explore tab placeholder. This screen is separated from Home so the colorful category-block style can be built here later without leaking into Home.',
+      'This tab is wired correctly for demo. The full Explore layout can be added in a later step without affecting the main shopping flow.',
+    ctaLabel: 'Back to Shop',
   },
   [CUSTOMER_ROUTES.FAVOURITE]: {
     title: 'Favourite',
     subtitle:
-      'Favourite tab placeholder. Navigation is wired so the bottom nav can move here correctly.',
+      'Favourite is still a placeholder, but the bottom navigation state and route are already working correctly.',
+    ctaLabel: 'Go to Shop',
   },
   [CUSTOMER_ROUTES.ACCOUNT]: {
     title: 'Account',
     subtitle:
-      'Account tab placeholder. This keeps the bottom nav flow working before the full screen is implemented.',
+      'Account is kept simple for now so the customer demo flow stays stable and easy to present.',
+    ctaLabel: 'Continue Shopping',
   },
 });
 
@@ -28,14 +31,30 @@ function PlaceholderTabScreen({ navigation, route }) {
   const content = PLACEHOLDER_CONTENT[route.name] || {
     title: 'Coming Soon',
     subtitle: 'This screen is not implemented yet.',
+    ctaLabel: 'Back to Shop',
   };
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
         <View style={styles.content}>
-          <Text style={styles.title}>{content.title}</Text>
-          <Text style={styles.subtitle}>{content.subtitle}</Text>
+          <View style={styles.card}>
+            <View style={styles.pill}>
+              <Text style={styles.pillLabel}>Placeholder</Text>
+            </View>
+            <Text style={styles.title}>{content.title}</Text>
+            <Text style={styles.subtitle}>{content.subtitle}</Text>
+            <Pressable
+              android_ripple={{ color: '#D1383D' }}
+              onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.primaryButtonPressed,
+              ]}
+            >
+              <Text style={styles.primaryButtonLabel}>{content.ctaLabel}</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.bottomNavWrap}>
@@ -65,6 +84,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 96,
   },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: '#EEE7DF',
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+  },
+  pill: {
+    alignSelf: 'center',
+    backgroundColor: '#F7F2EB',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginBottom: 18,
+  },
+  pillLabel: {
+    color: '#7F7870',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
   title: {
     color: '#211A16',
     fontSize: 30,
@@ -77,6 +119,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',
+    marginBottom: 24,
+  },
+  primaryButton: {
+    backgroundColor: '#D71920',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+  },
+  primaryButtonPressed: {
+    opacity: 0.9,
+  },
+  primaryButtonLabel: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
   },
   bottomNavWrap: {
     position: 'absolute',

@@ -58,18 +58,18 @@ function CustomerNavigator() {
         <Stack.Screen
           name={CUSTOMER_ROUTES.CART}
           component={CartScreen}
-          options={{ title: 'Cart' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name={CUSTOMER_ROUTES.CHECKOUT}
           component={CheckoutScreen}
-          options={{ title: 'Checkout' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name={CUSTOMER_ROUTES.ORDER_SUCCESS}
           component={OrderSuccessScreen}
           options={{
-            title: 'Order Success',
+            headerShown: false,
             headerBackVisible: false,
             gestureEnabled: false,
           }}

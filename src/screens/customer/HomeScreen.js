@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   Pressable,
@@ -156,6 +157,8 @@ function HomeScreenEmptyState({
   if (isLoading) {
     return (
       <View style={styles.emptyCard}>
+        <ActivityIndicator color={HOME_COLORS.accent} size="small" />
+        <View style={styles.loadingSpacer} />
         <Text style={styles.emptyTitle}>Loading products...</Text>
         <Text style={styles.emptySubtitle}>
           Pulling the latest catalog from the backend.
@@ -306,7 +309,7 @@ function HomeScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
         <FlatList
           columnWrapperStyle={styles.productRow}
@@ -580,6 +583,9 @@ const styles = StyleSheet.create({
   },
   emptyActionSpacer: {
     height: 16,
+  },
+  loadingSpacer: {
+    height: 14,
   },
   bottomNavWrap: {
     position: 'absolute',

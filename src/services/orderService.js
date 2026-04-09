@@ -4,6 +4,16 @@ function roundCurrencyAmount(value) {
   return Number(Number(value || 0).toFixed(2));
 }
 
+function buildLocalOrder(orderPayload = {}) {
+  return {
+    id: `local-order-${Date.now()}`,
+    status: 'accepted',
+    source: 'local-fallback',
+    ...orderPayload,
+    totalAmount: roundCurrencyAmount(orderPayload.totalAmount),
+  };
+}
+
 export function buildCreateOrderPayload({
   customerId = null,
   customerName,
@@ -32,4 +42,21 @@ export function createOrder(orderPayload) {
     method: 'POST',
     body: JSON.stringify(orderPayload),
   });
+}
+
+export async function submitOrder(orderPayload) {
+  try {
+    const order = await createOrder(orderPayload);
+
+    return {
+      order,
+      mode: 'api',
+    };
+  } catch (error) {
+    return {
+      order: buildLocalOrder(orderPayload),
+      mode: 'local',
+      fallbackReason: error.message || 'Could not reach order API.',
+    };
+  }
 }

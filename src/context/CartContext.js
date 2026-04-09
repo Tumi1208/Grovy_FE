@@ -103,6 +103,36 @@ export function CartProvider({ children }) {
         type: 'UPDATE_QUANTITY',
         payload: { productId, quantity },
       }),
+    increaseQuantity: productId => {
+      const item = state.items.find(entry => entry.product.id === productId);
+
+      if (!item) {
+        return;
+      }
+
+      dispatch({
+        type: 'UPDATE_QUANTITY',
+        payload: {
+          productId,
+          quantity: item.quantity + 1,
+        },
+      });
+    },
+    decreaseQuantity: productId => {
+      const item = state.items.find(entry => entry.product.id === productId);
+
+      if (!item) {
+        return;
+      }
+
+      dispatch({
+        type: 'UPDATE_QUANTITY',
+        payload: {
+          productId,
+          quantity: item.quantity - 1,
+        },
+      });
+    },
     removeFromCart: productId =>
       dispatch({
         type: 'REMOVE_FROM_CART',

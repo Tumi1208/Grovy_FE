@@ -208,7 +208,7 @@ function HomeScreen({ navigation }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const { totalItems } = useCart();
+  const { addToCart, totalItems } = useCart();
 
   useEffect(() => {
     let isMounted = true;
@@ -264,6 +264,14 @@ function HomeScreen({ navigation }) {
     });
   }
 
+  function handleQuickAddToCart(product) {
+    if (!product?.id) {
+      return;
+    }
+
+    addToCart(product, 1);
+  }
+
   function handleResetFilters() {
     setSearchQuery('');
   }
@@ -289,6 +297,7 @@ function HomeScreen({ navigation }) {
     return (
       <ProductCard
         imageSource={getProductImageSource(item)}
+        onAddToCart={handleQuickAddToCart}
         onPress={handleOpenProduct}
         product={item}
         style={styles.productCardCell}

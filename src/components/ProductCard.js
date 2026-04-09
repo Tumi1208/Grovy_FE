@@ -2,60 +2,9 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import ProductImage from './ProductImage';
 import { formatCurrency } from '../utils/formatCurrency';
+import { getProductSubtitle } from '../utils/productPresentation';
 
-const CATEGORY_VARIANT_MAP = Object.freeze({
-  beverages: '1 bottle',
-  dairyandeggs: '1 tray',
-  fruits: '1 kg',
-  meat: '1 pack',
-  pantry: '1 pack',
-  vegetables: '1 kg',
-});
-
-function normalizeLookupKey(value) {
-  return typeof value === 'string' && value.trim()
-    ? value
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '')
-    : '';
-}
-
-function extractVariantFromText(value = '') {
-  const match = value.match(
-    /(\d+\s?(?:kg|g|mg|l|ml|pcs?|pieces?|pack|packs|bottle|bottles))/i,
-  );
-
-  return match ? match[1] : '';
-}
-
-function getProductSubtitle(product = {}) {
-  const variantFromName = extractVariantFromText(product.name);
-
-  if (variantFromName) {
-    return variantFromName;
-  }
-
-  if (/bunch/i.test(product.name)) {
-    return '1 bunch';
-  }
-
-  if (/root/i.test(product.name)) {
-    return '1 root';
-  }
-
-  if (/can/i.test(product.name)) {
-    return '1 can';
-  }
-
-  if (/juice/i.test(product.name)) {
-    return '1 bottle';
-  }
-
-  return CATEGORY_VARIANT_MAP[normalizeLookupKey(product.category)] || '1 pc';
-}
-
-function ProductCard({ imageSource, onPress, product, style }) {
+function ProductCard({ imageSource, onAddToCart, onPress, product, style }) {
   const subtitle = getProductSubtitle(product);
 
   return (
@@ -89,9 +38,20 @@ function ProductCard({ imageSource, onPress, product, style }) {
         <View style={styles.footerRow}>
           <Text style={styles.price}>{formatCurrency(product.price)}</Text>
 
-          <View style={styles.actionBadge}>
+          <Pressable
+            android_ripple={{ color: '#C31B22' }}
+            hitSlop={6}
+            onPress={event => {
+              event.stopPropagation();
+              onAddToCart?.(product);
+            }}
+            style={({ pressed }) => [
+              styles.actionBadge,
+              pressed && styles.actionBadgePressed,
+            ]}
+          >
             <Text style={styles.actionBadgeLabel}>+</Text>
-          </View>
+          </Pressable>
         </View>
       </View>
     </Pressable>
@@ -167,6 +127,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#D71920',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  actionBadgePressed: {
+    opacity: 0.9,
   },
   actionBadgeLabel: {
     color: '#FFFFFF',

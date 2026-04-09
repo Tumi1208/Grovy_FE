@@ -3,11 +3,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { COLORS } from '../constants/colors';
 import { CUSTOMER_ROUTES } from '../constants/routes';
 import { CartProvider } from '../context/CartContext';
+import AccountScreen from '../screens/customer/AccountScreen';
 import CartScreen from '../screens/customer/CartScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
+import ExploreScreen from '../screens/customer/ExploreScreen';
+import FavouriteScreen from '../screens/customer/FavouriteScreen';
 import HomeScreen from '../screens/customer/HomeScreen';
 import OrderSuccessScreen from '../screens/customer/OrderSuccessScreen';
-import PlaceholderTabScreen from '../screens/customer/PlaceholderTabScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
 
 const Stack = createNativeStackNavigator();
@@ -37,17 +39,17 @@ function CustomerNavigator() {
         />
         <Stack.Screen
           name={CUSTOMER_ROUTES.EXPLORE}
-          component={PlaceholderTabScreen}
+          component={ExploreScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen
           name={CUSTOMER_ROUTES.FAVOURITE}
-          component={PlaceholderTabScreen}
+          component={FavouriteScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen
           name={CUSTOMER_ROUTES.ACCOUNT}
-          component={PlaceholderTabScreen}
+          component={AccountScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

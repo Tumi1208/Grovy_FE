@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +21,7 @@ import {
   EXPLORE_CATEGORY_CARDS,
 } from '../../data/customerTabsData';
 import { useCart } from '../../context/CartContext';
+import { getProducts } from '../../services/productService';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 const EXPLORE_COLORS = Object.freeze({
@@ -45,6 +47,45 @@ function ExploreScreen({ navigation }) {
   const { totalItems } = useCart();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Fruits');
+  const [products, setProducts] = useState(CUSTOMER_DEMO_PRODUCTS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProducts() {
+      if (isMounted) {
+        setIsLoading(true);
+        setErrorMessage('');
+      }
+
+      try {
+        const items = await getProducts();
+
+        if (isMounted) {
+          setProducts(items.length > 0 ? items : CUSTOMER_DEMO_PRODUCTS);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setProducts(CUSTOMER_DEMO_PRODUCTS);
+          setErrorMessage(
+            error.message || 'Could not load products for search.',
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -58,12 +99,29 @@ function ExploreScreen({ navigation }) {
     );
   }, [normalizedQuery]);
 
-  const visibleProducts = useMemo(
-    () =>
-      CUSTOMER_DEMO_PRODUCTS.filter(product => product.category === selectedCategory)
-        .slice(0, 4),
-    [selectedCategory],
-  );
+  const visibleProducts = useMemo(() => {
+    const categoryMatchedProducts = products.filter(
+      product => product.category === selectedCategory,
+    );
+
+    if (!normalizedQuery) {
+      return categoryMatchedProducts;
+    }
+
+    return products.filter(product =>
+      `${product.name} ${product.category} ${product.description}`
+        .toLowerCase()
+        .includes(normalizedQuery),
+    );
+  }, [normalizedQuery, products, selectedCategory]);
+
+  const showSearchResults = normalizedQuery.length > 0;
+  const sectionTitle = showSearchResults ? 'Search Results' : selectedCategory;
+  const hasNoProductResults = !isLoading && visibleProducts.length === 0;
+
+  function handleClearSearch() {
+    setSearchQuery('');
+  }
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -83,41 +141,55 @@ function ExploreScreen({ navigation }) {
               style={styles.searchInput}
               value={searchQuery}
             />
+            {normalizedQuery ? (
+              <Pressable
+                android_ripple={{ color: '#EFE8E1' }}
+                onPress={handleClearSearch}
+                style={({ pressed }) => [
+                  styles.clearSearchButton,
+                  pressed && styles.clearSearchButtonPressed,
+                ]}
+              >
+                <Text style={styles.clearSearchButtonLabel}>×</Text>
+              </Pressable>
+            ) : null}
           </View>
 
-          <View style={styles.categoryGrid}>
-            {filteredCategories.map(card => {
-              const isSelected = selectedCategory === card.category;
+          {!showSearchResults ? (
+            <View style={styles.categoryGrid}>
+              {filteredCategories.map(card => {
+                const isSelected = selectedCategory === card.category;
 
-              return (
-                <Pressable
-                  key={card.id}
-                  android_ripple={{ color: '#EFE8E1' }}
-                  onPress={() => setSelectedCategory(card.category)}
-                  style={({ pressed }) => [
-                    styles.categoryCard,
-                    {
-                      backgroundColor: card.backgroundColor,
-                      borderColor: isSelected
-                        ? EXPLORE_COLORS.accent
-                        : card.borderColor,
-                    },
-                    pressed && styles.categoryCardPressed,
-                  ]}
-                >
-                  <ProductImage
-                    name={card.title}
-                    resizeMode="contain"
-                    source={getCategoryFallbackImage(card.category)}
-                    style={styles.categoryImage}
-                  />
-                  <Text style={styles.categoryLabel}>{card.title}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                return (
+                  <Pressable
+                    key={card.id}
+                    android_ripple={{ color: '#EFE8E1' }}
+                    onPress={() => setSelectedCategory(card.category)}
+                    style={({ pressed }) => [
+                      styles.categoryCard,
+                      {
+                        backgroundColor: card.backgroundColor,
+                        borderColor: isSelected
+                          ? EXPLORE_COLORS.accent
+                          : card.borderColor,
+                      },
+                      pressed && styles.categoryCardPressed,
+                    ]}
+                  >
+                    <ProductImage
+                      name={card.title}
+                      resizeMode="contain"
+                      source={getCategoryFallbackImage(card.category)}
+                      style={styles.categoryImage}
+                    />
+                    <Text style={styles.categoryLabel}>{card.title}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
 
-          {filteredCategories.length === 0 ? (
+          {!showSearchResults && filteredCategories.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateTitle}>No categories found</Text>
               <Text style={styles.emptyStateSubtitle}>
@@ -127,13 +199,53 @@ function ExploreScreen({ navigation }) {
           ) : null}
 
           <View style={styles.previewHeader}>
-            <Text style={styles.previewTitle}>{selectedCategory}</Text>
-            <Pressable onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}>
-              <Text style={styles.previewLink}>Open Shop</Text>
-            </Pressable>
+            <Text style={styles.previewTitle}>{sectionTitle}</Text>
+            {showSearchResults ? (
+              <Text style={styles.resultCount}>{visibleProducts.length} item(s)</Text>
+            ) : (
+              <Pressable onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}>
+                <Text style={styles.previewLink}>Open Shop</Text>
+              </Pressable>
+            )}
           </View>
 
-          {visibleProducts.map(product => (
+          {isLoading ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator color={EXPLORE_COLORS.accent} size="small" />
+              <Text style={styles.loadingText}>Loading products...</Text>
+            </View>
+          ) : null}
+
+          {errorMessage ? (
+            <View style={styles.infoBanner}>
+              <Text style={styles.infoBannerText}>
+                {errorMessage} Showing the local demo catalog instead.
+              </Text>
+            </View>
+          ) : null}
+
+          {hasNoProductResults ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateTitle}>No products found</Text>
+              <Text style={styles.emptyStateSubtitle}>
+                Try a different keyword or clear the current search.
+              </Text>
+              <Pressable
+                android_ripple={{ color: '#D1383D' }}
+                onPress={handleClearSearch}
+                style={({ pressed }) => [
+                  styles.emptyStateButton,
+                  pressed && styles.emptyStateButtonPressed,
+                ]}
+              >
+                <Text style={styles.emptyStateButtonLabel}>Clear Search</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {!hasNoProductResults &&
+            !isLoading &&
+            visibleProducts.map(product => (
             <Pressable
               key={product.id}
               android_ripple={{ color: '#F2ECE5' }}
@@ -168,7 +280,7 @@ function ExploreScreen({ navigation }) {
                 {formatCurrency(product.price)}
               </Text>
             </Pressable>
-          ))}
+            ))}
         </ScrollView>
 
         <View style={styles.bottomNavWrap}>
@@ -250,6 +362,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingVertical: 8,
   },
+  clearSearchButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E8DFD6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  clearSearchButtonPressed: {
+    opacity: 0.88,
+  },
+  clearSearchButtonLabel: {
+    color: EXPLORE_COLORS.muted,
+    fontSize: 18,
+    lineHeight: 18,
+  },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -314,10 +443,37 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
   },
+  resultCount: {
+    color: EXPLORE_COLORS.muted,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   previewLink: {
     color: EXPLORE_COLORS.accent,
     fontSize: 14,
     fontWeight: '700',
+  },
+  loadingState: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loadingText: {
+    color: EXPLORE_COLORS.muted,
+    fontSize: 14,
+    marginLeft: 10,
+  },
+  infoBanner: {
+    backgroundColor: '#FFF2F2',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
+  },
+  infoBannerText: {
+    color: EXPLORE_COLORS.accent,
+    fontSize: 13,
+    lineHeight: 20,
   },
   productRow: {
     flexDirection: 'row',
@@ -365,6 +521,21 @@ const styles = StyleSheet.create({
     color: EXPLORE_COLORS.text,
     fontSize: 16,
     fontWeight: '800',
+  },
+  emptyStateButton: {
+    marginTop: 16,
+    backgroundColor: EXPLORE_COLORS.accent,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  emptyStateButtonPressed: {
+    opacity: 0.9,
+  },
+  emptyStateButtonLabel: {
+    color: EXPLORE_COLORS.surface,
+    fontSize: 15,
+    fontWeight: '700',
   },
   bottomNavWrap: {
     position: 'absolute',

@@ -16,6 +16,7 @@ import PrimaryButton from '../../components/PrimaryButton';
 import ProductCard from '../../components/ProductCard';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import { useCart } from '../../context/CartContext';
+import { useFavourite } from '../../context/FavouriteContext';
 import { getProducts } from '../../services/productService';
 
 const PROMO_BANNER_IMAGE = require('../../assets/images/products/Vegetable-Bag copy.png');
@@ -212,6 +213,7 @@ function HomeScreen({ navigation }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const { addToCart, totalItems } = useCart();
+  const { isFavourite, toggleFavourite } = useFavourite();
 
   useEffect(() => {
     let isMounted = true;
@@ -300,8 +302,10 @@ function HomeScreen({ navigation }) {
     return (
       <ProductCard
         imageSource={getProductImageSource(item)}
+        isFavourite={isFavourite(item.id)}
         onAddToCart={handleQuickAddToCart}
         onPress={handleOpenProduct}
+        onToggleFavourite={toggleFavourite}
         product={item}
         style={styles.productCardCell}
       />

@@ -1,15 +1,12 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProductImageSource } from '../../assets/productImages';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
-import {
-  CUSTOMER_DEMO_PRODUCTS,
-  FAVOURITE_PRODUCT_IDS,
-} from '../../data/customerTabsData';
 import { useCart } from '../../context/CartContext';
+import { useFavourite } from '../../context/FavouriteContext';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getProductSubtitle } from '../../utils/productPresentation';
 
@@ -24,13 +21,7 @@ const FAVOURITE_COLORS = Object.freeze({
 
 function FavouriteScreen({ navigation }) {
   const { totalItems } = useCart();
-  const favouriteProducts = useMemo(
-    () =>
-      CUSTOMER_DEMO_PRODUCTS.filter(product =>
-        FAVOURITE_PRODUCT_IDS.includes(product.id),
-      ),
-    [],
-  );
+  const { favourites, removeFromFavourites } = useFavourite();
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -41,44 +32,75 @@ function FavouriteScreen({ navigation }) {
         >
           <Text style={styles.title}>Favourite</Text>
 
-          {favouriteProducts.map(product => (
-            <Pressable
-              key={product.id}
-              android_ripple={{ color: '#F2ECE5' }}
-              onPress={() =>
-                navigation.navigate(CUSTOMER_ROUTES.PRODUCT_DETAIL, {
-                  productId: product.id,
-                  initialProduct: product,
-                })
-              }
-              style={({ pressed }) => [
-                styles.row,
-                pressed && styles.rowPressed,
-              ]}
-            >
-              <View style={styles.imageWrap}>
-                <ProductImage
-                  name={product.name}
-                  resizeMode="contain"
-                  source={getProductImageSource(product)}
-                  style={styles.image}
-                />
-              </View>
+          {favourites.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>No favourites yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Tap the heart on a product card or detail screen to save it here.
+              </Text>
+              <Pressable
+                android_ripple={{ color: '#D1383D' }}
+                onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  pressed && styles.primaryButtonPressed,
+                ]}
+              >
+                <Text style={styles.primaryButtonLabel}>Go to Shop</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
-              <View style={styles.copy}>
-                <Text numberOfLines={1} style={styles.name}>
-                  {product.name}
-                </Text>
-                <Text numberOfLines={1} style={styles.meta}>
-                  {getProductSubtitle(product)}
-                </Text>
-              </View>
+          {favourites.map(product => (
+            <View key={product.id} style={styles.row}>
+              <Pressable
+                android_ripple={{ color: '#F2ECE5' }}
+                onPress={() =>
+                  navigation.navigate(CUSTOMER_ROUTES.PRODUCT_DETAIL, {
+                    productId: product.id,
+                    initialProduct: product,
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.rowMain,
+                  pressed && styles.rowPressed,
+                ]}
+              >
+                <View style={styles.imageWrap}>
+                  <ProductImage
+                    name={product.name}
+                    resizeMode="contain"
+                    source={getProductImageSource(product)}
+                    style={styles.image}
+                  />
+                </View>
 
-              <View style={styles.priceWrap}>
-                <Text style={styles.price}>{formatCurrency(product.price)}</Text>
-                <Text style={styles.chevron}>{'>'}</Text>
-              </View>
-            </Pressable>
+                <View style={styles.copy}>
+                  <Text numberOfLines={1} style={styles.name}>
+                    {product.name}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.meta}>
+                    {getProductSubtitle(product)}
+                  </Text>
+                </View>
+
+                <View style={styles.priceWrap}>
+                  <Text style={styles.price}>{formatCurrency(product.price)}</Text>
+                  <Text style={styles.chevron}>{'>'}</Text>
+                </View>
+              </Pressable>
+
+              <Pressable
+                android_ripple={{ color: '#F2ECE5' }}
+                onPress={() => removeFromFavourites(product.id)}
+                style={({ pressed }) => [
+                  styles.removeButton,
+                  pressed && styles.removeButtonPressed,
+                ]}
+              >
+                <Text style={styles.removeButtonIcon}>♥</Text>
+              </Pressable>
+            </View>
           ))}
         </ScrollView>
 
@@ -114,7 +136,53 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginBottom: 20,
   },
+  emptyState: {
+    backgroundColor: FAVOURITE_COLORS.surface,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: FAVOURITE_COLORS.border,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    color: FAVOURITE_COLORS.text,
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    color: FAVOURITE_COLORS.muted,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  primaryButton: {
+    minWidth: 180,
+    backgroundColor: FAVOURITE_COLORS.accent,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  primaryButtonPressed: {
+    opacity: 0.9,
+  },
+  primaryButtonLabel: {
+    color: FAVOURITE_COLORS.surface,
+    fontSize: 17,
+    fontWeight: '700',
+  },
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rowMain: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: FAVOURITE_COLORS.surface,
@@ -123,7 +191,6 @@ const styles = StyleSheet.create({
     borderColor: FAVOURITE_COLORS.border,
     paddingHorizontal: 14,
     paddingVertical: 14,
-    marginBottom: 12,
   },
   rowPressed: {
     opacity: 0.94,
@@ -169,6 +236,23 @@ const styles = StyleSheet.create({
     color: FAVOURITE_COLORS.muted,
     fontSize: 18,
     fontWeight: '700',
+  },
+  removeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFE7E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  removeButtonPressed: {
+    opacity: 0.86,
+  },
+  removeButtonIcon: {
+    color: FAVOURITE_COLORS.accent,
+    fontSize: 18,
+    lineHeight: 18,
   },
   bottomNavWrap: {
     position: 'absolute',

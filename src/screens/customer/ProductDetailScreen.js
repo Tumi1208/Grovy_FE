@@ -14,6 +14,7 @@ import PrimaryButton from '../../components/PrimaryButton';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import { useCart } from '../../context/CartContext';
+import { useFavourite } from '../../context/FavouriteContext';
 import { getProductDetailById } from '../../services/productService';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getProductSubtitle } from '../../utils/productPresentation';
@@ -123,6 +124,7 @@ function ProductDetailScreen({ navigation, route }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [expandedSection, setExpandedSection] = useState('details');
   const { addToCart } = useCart();
+  const { isFavourite, toggleFavourite } = useFavourite();
 
   useEffect(() => {
     setQuantity(MIN_QUANTITY);
@@ -256,6 +258,7 @@ function ProductDetailScreen({ navigation, route }) {
     isOutOfStock || (product.stock > 0 && quantity >= product.stock);
   const productSubtitle = getProductSubtitle(product);
   const totalPriceLabel = formatCurrency(product.price * quantity);
+  const favouriteActive = isFavourite(product.id);
   const nutritionValue =
     product.category?.toLowerCase() === 'beverages' ? '100ml' : '100gr';
   const nutritionDescription =
@@ -317,9 +320,23 @@ function ProductDetailScreen({ navigation, route }) {
                 <Text style={styles.productSubtitle}>{productSubtitle}</Text>
               </View>
 
-              <View style={styles.favouriteButton}>
-                <Text style={styles.favouriteIcon}>♡</Text>
-              </View>
+              <Pressable
+                android_ripple={{ color: '#F4EEE7' }}
+                onPress={() => toggleFavourite(product)}
+                style={[
+                  styles.favouriteButton,
+                  favouriteActive && styles.favouriteButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.favouriteIcon,
+                    favouriteActive && styles.favouriteIconActive,
+                  ]}
+                >
+                  {favouriteActive ? '♥' : '♡'}
+                </Text>
+              </Pressable>
             </View>
 
             <View style={styles.quantityPriceRow}>
@@ -542,10 +559,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  favouriteButtonActive: {
+    backgroundColor: '#FFE7E6',
+    borderColor: '#F5C8C6',
+  },
   favouriteIcon: {
-    color: DETAIL_COLORS.text,
+    color: DETAIL_COLORS.mutedText,
     fontSize: 18,
     lineHeight: 20,
+  },
+  favouriteIconActive: {
+    color: DETAIL_COLORS.accent,
   },
   productName: {
     color: DETAIL_COLORS.text,

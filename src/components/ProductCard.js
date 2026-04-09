@@ -4,7 +4,15 @@ import ProductImage from './ProductImage';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getProductSubtitle } from '../utils/productPresentation';
 
-function ProductCard({ imageSource, onAddToCart, onPress, product, style }) {
+function ProductCard({
+  imageSource,
+  isFavourite = false,
+  onAddToCart,
+  onPress,
+  onToggleFavourite,
+  product,
+  style,
+}) {
   const subtitle = getProductSubtitle(product);
 
   return (
@@ -18,6 +26,29 @@ function ProductCard({ imageSource, onAddToCart, onPress, product, style }) {
       ]}
     >
       <View style={styles.imagePanel}>
+        <Pressable
+          android_ripple={{ color: '#EFE7DF' }}
+          hitSlop={6}
+          onPress={event => {
+            event.stopPropagation();
+            onToggleFavourite?.(product);
+          }}
+          style={({ pressed }) => [
+            styles.favouriteButton,
+            isFavourite && styles.favouriteButtonActive,
+            pressed && styles.favouriteButtonPressed,
+          ]}
+        >
+          <Text
+            style={[
+              styles.favouriteIcon,
+              isFavourite && styles.favouriteIconActive,
+            ]}
+          >
+            {isFavourite ? '♥' : '♡'}
+          </Text>
+        </Pressable>
+
         <ProductImage
           name={product.name}
           resizeMode="contain"
@@ -86,6 +117,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 12,
     minHeight: 120,
+    position: 'relative',
+  },
+  favouriteButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  favouriteButtonActive: {
+    backgroundColor: '#FFE7E6',
+  },
+  favouriteButtonPressed: {
+    opacity: 0.88,
+  },
+  favouriteIcon: {
+    color: '#8A8178',
+    fontSize: 16,
+    lineHeight: 16,
+  },
+  favouriteIconActive: {
+    color: '#D71920',
   },
   image: {
     width: '100%',

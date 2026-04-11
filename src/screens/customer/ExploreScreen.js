@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryFallbackImage } from '../../assets/productImages';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
+import ChevronIcon from '../../components/icons/ChevronIcon';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -59,7 +60,9 @@ function ExploreCategoryCard({ card, itemCount, onPress }) {
           <View style={styles.categoryCountPill}>
             <Text style={styles.categoryCountLabel}>{itemCount} items</Text>
           </View>
-          <Text style={styles.categoryAction}>{'>'}</Text>
+          <View style={styles.categoryIndicator}>
+            <ChevronIcon color={UI_COLORS.mutedStrong} size={10} />
+          </View>
         </View>
 
         <Text style={styles.categoryLabel}>{card.title}</Text>
@@ -187,15 +190,15 @@ function ExploreScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   screen: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
-    paddingTop: UI_LAYOUT.screenTop,
+    paddingTop: 12,
     paddingBottom: 132,
   },
   title: {
@@ -206,8 +209,8 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     marginTop: 8,
-    marginBottom: 20,
-    maxWidth: '88%',
+    marginBottom: 24,
+    maxWidth: '90%',
   },
   searchBar: {
     flexDirection: 'row',
@@ -249,6 +252,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: UI_COLORS.textStrong,
     fontSize: 15,
+    fontWeight: '500',
     paddingVertical: 8,
   },
   clearSearchButton: {
@@ -275,16 +279,14 @@ const styles = StyleSheet.create({
   resultLabel: {
     color: UI_COLORS.mutedStrong,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
     lineHeight: 17,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
   categoryCard: {
-    borderRadius: UI_RADIUS.xxl,
+    borderRadius: 28,
     borderWidth: 1,
-    padding: 18,
-    marginBottom: 14,
+    padding: 20,
+    marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     ...UI_SHADOWS.card,
@@ -300,11 +302,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   categoryCountPill: {
     borderRadius: UI_RADIUS.round,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.38)',
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
@@ -314,16 +318,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 13,
   },
-  categoryAction: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 18,
-    fontWeight: '700',
+  categoryIndicator: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.36)',
+    backgroundColor: 'rgba(255, 255, 255, 0.48)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryLabel: {
     color: UI_COLORS.textStrong,
-    fontSize: 22,
-    fontWeight: '800',
-    lineHeight: 28,
+    fontSize: 21,
+    fontWeight: '700',
+    lineHeight: 27,
   },
   categoryDescription: {
     color: UI_COLORS.mutedStrong,
@@ -332,16 +341,18 @@ const styles = StyleSheet.create({
     maxWidth: '88%',
   },
   categoryImageWrap: {
-    width: 92,
-    height: 92,
+    width: 88,
+    height: 88,
     borderRadius: 26,
-    backgroundColor: 'rgba(255, 255, 255, 0.58)',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   categoryImage: {
-    width: 74,
-    height: 74,
+    width: 70,
+    height: 70,
   },
   emptyState: {
     backgroundColor: UI_COLORS.surface,
@@ -351,6 +362,7 @@ const styles = StyleSheet.create({
     padding: 22,
     marginTop: 8,
     alignItems: 'center',
+    ...UI_SHADOWS.card,
   },
   emptyStateTitle: {
     color: UI_COLORS.textStrong,

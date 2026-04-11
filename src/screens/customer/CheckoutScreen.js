@@ -9,7 +9,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { defaultProductImage } from '../../assets/productImages';
+import {
+  defaultProductImage,
+  getProductImageSource,
+} from '../../assets/productImages';
+import ChevronIcon from '../../components/icons/ChevronIcon';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -65,6 +69,34 @@ function HeaderButton({ children, onPress }) {
     >
       {children}
     </Pressable>
+  );
+}
+
+function OrderPreviewRow({ item }) {
+  return (
+    <View style={styles.previewRow}>
+      <View style={styles.previewImageWrap}>
+        <ProductImage
+          name={item.product.name}
+          resizeMode="contain"
+          source={getProductImageSource(item.product)}
+          style={styles.previewImage}
+        />
+      </View>
+
+      <View style={styles.previewCopy}>
+        <Text numberOfLines={1} style={styles.previewName}>
+          {item.product.name}
+        </Text>
+        <Text style={styles.previewMeta}>
+          {item.quantity} x {formatCurrency(item.product.price)}
+        </Text>
+      </View>
+
+      <Text style={styles.previewPrice}>
+        {formatCurrency(item.product.price * item.quantity)}
+      </Text>
+    </View>
   );
 }
 
@@ -165,7 +197,12 @@ function CheckoutScreen({ navigation }) {
       <View style={styles.screen}>
         <View style={styles.header}>
           <HeaderButton onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>{'<'}</Text>
+            <ChevronIcon
+              color={UI_COLORS.textStrong}
+              direction="left"
+              size={12}
+              strokeWidth={1.9}
+            />
           </HeaderButton>
 
           <View style={styles.headerCopy}>
@@ -180,6 +217,32 @@ function CheckoutScreen({ navigation }) {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.supportRow}>
+            <View style={styles.supportPill}>
+              <Text style={styles.supportPillLabel}>Free delivery</Text>
+            </View>
+            <View style={styles.supportPill}>
+              <Text style={styles.supportPillLabel}>Cash on delivery</Text>
+            </View>
+          </View>
+
+          <View style={styles.previewCard}>
+            <View style={styles.cardHeadingRow}>
+              <Text style={styles.cardTitle}>In your order</Text>
+              <Text style={styles.cardMeta}>{items.length} items</Text>
+            </View>
+
+            {items.slice(0, 3).map(item => (
+              <OrderPreviewRow item={item} key={item.product.id} />
+            ))}
+
+            {items.length > 3 ? (
+              <Text style={styles.previewMoreLabel}>
+                +{items.length - 3} more item{items.length - 3 === 1 ? '' : 's'}
+              </Text>
+            ) : null}
+          </View>
+
           <View style={styles.summaryCard}>
             <Text style={styles.cardTitle}>Order summary</Text>
 
@@ -238,6 +301,10 @@ function CheckoutScreen({ navigation }) {
             <View style={styles.paymentNote}>
               <Text style={styles.paymentNoteLabel}>Payment method</Text>
               <Text style={styles.paymentNoteValue}>Cash on delivery</Text>
+              <Text style={styles.paymentHelpText}>
+                We&apos;ll use your delivery details to place and confirm the
+                order.
+              </Text>
             </View>
           </View>
 
@@ -281,17 +348,17 @@ function CheckoutScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   screen: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: UI_LAYOUT.screenPadding,
-    paddingTop: 10,
+    paddingTop: 12,
     paddingBottom: 16,
   },
   headerButton: {
@@ -308,12 +375,6 @@ const styles = StyleSheet.create({
   headerButtonPressed: {
     opacity: 0.88,
   },
-  backIcon: {
-    color: UI_COLORS.textStrong,
-    fontSize: 22,
-    fontWeight: '700',
-    lineHeight: 22,
-  },
   headerCopy: {
     flex: 1,
   },
@@ -328,11 +389,96 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
-    paddingBottom: 152,
+    paddingBottom: 168,
+  },
+  supportRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 14,
+  },
+  supportPill: {
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderRadius: UI_RADIUS.round,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  supportPillLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
+  previewCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 20,
+    marginBottom: 16,
+    ...UI_SHADOWS.card,
+  },
+  cardHeadingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  cardMeta: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  previewImageWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  previewImage: {
+    width: 38,
+    height: 38,
+  },
+  previewCopy: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  previewName: {
+    color: UI_COLORS.textStrong,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  previewMeta: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  previewPrice: {
+    color: UI_COLORS.textStrong,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  previewMoreLabel: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
+    marginTop: 8,
   },
   summaryCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: UI_RADIUS.xxl,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 20,
@@ -379,7 +525,7 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: UI_RADIUS.xxl,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 20,
@@ -393,8 +539,10 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: UI_LAYOUT.searchHeight,
-    backgroundColor: UI_COLORS.surfaceSoft,
+    backgroundColor: '#FBF8F4',
     borderRadius: UI_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     color: UI_COLORS.textStrong,
     marginBottom: 14,
     paddingHorizontal: 16,
@@ -423,6 +571,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 20,
+  },
+  paymentHelpText: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 8,
   },
   errorBox: {
     backgroundColor: UI_COLORS.errorSoft,
@@ -482,10 +636,10 @@ const styles = StyleSheet.create({
     right: UI_LAYOUT.footerSide,
     bottom: UI_LAYOUT.footerBottom,
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 10,
+    padding: 8,
     flexDirection: 'row',
     alignItems: 'center',
     ...UI_SHADOWS.floating,
@@ -510,7 +664,7 @@ const styles = StyleSheet.create({
     minHeight: UI_LAYOUT.ctaHeight,
     minWidth: 152,
     backgroundColor: UI_COLORS.accentGreen,
-    borderRadius: UI_RADIUS.xl,
+    borderRadius: 18,
     paddingHorizontal: 20,
     paddingVertical: 18,
     alignItems: 'center',

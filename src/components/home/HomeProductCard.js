@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import ProductImage from '../ProductImage';
+import ChevronIcon from '../icons/ChevronIcon';
 import {
   UI_COLORS,
   UI_RADIUS,
@@ -93,15 +94,23 @@ export function HomeCategoryCard({ category, onPress, style }) {
       onPress={() => onPress?.(category)}
       style={({ pressed }) => [
         styles.categoryCard,
-        { backgroundColor: category.backgroundColor, borderColor: category.borderColor },
+        {
+          backgroundColor: category.backgroundColor,
+          borderColor: category.borderColor,
+        },
         style,
         pressed && styles.categoryCardPressed,
       ]}
     >
       <View style={styles.categoryCopy}>
-        <Text numberOfLines={2} style={styles.categoryTitle}>
-          {category.title}
-        </Text>
+        <View style={styles.categoryTitleRow}>
+          <Text numberOfLines={2} style={styles.categoryTitle}>
+            {category.title}
+          </Text>
+          <View style={styles.categoryIndicator}>
+            <ChevronIcon color={UI_COLORS.mutedStrong} size={10} />
+          </View>
+        </View>
         {category.description ? (
           <Text numberOfLines={2} style={styles.categoryDescription}>
             {category.description}
@@ -130,32 +139,32 @@ const styles = StyleSheet.create({
   card: {
     width: 190,
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 24,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 14,
-    minHeight: 244,
+    padding: 15,
+    minHeight: 248,
     ...UI_SHADOWS.card,
   },
   cardPressed: {
     opacity: 0.96,
   },
   imageWrap: {
-    height: 132,
-    borderRadius: 20,
+    height: 136,
+    borderRadius: 22,
     backgroundColor: UI_COLORS.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 17,
     position: 'relative',
-    paddingTop: 24,
+    paddingTop: 26,
     paddingHorizontal: 12,
-    paddingBottom: 12,
+    paddingBottom: 14,
   },
   categoryPill: {
     position: 'absolute',
-    top: 10,
-    left: 10,
+    top: 12,
+    left: 12,
     borderRadius: UI_RADIUS.round,
     backgroundColor: UI_COLORS.surface,
     paddingHorizontal: 10,
@@ -206,9 +215,9 @@ const styles = StyleSheet.create({
     color: UI_COLORS.accentRed,
   },
   addButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 13,
     backgroundColor: UI_COLORS.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',
@@ -221,49 +230,69 @@ const styles = StyleSheet.create({
   },
   addButtonLabel: {
     color: UI_COLORS.surface,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
-    lineHeight: 24,
+    lineHeight: 20,
     marginTop: -1,
   },
   categoryCard: {
-    borderRadius: 24,
+    borderRadius: 26,
     borderWidth: 1,
-    padding: 16,
-    minHeight: 132,
+    padding: 18,
+    minHeight: 138,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    ...UI_SHADOWS.card,
   },
   categoryCardPressed: {
     opacity: 0.95,
   },
   categoryCopy: {
     flex: 1,
-    paddingRight: 16,
+    paddingRight: 18,
+  },
+  categoryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
   categoryTitle: {
+    flex: 1,
     color: UI_COLORS.textStrong,
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 24,
+    paddingRight: 12,
+  },
+  categoryIndicator: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.38)',
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryDescription: {
     color: UI_COLORS.mutedStrong,
     fontSize: 13,
     lineHeight: 18,
-    marginTop: 8,
+    marginTop: 10,
   },
   categoryImageWrap: {
-    width: 74,
-    height: 74,
-    borderRadius: 22,
+    width: 78,
+    height: 78,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   categoryImage: {
-    width: 58,
-    height: 58,
+    width: 60,
+    height: 60,
   },
 });
 

@@ -46,8 +46,9 @@ function QuantityButton({ disabled = false, label, onPress }) {
 function CartItemRow({ item, onDecrease, onIncrease, onRemove }) {
   const subtitle = getProductSubtitle(item.product);
   const imageSource = getProductImageSource(item.product);
+  const isAvailable = item.product.stock > 0;
   const isIncreaseDisabled =
-    item.product.stock > 0 && item.quantity >= item.product.stock;
+    !isAvailable || item.quantity >= item.product.stock;
 
   return (
     <View style={styles.itemRow}>
@@ -62,17 +63,32 @@ function CartItemRow({ item, onDecrease, onIncrease, onRemove }) {
         </View>
 
         <View style={styles.itemCopy}>
+          <View style={styles.itemMetaRow}>
+            <View style={styles.itemCategoryPill}>
+              <Text style={styles.itemCategoryLabel}>
+                {item.product.category}
+              </Text>
+            </View>
+          </View>
           <Text numberOfLines={2} style={styles.itemName}>
             {item.product.name}
           </Text>
           <Text numberOfLines={1} style={styles.itemSubtitle}>
             {subtitle}
           </Text>
-          <Text style={styles.itemStock}>
-            {item.product.stock > 0
-              ? `${item.product.stock} available`
-              : 'Unavailable'}
-          </Text>
+          <View style={styles.itemInfoRow}>
+            <Text
+              style={[
+                styles.itemStock,
+                !isAvailable && styles.itemStockUnavailable,
+              ]}
+            >
+              {isAvailable ? `${item.product.stock} available` : 'Unavailable'}
+            </Text>
+            <Text style={styles.itemEachPrice}>
+              Each {formatCurrency(item.product.price)}
+            </Text>
+          </View>
         </View>
 
         <Pressable
@@ -102,9 +118,12 @@ function CartItemRow({ item, onDecrease, onIncrease, onRemove }) {
           />
         </View>
 
-        <Text style={styles.itemPrice}>
-          {formatCurrency(item.product.price * item.quantity)}
-        </Text>
+        <View style={styles.itemPriceBlock}>
+          <Text style={styles.itemPriceLabel}>Line total</Text>
+          <Text style={styles.itemPrice}>
+            {formatCurrency(item.product.price * item.quantity)}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -142,6 +161,18 @@ function CartScreen({ navigation }) {
 
         {hasItems ? (
           <>
+            <View style={styles.supportRow}>
+              <View style={styles.supportPill}>
+                <Text style={styles.supportPillLabel}>
+                  Fresh items together
+                </Text>
+              </View>
+              <View style={styles.supportPill}>
+                <Text style={styles.supportPillLabel}>
+                  Delivery details at checkout
+                </Text>
+              </View>
+            </View>
             <ScrollView
               contentContainerStyle={styles.content}
               showsVerticalScrollIndicator={false}
@@ -162,6 +193,9 @@ function CartScreen({ navigation }) {
                 <Text style={styles.footerSummaryLabel}>Subtotal</Text>
                 <Text style={styles.footerSummaryValue}>
                   {formatCurrency(subtotal)}
+                </Text>
+                <Text style={styles.footerSummaryNote}>
+                  Delivery and payment on the next step
                 </Text>
               </View>
 
@@ -223,11 +257,11 @@ function CartScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   screen: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   header: {
     flexDirection: 'row',
@@ -235,7 +269,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingTop: 10,
-    paddingBottom: 18,
+    paddingBottom: 14,
   },
   headerTitle: {
     color: UI_COLORS.textStrong,
@@ -261,17 +295,39 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 14,
   },
+  supportRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: UI_LAYOUT.screenPadding,
+    marginBottom: 12,
+  },
+  supportPill: {
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderRadius: UI_RADIUS.round,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  supportPillLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingBottom: 214,
   },
   itemRow: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: UI_RADIUS.xxl,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 16,
-    marginBottom: 14,
+    padding: 18,
+    marginBottom: 16,
     ...UI_SHADOWS.card,
   },
   itemMain: {
@@ -295,6 +351,24 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 12,
   },
+  itemMetaRow: {
+    marginBottom: 10,
+  },
+  itemCategoryPill: {
+    alignSelf: 'flex-start',
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  itemCategoryLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
   itemName: {
     color: UI_COLORS.textStrong,
     fontSize: 17,
@@ -308,17 +382,32 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 6,
   },
+  itemInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   itemStock: {
     color: UI_COLORS.accentGreen,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  itemStockUnavailable: {
+    color: UI_COLORS.accentRed,
+  },
+  itemEachPrice: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
     lineHeight: 16,
   },
   removeButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: UI_COLORS.surfaceSoft,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -327,12 +416,12 @@ const styles = StyleSheet.create({
   },
   removeButtonLabel: {
     color: UI_COLORS.mutedStrong,
-    fontSize: 20,
-    lineHeight: 20,
+    fontSize: 18,
+    lineHeight: 18,
   },
   itemFooter: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     marginTop: 18,
   },
@@ -341,14 +430,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: UI_COLORS.surfaceSoft,
     borderRadius: UI_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     paddingHorizontal: 6,
     paddingVertical: 6,
   },
   quantityButton: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: 14,
     backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -375,11 +468,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 12,
   },
+  itemPriceBlock: {
+    alignItems: 'flex-end',
+    marginLeft: 16,
+  },
+  itemPriceLabel: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
+    marginBottom: 4,
+  },
   itemPrice: {
     color: UI_COLORS.textStrong,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
-    lineHeight: 26,
+    lineHeight: 28,
   },
   footer: {
     position: 'absolute',
@@ -387,10 +489,10 @@ const styles = StyleSheet.create({
     right: UI_LAYOUT.footerSide,
     bottom: 92,
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 10,
+    padding: 8,
     flexDirection: 'row',
     alignItems: 'center',
     ...UI_SHADOWS.floating,
@@ -411,11 +513,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 24,
   },
+  footerSummaryNote: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
+    maxWidth: 160,
+  },
   checkoutButton: {
     minHeight: UI_LAYOUT.ctaHeight,
     minWidth: 148,
     backgroundColor: UI_COLORS.accentGreen,
-    borderRadius: UI_RADIUS.xl,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,

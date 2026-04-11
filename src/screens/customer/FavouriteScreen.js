@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProductImageSource } from '../../assets/productImages';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
+import ChevronIcon from '../../components/icons/ChevronIcon';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -38,7 +39,8 @@ function FavouriteScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <View>
+            <View style={styles.headerCopy}>
+              <Text style={styles.headerEyebrow}>Buy again</Text>
               <Text style={styles.title}>Saved items</Text>
               <Text style={styles.subtitle}>
                 Keep your regular groceries close at hand.
@@ -78,15 +80,16 @@ function FavouriteScreen({ navigation }) {
           ) : null}
 
           {favourites.map(product => (
-            <View key={product.id} style={styles.row}>
-              <Pressable
-                android_ripple={{ color: '#EEE7DC' }}
-                onPress={() => handleOpenProduct(product)}
-                style={({ pressed }) => [
-                  styles.rowMain,
-                  pressed && styles.rowPressed,
-                ]}
-              >
+            <Pressable
+              android_ripple={{ color: '#EEE7DC' }}
+              key={product.id}
+              onPress={() => handleOpenProduct(product)}
+              style={({ pressed }) => [
+                styles.rowCard,
+                pressed && styles.rowPressed,
+              ]}
+            >
+              <View style={styles.rowTop}>
                 <View style={styles.imageWrap}>
                   <ProductImage
                     name={product.name}
@@ -97,40 +100,64 @@ function FavouriteScreen({ navigation }) {
                 </View>
 
                 <View style={styles.copy}>
-                  <Text numberOfLines={1} style={styles.name}>
+                  <View style={styles.rowMetaRow}>
+                    <View style={styles.categoryPill}>
+                      <Text style={styles.categoryPillLabel}>
+                        {product.category}
+                      </Text>
+                    </View>
+                    <View style={styles.rowIndicator}>
+                      <ChevronIcon color={UI_COLORS.mutedStrong} size={10} />
+                    </View>
+                  </View>
+                  <Text numberOfLines={2} style={styles.name}>
                     {product.name}
                   </Text>
                   <Text numberOfLines={1} style={styles.meta}>
                     {getProductSubtitle(product)}
                   </Text>
-                  <Text style={styles.price}>{formatCurrency(product.price)}</Text>
                 </View>
-              </Pressable>
-
-              <View style={styles.actions}>
-                <Pressable
-                  android_ripple={{ color: '#3D5F39' }}
-                  onPress={() => addToCart(product, 1)}
-                  style={({ pressed }) => [
-                    styles.addButton,
-                    pressed && styles.addButtonPressed,
-                  ]}
-                >
-                  <Text style={styles.addButtonLabel}>Add</Text>
-                </Pressable>
-
-                <Pressable
-                  android_ripple={{ color: '#EEE7DC' }}
-                  onPress={() => removeFromFavourites(product.id)}
-                  style={({ pressed }) => [
-                    styles.removeButton,
-                    pressed && styles.removeButtonPressed,
-                  ]}
-                >
-                  <Text style={styles.removeButtonIcon}>♥</Text>
-                </Pressable>
               </View>
-            </View>
+
+              <View style={styles.rowFooter}>
+                <View>
+                  <Text style={styles.priceLabel}>Price</Text>
+                  <Text style={styles.price}>
+                    {formatCurrency(product.price)}
+                  </Text>
+                </View>
+
+                <View style={styles.actions}>
+                  <Pressable
+                    android_ripple={{ color: '#3D5F39' }}
+                    onPress={event => {
+                      event.stopPropagation();
+                      addToCart(product, 1);
+                    }}
+                    style={({ pressed }) => [
+                      styles.addButton,
+                      pressed && styles.addButtonPressed,
+                    ]}
+                  >
+                    <Text style={styles.addButtonLabel}>Quick add</Text>
+                  </Pressable>
+
+                  <Pressable
+                    android_ripple={{ color: '#EEE7DC' }}
+                    onPress={event => {
+                      event.stopPropagation();
+                      removeFromFavourites(product.id);
+                    }}
+                    style={({ pressed }) => [
+                      styles.removeButton,
+                      pressed && styles.removeButtonPressed,
+                    ]}
+                  >
+                    <Text style={styles.removeButtonIcon}>♥</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </Pressable>
           ))}
         </ScrollView>
 
@@ -149,15 +176,15 @@ function FavouriteScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   screen: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
-    paddingTop: UI_LAYOUT.screenTop,
+    paddingTop: 12,
     paddingBottom: 132,
   },
   header: {
@@ -165,6 +192,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 20,
+  },
+  headerCopy: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  headerEyebrow: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 4,
   },
   title: {
     color: UI_COLORS.textStrong,
@@ -180,9 +220,9 @@ const styles = StyleSheet.create({
     minWidth: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: UI_COLORS.surface,
+    backgroundColor: UI_COLORS.surfaceSoft,
     borderWidth: 1,
-    borderColor: UI_COLORS.border,
+    borderColor: UI_COLORS.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
@@ -245,48 +285,74 @@ const styles = StyleSheet.create({
     color: UI_COLORS.surface,
     ...UI_TYPOGRAPHY.buttonLarge,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  rowMain: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+  rowCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: UI_RADIUS.xxl,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    padding: 16,
+    marginBottom: 14,
     ...UI_SHADOWS.card,
   },
   rowPressed: {
     opacity: 0.96,
   },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   imageWrap: {
-    width: 74,
-    height: 74,
-    borderRadius: 20,
+    width: 84,
+    height: 84,
+    borderRadius: 24,
     backgroundColor: UI_COLORS.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
   image: {
-    width: 56,
-    height: 56,
+    width: 62,
+    height: 62,
   },
   copy: {
     flex: 1,
-    paddingRight: 10,
+  },
+  rowMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  categoryPill: {
+    alignSelf: 'flex-start',
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  categoryPillLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
+  rowIndicator: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   name: {
     color: UI_COLORS.textStrong,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
-    lineHeight: 22,
+    lineHeight: 24,
     marginBottom: 4,
   },
   meta: {
@@ -294,25 +360,37 @@ const styles = StyleSheet.create({
     ...UI_TYPOGRAPHY.meta,
     marginBottom: 8,
   },
+  rowFooter: {
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  priceLabel: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
+    marginBottom: 4,
+  },
   price: {
     color: UI_COLORS.textStrong,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '800',
-    lineHeight: 22,
+    lineHeight: 26,
   },
   actions: {
-    marginLeft: 10,
-    alignItems: 'stretch',
+    marginLeft: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   addButton: {
-    minWidth: 64,
-    height: 42,
-    borderRadius: 16,
+    minWidth: 92,
+    height: 40,
+    borderRadius: 15,
     backgroundColor: UI_COLORS.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    marginBottom: 8,
+    paddingHorizontal: 14,
+    marginRight: 8,
   },
   addButtonPressed: {
     backgroundColor: UI_COLORS.accentGreenPressed,
@@ -324,13 +402,14 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   removeButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: UI_COLORS.accentRedSoft,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
   },
   removeButtonPressed: {
     opacity: 0.84,

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProductImageSource } from '../../assets/productImages';
+import ChevronIcon from '../../components/icons/ChevronIcon';
 import PrimaryButton from '../../components/PrimaryButton';
 import ProductCard from '../../components/ProductCard';
 import { CUSTOMER_DEMO_PRODUCTS } from '../../data/customerTabsData';
@@ -24,10 +25,6 @@ import {
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
 import { getProductsByCategory } from '../../utils/categoryProducts';
-
-function BackGlyph() {
-  return <Text style={styles.backGlyph}>{'<'}</Text>;
-}
 
 function CategoryProductsScreen({ navigation, route }) {
   const routeCategory = route.params?.category || '';
@@ -113,7 +110,12 @@ function CategoryProductsScreen({ navigation, route }) {
               pressed && styles.backButtonPressed,
             ]}
           >
-            <BackGlyph />
+            <ChevronIcon
+              color={UI_COLORS.textStrong}
+              direction="left"
+              size={12}
+              strokeWidth={1.9}
+            />
           </Pressable>
 
           <View style={styles.headerCopy}>
@@ -187,13 +189,13 @@ function CategoryProductsScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   screen: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
     paddingHorizontal: UI_LAYOUT.screenPadding,
-    paddingTop: UI_LAYOUT.screenTop,
+    paddingTop: 12,
   },
   header: {
     flexDirection: 'row',
@@ -213,12 +215,6 @@ const styles = StyleSheet.create({
   },
   backButtonPressed: {
     opacity: 0.9,
-  },
-  backGlyph: {
-    color: UI_COLORS.textStrong,
-    fontSize: 20,
-    fontWeight: '700',
-    lineHeight: 22,
   },
   headerCopy: {
     flex: 1,

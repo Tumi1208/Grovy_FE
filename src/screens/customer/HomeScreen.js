@@ -16,6 +16,7 @@ import CustomerBottomNav from '../../components/CustomerBottomNav';
 import HomeProductCard, {
   HomeCategoryCard,
 } from '../../components/home/HomeProductCard';
+import ChevronIcon from '../../components/icons/ChevronIcon';
 import PrimaryButton from '../../components/PrimaryButton';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -89,7 +90,10 @@ function SectionHeader({ onSeeAll, title }) {
             pressed && styles.sectionLinkButtonPressed,
           ]}
         >
-          <Text style={styles.sectionLink}>See all</Text>
+          <View style={styles.sectionLinkRow}>
+            <Text style={styles.sectionLink}>See all</Text>
+            <ChevronIcon color={UI_COLORS.mutedStrong} size={10} />
+          </View>
         </Pressable>
       ) : null}
     </View>
@@ -270,9 +274,7 @@ function HomeScreenEmptyState({
     return (
       <View style={styles.emptyCard}>
         <Text style={styles.emptyTitle}>Couldn&apos;t load the shop</Text>
-        <Text style={styles.emptySubtitle}>
-          Please try again in a moment.
-        </Text>
+        <Text style={styles.emptySubtitle}>Please try again in a moment.</Text>
         <View style={styles.emptySpacer} />
         <PrimaryButton title="Retry" onPress={onRetry} />
       </View>
@@ -629,9 +631,9 @@ const styles = StyleSheet.create({
   },
   brandBadge: {
     borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.surface,
+    backgroundColor: UI_COLORS.surfaceSoft,
     borderWidth: 1,
-    borderColor: UI_COLORS.border,
+    borderColor: UI_COLORS.borderSoft,
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
@@ -650,7 +652,7 @@ const styles = StyleSheet.create({
     ...UI_TYPOGRAPHY.body,
     marginTop: 6,
     marginBottom: 22,
-    maxWidth: '86%',
+    maxWidth: '92%',
   },
   searchBar: {
     flexDirection: 'row',
@@ -722,7 +724,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginTop: 14,
-    marginBottom: 18,
+    marginBottom: 20,
   },
   statusBannerWarning: {
     backgroundColor: UI_COLORS.errorSoft,
@@ -740,6 +742,8 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: UI_COLORS.banner,
     borderRadius: UI_RADIUS.hero,
+    borderWidth: 1,
+    borderColor: '#E6D8C7',
     overflow: 'hidden',
     paddingHorizontal: 22,
     paddingTop: 22,
@@ -758,7 +762,7 @@ const styles = StyleSheet.create({
     width: 170,
     height: 170,
     borderRadius: 85,
-    backgroundColor: UI_COLORS.bannerSoft,
+    backgroundColor: 'rgba(228, 237, 217, 0.78)',
   },
   heroCircleSmall: {
     position: 'absolute',
@@ -767,7 +771,7 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 42,
-    backgroundColor: 'rgba(215, 155, 90, 0.16)',
+    backgroundColor: 'rgba(215, 155, 90, 0.13)',
   },
   heroCopy: {
     width: '56%',
@@ -800,7 +804,9 @@ const styles = StyleSheet.create({
   },
   heroTag: {
     borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.7)',
     paddingHorizontal: 10,
     paddingVertical: 6,
     marginRight: 8,
@@ -820,7 +826,7 @@ const styles = StyleSheet.create({
     height: 160,
   },
   sectionBlock: {
-    marginBottom: 34,
+    marginBottom: 38,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -833,20 +839,23 @@ const styles = StyleSheet.create({
     ...UI_TYPOGRAPHY.sectionTitle,
   },
   sectionLinkButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.surface,
-    borderWidth: 1,
-    borderColor: UI_COLORS.border,
+    backgroundColor: UI_COLORS.surfaceSoft,
   },
   sectionLinkButtonPressed: {
     opacity: 0.85,
   },
+  sectionLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   sectionLink: {
-    color: UI_COLORS.textStrong,
+    color: UI_COLORS.mutedStrong,
     fontSize: 13,
     fontWeight: '700',
+    marginRight: 4,
   },
   horizontalRail: {
     marginHorizontal: -UI_LAYOUT.homeScreenPadding,

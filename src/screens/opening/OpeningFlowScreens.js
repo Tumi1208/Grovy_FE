@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ChevronIcon from '../../components/icons/ChevronIcon';
 import { AUTH_ROUTES } from '../../constants/routes';
 import { ROLES } from '../../constants/roles';
 import { useApp } from '../../context/AppContext';
@@ -90,7 +91,12 @@ function BackButton({ onPress }) {
         pressed && styles.backButtonPressed,
       ]}
     >
-      <Text style={styles.backButtonLabel}>{'<'}</Text>
+      <ChevronIcon
+        color={OPENING_COLORS.text}
+        direction="left"
+        size={12}
+        strokeWidth={1.9}
+      />
     </Pressable>
   );
 }
@@ -120,7 +126,7 @@ function RoundNextButton({ onPress }) {
         pressed && styles.roundNextButtonPressed,
       ]}
     >
-      <Text style={styles.roundNextButtonLabel}>{'>'}</Text>
+      <ChevronIcon color={OPENING_COLORS.surface} size={16} strokeWidth={2.2} />
     </Pressable>
   );
 }
@@ -156,7 +162,9 @@ function SocialButton({ iconLabel, onPress, title, tone = 'google' }) {
         <Text
           style={[
             styles.socialGlyphLabel,
-            isGoogle ? styles.socialGlyphLabelGoogle : styles.socialGlyphLabelApple,
+            isGoogle
+              ? styles.socialGlyphLabelGoogle
+              : styles.socialGlyphLabelApple,
           ]}
         >
           {iconLabel}
@@ -316,7 +324,9 @@ export function SignInScreen({ navigation }) {
           >
             <CountryCodeChip />
             <Text style={styles.phoneEntryLabel}>Enter your mobile number</Text>
-            <Text style={styles.phoneEntryArrow}>{'>'}</Text>
+            <View style={styles.phoneEntryArrow}>
+              <ChevronIcon color={OPENING_COLORS.muted} size={10} />
+            </View>
           </Pressable>
 
           <Text style={styles.orLabel}>Or continue with social account</Text>
@@ -368,9 +378,7 @@ export function NumberInputScreen({ navigation, route }) {
         <View style={styles.formScreen}>
           <View>
             <BackButton onPress={() => navigation.goBack()} />
-            <ScreenHeader
-              title="Enter your mobile number"
-            />
+            <ScreenHeader title="Enter your mobile number" />
 
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Mobile Number</Text>
@@ -504,7 +512,13 @@ export function LocationScreen({ navigation }) {
                 style={styles.textField}
                 value={zone}
               />
-              <Text style={styles.fieldChevron}>v</Text>
+              <View style={styles.fieldChevron}>
+                <ChevronIcon
+                  color={OPENING_COLORS.muted}
+                  direction="down"
+                  size={10}
+                />
+              </View>
             </View>
           </View>
 
@@ -518,7 +532,13 @@ export function LocationScreen({ navigation }) {
                 style={styles.textField}
                 value={area}
               />
-              <Text style={styles.fieldChevron}>v</Text>
+              <View style={styles.fieldChevron}>
+                <ChevronIcon
+                  color={OPENING_COLORS.muted}
+                  direction="down"
+                  size={10}
+                />
+              </View>
             </View>
           </View>
 
@@ -703,9 +723,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   phoneEntryArrow: {
-    color: OPENING_COLORS.muted,
-    fontSize: 18,
-    fontWeight: '700',
+    marginLeft: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   orLabel: {
     color: OPENING_COLORS.muted,
@@ -987,9 +1007,9 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   fieldChevron: {
-    color: OPENING_COLORS.muted,
-    fontSize: 16,
-    fontWeight: '700',
+    marginLeft: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryActionButton: {
     alignItems: 'center',

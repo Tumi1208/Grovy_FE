@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
+import ChevronIcon from '../../components/icons/ChevronIcon';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -37,8 +38,18 @@ function MenuRow({ label, onPress }) {
       ]}
     >
       <Text style={styles.menuRowLabel}>{label}</Text>
-      <Text style={styles.menuRowChevron}>{'>'}</Text>
+      <View style={styles.menuRowIndicator}>
+        <ChevronIcon color={UI_COLORS.mutedStrong} size={10} />
+      </View>
     </Pressable>
+  );
+}
+
+function ProfileTag({ label }) {
+  return (
+    <View style={styles.profileTag}>
+      <Text style={styles.profileTagLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -67,7 +78,11 @@ function AccountScreen({ navigation }) {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          <Text style={styles.titleEyebrow}>Profile</Text>
           <Text style={styles.title}>Account</Text>
+          <Text style={styles.titleSubtitle}>
+            Manage your groceries, saved items and delivery preferences.
+          </Text>
 
           <View style={styles.profileCard}>
             <View style={styles.avatar}>
@@ -77,20 +92,21 @@ function AccountScreen({ navigation }) {
             <View style={styles.profileCopy}>
               <Text style={styles.userName}>{userName}</Text>
               <Text style={styles.userEmail}>{userEmail}</Text>
+
+              <View style={styles.profileTagRow}>
+                <ProfileTag label="Grovy member" />
+                <ProfileTag label="Cash on delivery" />
+              </View>
             </View>
           </View>
 
+          <Text style={styles.sectionLabel}>Shopping snapshot</Text>
           <View style={styles.statsRow}>
-            <StatCard
-              label="Items in cart"
-              value={`${totalItems}`}
-            />
-            <StatCard
-              label="Saved items"
-              value={`${totalFavourites}`}
-            />
+            <StatCard label="Items in cart" value={`${totalItems}`} />
+            <StatCard label="Saved items" value={`${totalFavourites}`} />
           </View>
 
+          <Text style={styles.sectionLabel}>Preferences</Text>
           <View style={styles.menuCard}>
             {CUSTOMER_ACCOUNT_MENU.map((label, index) => (
               <View key={label}>
@@ -129,44 +145,59 @@ function AccountScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   screen: {
     flex: 1,
-    backgroundColor: UI_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
-    paddingTop: UI_LAYOUT.screenTop,
+    paddingTop: 12,
     paddingBottom: 132,
+  },
+  titleEyebrow: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 4,
   },
   title: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.screenTitle,
+  },
+  titleSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
+    marginTop: 8,
     marginBottom: 22,
+    maxWidth: '92%',
   },
   profileCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: UI_RADIUS.xxl,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
-    marginBottom: 16,
+    padding: 20,
+    marginBottom: 18,
     ...UI_SHADOWS.card,
   },
   avatar: {
     width: 74,
     height: 74,
     borderRadius: 37,
-    backgroundColor: UI_COLORS.surfaceSoft,
+    backgroundColor: UI_COLORS.accentGreenSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
   },
   avatarLabel: {
-    color: UI_COLORS.textStrong,
+    color: UI_COLORS.accentGreen,
     fontSize: 28,
     fontWeight: '800',
   },
@@ -184,18 +215,48 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.meta,
   },
+  profileTagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 12,
+  },
+  profileTag: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 6,
+  },
+  profileTagLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
+  sectionLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 10,
+  },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   statCard: {
     width: '48%',
     backgroundColor: UI_COLORS.surface,
-    borderRadius: UI_RADIUS.xl,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    paddingVertical: 18,
+    paddingVertical: 20,
     paddingHorizontal: 16,
     ...UI_SHADOWS.card,
   },
@@ -212,7 +273,7 @@ const styles = StyleSheet.create({
   },
   menuCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: UI_RADIUS.xxl,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     overflow: 'hidden',
@@ -235,10 +296,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 22,
   },
-  menuRowChevron: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 18,
-    fontWeight: '700',
+  menuRowIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   divider: {
     height: StyleSheet.hairlineWidth,

@@ -6,7 +6,7 @@ import { UI_COLORS, UI_SHADOWS } from '../constants/ui';
 const NAV_COLORS = Object.freeze({
   surface: UI_COLORS.surface,
   border: UI_COLORS.border,
-  text: UI_COLORS.muted,
+  text: UI_COLORS.mutedStrong,
   textStrong: UI_COLORS.textStrong,
   active: UI_COLORS.accentGreen,
   activeSoft: UI_COLORS.accentGreenSoft,
@@ -93,19 +93,22 @@ function BottomNavigationItem({
       onPress={onPress}
       style={({ pressed }) => [
         styles.navItem,
-        active && styles.navItemActive,
         pressed && styles.navItemPressed,
       ]}
     >
-      <View style={styles.iconWrap}>
-        {icon}
-        {badgeCount > 0 ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeLabel}>{badgeCount}</Text>
-          </View>
-        ) : null}
+      <View style={[styles.navItemInner, active && styles.navItemInnerActive]}>
+        <View style={styles.iconWrap}>
+          {icon}
+          {badgeCount > 0 ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeLabel}>{badgeCount}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={[styles.label, active && styles.labelActive]}>
+          {label}
+        </Text>
       </View>
-      <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>
     </Pressable>
   );
 }
@@ -173,25 +176,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: NAV_COLORS.surface,
-    borderRadius: 26,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: NAV_COLORS.border,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     ...UI_SHADOWS.floating,
   },
   navItem: {
     flex: 1,
-    minHeight: 58,
-    borderRadius: 20,
+  },
+  navItemInner: {
+    minHeight: 54,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  navItemActive: {
+  navItemInnerActive: {
     backgroundColor: NAV_COLORS.activeSoft,
+    borderWidth: 1,
+    borderColor: '#DEE9D9',
   },
   navItemPressed: {
-    opacity: 0.9,
+    opacity: 0.88,
   },
   iconWrap: {
     minWidth: 28,
@@ -202,11 +209,11 @@ const styles = StyleSheet.create({
   },
   label: {
     color: NAV_COLORS.text,
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
   },
   labelActive: {
-    color: NAV_COLORS.textStrong,
+    color: NAV_COLORS.active,
     fontWeight: '700',
   },
   textActive: {
@@ -332,8 +339,8 @@ const styles = StyleSheet.create({
   },
   heartGlyph: {
     color: NAV_COLORS.text,
-    fontSize: 18,
-    lineHeight: 18,
+    fontSize: 17,
+    lineHeight: 17,
   },
   profileGlyph: {
     width: 18,

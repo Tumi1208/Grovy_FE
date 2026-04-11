@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProductImageSource } from '../../assets/productImages';
+import ChevronIcon from '../../components/icons/ChevronIcon';
 import PrimaryButton from '../../components/PrimaryButton';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
@@ -99,14 +100,14 @@ function DetailRow({
               <Text style={styles.detailRowValue}>{value}</Text>
             </View>
           ) : null}
-          <Text
-            style={[
-              styles.detailRowArrow,
-              expanded && styles.detailRowArrowExpanded,
-            ]}
-          >
-            {'>'}
-          </Text>
+          <View style={styles.detailRowIndicator}>
+            <ChevronIcon
+              color={UI_COLORS.mutedStrong}
+              direction={expanded ? 'down' : 'right'}
+              size={10}
+              strokeWidth={1.7}
+            />
+          </View>
         </View>
       </View>
 
@@ -266,7 +267,8 @@ function ProductDetailScreen({ navigation, route }) {
   const favouriteActive = isFavourite(product.id);
   const nutritionValue =
     product.category?.toLowerCase() === 'beverages' ? '100 ml' : '100 g';
-  const nutritionDescription = 'Nutrition details will appear here when available.';
+  const nutritionDescription =
+    'Nutrition details will appear here when available.';
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -277,7 +279,12 @@ function ProductDetailScreen({ navigation, route }) {
       <View style={styles.screen}>
         <View style={styles.headerRow}>
           <HeaderButton onPress={handleBack}>
-            <Text style={styles.backIcon}>{'<'}</Text>
+            <ChevronIcon
+              color={UI_COLORS.textStrong}
+              direction="left"
+              size={12}
+              strokeWidth={1.9}
+            />
           </HeaderButton>
 
           <HeaderButton
@@ -315,6 +322,8 @@ function ProductDetailScreen({ navigation, route }) {
           ) : null}
 
           <View style={styles.heroCard}>
+            <View style={styles.heroToneLarge} />
+            <View style={styles.heroToneSmall} />
             <View style={styles.heroTopRow}>
               <View style={styles.categoryPill}>
                 <Text style={styles.categoryPillLabel}>{product.category}</Text>
@@ -353,7 +362,9 @@ function ProductDetailScreen({ navigation, route }) {
               <View
                 style={[
                   styles.metaPill,
-                  isOutOfStock ? styles.metaPillWarning : styles.metaPillSuccess,
+                  isOutOfStock
+                    ? styles.metaPillWarning
+                    : styles.metaPillSuccess,
                 ]}
               >
                 <Text
@@ -577,10 +588,33 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: UI_COLORS.hero,
     borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#DEE4D7',
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 22,
     marginBottom: 16,
+    position: 'relative',
+    overflow: 'hidden',
+    ...UI_SHADOWS.card,
+  },
+  heroToneLarge: {
+    position: 'absolute',
+    right: -28,
+    bottom: -26,
+    width: 182,
+    height: 182,
+    borderRadius: 91,
+    backgroundColor: 'rgba(215, 155, 90, 0.12)',
+  },
+  heroToneSmall: {
+    position: 'absolute',
+    left: -20,
+    top: 66,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(84, 122, 78, 0.1)',
   },
   heroTopRow: {
     flexDirection: 'row',
@@ -601,10 +635,12 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   favouriteButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -624,14 +660,15 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    height: 248,
+    height: 240,
+    zIndex: 1,
   },
   summaryCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: UI_RADIUS.xxl,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 20,
+    padding: 22,
     marginBottom: 16,
     ...UI_SHADOWS.card,
   },
@@ -708,14 +745,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: UI_COLORS.surfaceSoft,
     borderRadius: UI_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     paddingHorizontal: 6,
     paddingVertical: 6,
   },
   quantityButton: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 14,
     backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -744,7 +785,7 @@ const styles = StyleSheet.create({
   },
   detailsCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: UI_RADIUS.xxl,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     overflow: 'hidden',
@@ -788,6 +829,8 @@ const styles = StyleSheet.create({
   detailRowValuePill: {
     backgroundColor: UI_COLORS.surfaceSoft,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
     marginRight: 10,
@@ -797,13 +840,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  detailRowArrow: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  detailRowArrowExpanded: {
-    transform: [{ rotate: '90deg' }],
+  detailRowIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   detailRowSubtitle: {
     color: UI_COLORS.mutedStrong,
@@ -820,10 +865,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 10,
+    padding: 8,
     ...UI_SHADOWS.floating,
   },
   footerSummary: {
@@ -844,7 +889,7 @@ const styles = StyleSheet.create({
   addToCartButton: {
     flex: 1,
     minHeight: UI_LAYOUT.ctaHeight,
-    borderRadius: UI_RADIUS.xl,
+    borderRadius: 18,
     backgroundColor: UI_COLORS.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +18,14 @@ import HomeProductCard, {
 } from '../../components/home/HomeProductCard';
 import PrimaryButton from '../../components/PrimaryButton';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
+import {
+  UI_COLORS,
+  UI_LAYOUT,
+  UI_RADIUS,
+  UI_SHADOWS,
+  UI_SPACING,
+  UI_TYPOGRAPHY,
+} from '../../constants/ui';
 import { useCart } from '../../context/CartContext';
 import {
   buildHomeScreenData,
@@ -23,41 +33,44 @@ import {
 } from '../../data/homeScreenData';
 import { getProducts } from '../../services/productService';
 
-const HOME_COLORS = Object.freeze({
-  screen: '#FCFCFC',
-  surface: '#FFFFFF',
-  text: '#181725',
-  muted: '#7C7C7C',
-  subtle: '#F2F3F2',
-  accent: '#53B175',
-  banner: '#FDEDDC',
-  bannerAccent: '#F8A44C',
-  bannerSoft: '#E9F7EE',
-  border: '#E2E2E2',
-  shadow: '#1F1B17',
-});
+const HOME_HORIZONTAL_GAP = 14;
 
 function normalizeSearchValue(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 
-function SearchGlyph() {
+function getHomeProductCardWidth(viewportWidth) {
+  const availableWidth = Math.max(
+    280,
+    viewportWidth - UI_LAYOUT.homeScreenPadding * 2,
+  );
+
+  return Math.max(176, Math.min(196, Math.round(availableWidth * 0.54)));
+}
+
+function getHomeCategoryCardWidth(viewportWidth) {
+  const availableWidth = Math.max(
+    280,
+    viewportWidth - UI_LAYOUT.homeScreenPadding * 2,
+  );
+
+  return Math.max(228, Math.min(248, Math.round(availableWidth * 0.74)));
+}
+
+function SearchGlyph({ color = UI_COLORS.mutedStrong }) {
   return (
     <View style={styles.searchGlyph}>
-      <View style={styles.searchGlyphCircle} />
-      <View style={styles.searchGlyphHandle} />
+      <View style={[styles.searchGlyphCircle, { borderColor: color }]} />
+      <View style={[styles.searchGlyphHandle, { backgroundColor: color }]} />
     </View>
   );
 }
 
-function HomeLogo() {
+function PinGlyph() {
   return (
-    <View style={styles.logoWrap}>
-      <View style={styles.logoMark}>
-        <View style={styles.logoLeafLeft} />
-        <View style={styles.logoLeafRight} />
-      </View>
-      <Text style={styles.logoText}>Grovy</Text>
+    <View style={styles.pinGlyph}>
+      <View style={styles.pinGlyphCircle} />
+      <View style={styles.pinGlyphPoint} />
     </View>
   );
 }
@@ -67,7 +80,15 @@ function SectionHeader({ onSeeAll, title }) {
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {onSeeAll ? (
-        <Pressable onPress={onSeeAll}>
+        <Pressable
+          android_ripple={{ color: '#E6EEE3' }}
+          hitSlop={6}
+          onPress={onSeeAll}
+          style={({ pressed }) => [
+            styles.sectionLinkButton,
+            pressed && styles.sectionLinkButtonPressed,
+          ]}
+        >
           <Text style={styles.sectionLink}>See all</Text>
         </Pressable>
       ) : null}
@@ -75,84 +96,154 @@ function SectionHeader({ onSeeAll, title }) {
   );
 }
 
-function HomeBanner({ banner, onPress }) {
+function HomeRailSpacer() {
+  return <View style={styles.horizontalRailSpacer} />;
+}
+
+function HomeStatusBanner({ errorMessage, isLoading }) {
+  if (!isLoading && !errorMessage) {
+    return null;
+  }
+
   return (
-    <Pressable
-      android_ripple={{ color: '#F7D7B7' }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.banner,
-        pressed && styles.bannerPressed,
+    <View
+      style={[
+        styles.statusBanner,
+        errorMessage ? styles.statusBannerWarning : null,
       ]}
     >
-      <View style={styles.bannerCirclePrimary} />
-      <View style={styles.bannerCircleSecondary} />
+      {isLoading ? (
+        <ActivityIndicator color={UI_COLORS.accentGreen} size="small" />
+      ) : null}
+      <Text
+        style={[
+          styles.statusBannerText,
+          errorMessage ? styles.statusBannerTextWarning : null,
+        ]}
+      >
+        {isLoading
+          ? 'Refreshing the latest grocery assortment.'
+          : 'Showing the saved assortment while the catalog reconnects.'}
+      </Text>
+    </View>
+  );
+}
 
-      <View style={styles.bannerCopy}>
-        <Text style={styles.bannerTitle}>{banner.title}</Text>
-        <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+function HomeHero({ banner, onPress }) {
+  return (
+    <Pressable
+      android_ripple={{ color: '#E7DAC8' }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.heroCard, pressed && styles.heroPressed]}
+    >
+      <View style={styles.heroCircleLarge} />
+      <View style={styles.heroCircleSmall} />
+
+      <View style={styles.heroCopy}>
+        <Text style={styles.heroEyebrow}>This week&apos;s basket</Text>
+        <Text style={styles.heroTitle}>{banner.title}</Text>
+        <Text style={styles.heroSubtitle}>{banner.subtitle}</Text>
+
+        <View style={styles.heroTagRow}>
+          <View style={styles.heroTag}>
+            <Text style={styles.heroTagLabel}>Produce</Text>
+          </View>
+          <View style={styles.heroTag}>
+            <Text style={styles.heroTagLabel}>Pantry</Text>
+          </View>
+          <View style={styles.heroTag}>
+            <Text style={styles.heroTagLabel}>Drinks</Text>
+          </View>
+        </View>
       </View>
 
       <Image
         resizeMode="contain"
         source={banner.imageSource}
-        style={styles.bannerImage}
+        style={styles.heroImage}
       />
     </Pressable>
   );
 }
 
-function HomeSectionRow({
-  items,
-  onAddToCart,
-  onOpenProduct,
-}) {
+function HomeSectionRow({ cardWidth, items, onAddToCart, onOpenProduct }) {
   if (!items.length) {
     return null;
   }
 
   return (
-    <ScrollView
+    <FlatList
       horizontal
-      contentContainerStyle={styles.horizontalSectionContent}
+      contentContainerStyle={styles.horizontalRailContent}
+      data={items}
+      decelerationRate="fast"
+      disableIntervalMomentum
+      ItemSeparatorComponent={HomeRailSpacer}
+      keyExtractor={item => item.id}
+      nestedScrollEnabled
+      snapToAlignment="start"
+      snapToInterval={cardWidth + HOME_HORIZONTAL_GAP}
       showsHorizontalScrollIndicator={false}
-    >
-      {items.map((item, index) => (
+      renderItem={({ item }) => (
         <HomeProductCard
-          key={item.id}
           imageSource={item.imageSource}
           onAddToCart={onAddToCart}
           onPress={onOpenProduct}
           product={item}
-          style={index === items.length - 1 ? null : styles.productCardSpacing}
+          style={{ width: cardWidth }}
         />
-      ))}
-    </ScrollView>
+      )}
+    />
   );
 }
 
-function HomeGroceriesGrid({
-  items,
-  onAddToCart,
-  onOpenProduct,
-}) {
+function HomeGroceriesGrid({ items, onAddToCart, onOpenProduct }) {
   if (!items.length) {
     return null;
   }
 
   return (
     <View style={styles.groceriesGrid}>
-      {items.map((item, index) => (
+      {items.map(item => (
         <HomeProductCard
           key={item.id}
           imageSource={item.imageSource}
           onAddToCart={onAddToCart}
           onPress={onOpenProduct}
           product={item}
-          style={index % 2 === 0 ? styles.groceriesCardLeft : styles.groceriesCardRight}
+          style={styles.gridProductCard}
         />
       ))}
     </View>
+  );
+}
+
+function HomeCategoryRow({ cardWidth, items, onPressCategory }) {
+  if (!items.length) {
+    return null;
+  }
+
+  return (
+    <FlatList
+      horizontal
+      contentContainerStyle={styles.horizontalRailContent}
+      data={items}
+      decelerationRate="fast"
+      disableIntervalMomentum
+      ItemSeparatorComponent={HomeRailSpacer}
+      keyExtractor={item => item.id}
+      nestedScrollEnabled
+      snapToAlignment="start"
+      snapToInterval={cardWidth + HOME_HORIZONTAL_GAP}
+      renderItem={({ item }) => (
+        <HomeCategoryCard
+          category={item}
+          onPress={onPressCategory}
+          style={{ width: cardWidth }}
+        />
+      )}
+      showsHorizontalScrollIndicator={false}
+    />
   );
 }
 
@@ -166,20 +257,22 @@ function HomeScreenEmptyState({
   if (isLoading) {
     return (
       <View style={styles.emptyCard}>
-        <ActivityIndicator color={HOME_COLORS.accent} size="small" />
-        <Text style={styles.emptyTitle}>Loading Home...</Text>
+        <ActivityIndicator color={UI_COLORS.accentGreen} size="small" />
+        <Text style={styles.emptyTitle}>Loading the shop</Text>
         <Text style={styles.emptySubtitle}>
-          Pulling Grovy products and mapping them into the Home frame.
+          We&apos;re getting the latest grocery items ready.
         </Text>
       </View>
     );
   }
 
-  if (errorMessage) {
+  if (errorMessage && !hasProducts) {
     return (
       <View style={styles.emptyCard}>
-        <Text style={styles.emptyTitle}>Could not load Home.</Text>
-        <Text style={styles.emptySubtitle}>{errorMessage}</Text>
+        <Text style={styles.emptyTitle}>Couldn&apos;t load the shop</Text>
+        <Text style={styles.emptySubtitle}>
+          Please try again in a moment.
+        </Text>
         <View style={styles.emptySpacer} />
         <PrimaryButton title="Retry" onPress={onRetry} />
       </View>
@@ -189,9 +282,9 @@ function HomeScreenEmptyState({
   if (hasProducts) {
     return (
       <View style={styles.emptyCard}>
-        <Text style={styles.emptyTitle}>No Home items match this search.</Text>
+        <Text style={styles.emptyTitle}>No items match this search</Text>
         <Text style={styles.emptySubtitle}>
-          Clear the keyword to return to the original Figma-style Home layout.
+          Clear the search to see the full grocery assortment again.
         </Text>
         <View style={styles.emptySpacer} />
         <PrimaryButton
@@ -205,16 +298,16 @@ function HomeScreenEmptyState({
 
   return (
     <View style={styles.emptyCard}>
-      <Text style={styles.emptyTitle}>No products available yet.</Text>
+      <Text style={styles.emptyTitle}>The shop is quiet right now</Text>
       <Text style={styles.emptySubtitle}>
-        The backend responded successfully, but there is not enough data to fill
-        the Home frame.
+        There are no grocery items available yet.
       </Text>
     </View>
   );
 }
 
 function HomeScreen({ navigation }) {
+  const { width } = useWindowDimensions();
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -241,7 +334,7 @@ function HomeScreen({ navigation }) {
         if (isMounted) {
           setProducts([]);
           setErrorMessage(
-            error.message || 'Could not load products from the Grovy backend.',
+            error.message || 'Could not load products right now.',
           );
         }
       } finally {
@@ -289,25 +382,47 @@ function HomeScreen({ navigation }) {
     navigation.navigate(CUSTOMER_ROUTES.EXPLORE);
   }
 
+  function handleOpenCategory(category) {
+    if (!category?.category) {
+      return;
+    }
+
+    navigation.navigate(CUSTOMER_ROUTES.CATEGORY_PRODUCTS, {
+      category: category.category,
+      title: category.title,
+    });
+  }
+
   const homeData = useMemo(() => buildHomeScreenData(products), [products]);
   const normalizedSearchQuery = normalizeSearchValue(searchQuery);
-  const exclusiveOffer = filterHomeSectionProducts(
+  const horizontalCardWidth = useMemo(
+    () => getHomeProductCardWidth(width),
+    [width],
+  );
+  const categoryCardWidth = useMemo(
+    () => getHomeCategoryCardWidth(width),
+    [width],
+  );
+  const freshPicks = filterHomeSectionProducts(
     homeData.exclusiveOffer,
     normalizedSearchQuery,
   );
-  const bestSelling = filterHomeSectionProducts(
+  const popularItems = filterHomeSectionProducts(
     homeData.bestSelling,
     normalizedSearchQuery,
   );
-  const groceries = filterHomeSectionProducts(
+  const pantryAndProtein = filterHomeSectionProducts(
     homeData.groceries,
     normalizedSearchQuery,
   );
-  const hasVisibleContent =
-    exclusiveOffer.length > 0 ||
-    bestSelling.length > 0 ||
-    groceries.length > 0 ||
-    !normalizedSearchQuery;
+  const hasCatalogItems =
+    homeData.exclusiveOffer.length > 0 ||
+    homeData.bestSelling.length > 0 ||
+    homeData.groceries.length > 0;
+  const hasProductResults =
+    freshPicks.length > 0 ||
+    popularItems.length > 0 ||
+    pantryAndProtein.length > 0;
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -317,28 +432,52 @@ function HomeScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <HomeLogo />
-            <Text style={styles.locationLabel}>HCMC, Vietnam</Text>
+          <View style={styles.headerRow}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.headerEyebrow}>Deliver to</Text>
+              <View style={styles.locationRow}>
+                <PinGlyph />
+                <Text style={styles.locationLabel}>HCMC, Vietnam</Text>
+              </View>
+            </View>
+
+            <View style={styles.brandBadge}>
+              <Text style={styles.brandBadgeText}>Grovy</Text>
+            </View>
           </View>
+
+          <Text style={styles.screenTitle}>Fresh groceries for the week</Text>
+          <Text style={styles.screenSubtitle}>
+            Produce, pantry basics and drinks in one practical shop.
+          </Text>
 
           <View style={styles.searchBar}>
             <SearchGlyph />
             <TextInput
               onChangeText={setSearchQuery}
-              placeholder="Search Store"
-              placeholderTextColor="#7C7C7C"
+              placeholder="Search groceries"
+              placeholderTextColor={UI_COLORS.muted}
               style={styles.searchInput}
               value={searchQuery}
             />
             {searchQuery.trim() ? (
-              <Pressable onPress={handleResetFilters} style={styles.clearButton}>
-                <Text style={styles.clearButtonLabel}>x</Text>
+              <Pressable
+                android_ripple={{ color: '#E7DED5' }}
+                hitSlop={6}
+                onPress={handleResetFilters}
+                style={({ pressed }) => [
+                  styles.clearButton,
+                  pressed && styles.clearButtonPressed,
+                ]}
+              >
+                <Text style={styles.clearButtonLabel}>×</Text>
               </Pressable>
             ) : null}
           </View>
 
-          <HomeBanner
+          <HomeStatusBanner errorMessage={errorMessage} isLoading={isLoading} />
+
+          <HomeHero
             banner={homeData.banner}
             onPress={() =>
               homeData.exclusiveOffer[0]
@@ -347,52 +486,65 @@ function HomeScreen({ navigation }) {
             }
           />
 
-          {hasVisibleContent ? (
+          <View style={styles.sectionBlock}>
+            <SectionHeader onSeeAll={handleOpenExplore} title="Shop by aisle" />
+            <View style={styles.horizontalRail}>
+              <HomeCategoryRow
+                cardWidth={categoryCardWidth}
+                items={homeData.groceryCategories}
+                onPressCategory={handleOpenCategory}
+              />
+            </View>
+          </View>
+
+          {hasProductResults ? (
             <>
-              <SectionHeader onSeeAll={handleOpenExplore} title="Exclusive Offer" />
-              <HomeSectionRow
-                items={exclusiveOffer}
-                onAddToCart={handleQuickAddToCart}
-                onOpenProduct={handleOpenProduct}
-              />
-
-              <SectionHeader onSeeAll={handleOpenExplore} title="Best Selling" />
-              <HomeSectionRow
-                items={bestSelling}
-                onAddToCart={handleQuickAddToCart}
-                onOpenProduct={handleOpenProduct}
-              />
-
-              <SectionHeader onSeeAll={handleOpenExplore} title="Groceries" />
-              <ScrollView
-                horizontal
-                contentContainerStyle={styles.horizontalSectionContent}
-                showsHorizontalScrollIndicator={false}
-                style={styles.categoryRow}
-              >
-                {homeData.groceryCategories.map((category, index) => (
-                  <HomeCategoryCard
-                    key={category.id}
-                    category={category}
-                    style={
-                      index === homeData.groceryCategories.length - 1
-                        ? null
-                        : styles.categorySpacing
-                    }
+              <View style={styles.sectionBlock}>
+                <SectionHeader
+                  onSeeAll={handleOpenExplore}
+                  title="Fresh picks"
+                />
+                <View style={styles.horizontalRail}>
+                  <HomeSectionRow
+                    cardWidth={horizontalCardWidth}
+                    items={freshPicks}
+                    onAddToCart={handleQuickAddToCart}
+                    onOpenProduct={handleOpenProduct}
                   />
-                ))}
-              </ScrollView>
+                </View>
+              </View>
 
-              <HomeGroceriesGrid
-                items={groceries}
-                onAddToCart={handleQuickAddToCart}
-                onOpenProduct={handleOpenProduct}
-              />
+              <View style={styles.sectionBlock}>
+                <SectionHeader
+                  onSeeAll={handleOpenExplore}
+                  title="Popular in store"
+                />
+                <View style={styles.horizontalRail}>
+                  <HomeSectionRow
+                    cardWidth={horizontalCardWidth}
+                    items={popularItems}
+                    onAddToCart={handleQuickAddToCart}
+                    onOpenProduct={handleOpenProduct}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.sectionBlock}>
+                <SectionHeader
+                  onSeeAll={handleOpenExplore}
+                  title="Pantry and protein"
+                />
+                <HomeGroceriesGrid
+                  items={pantryAndProtein}
+                  onAddToCart={handleQuickAddToCart}
+                  onOpenProduct={handleOpenProduct}
+                />
+              </View>
             </>
           ) : (
             <HomeScreenEmptyState
               errorMessage={errorMessage}
-              hasProducts={products.length > 0}
+              hasProducts={hasCatalogItems}
               isLoading={isLoading}
               onResetFilters={handleResetFilters}
               onRetry={handleReloadProducts}
@@ -405,7 +557,6 @@ function HomeScreen({ navigation }) {
             activeRoute={CUSTOMER_ROUTES.HOME}
             navigation={navigation}
             totalItems={totalItems}
-            variant="figma"
           />
         </View>
       </View>
@@ -416,79 +567,106 @@ function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: HOME_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   screen: {
     flex: 1,
-    backgroundColor: HOME_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   content: {
-    paddingHorizontal: 25,
+    paddingHorizontal: UI_LAYOUT.homeScreenPadding,
     paddingTop: 12,
-    paddingBottom: 130,
+    paddingBottom: 150,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 20,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 18,
   },
-  logoWrap: {
-    alignItems: 'center',
-    marginBottom: 8,
+  headerCopy: {
+    flex: 1,
+    paddingRight: 16,
   },
-  logoMark: {
-    width: 34,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginBottom: 6,
-    position: 'relative',
-  },
-  logoLeafLeft: {
-    position: 'absolute',
-    left: 6,
-    top: 2,
-    width: 12,
-    height: 18,
-    borderTopLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    backgroundColor: '#53B175',
-    transform: [{ rotate: '-18deg' }],
-  },
-  logoLeafRight: {
-    position: 'absolute',
-    right: 6,
-    top: 2,
-    width: 12,
-    height: 18,
-    borderTopRightRadius: 12,
-    borderBottomLeftRadius: 12,
-    backgroundColor: '#53B175',
-    transform: [{ rotate: '18deg' }],
-  },
-  logoText: {
-    color: HOME_COLORS.text,
-    fontSize: 19,
+  headerEyebrow: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   locationLabel: {
-    color: HOME_COLORS.text,
-    fontSize: 18,
+    color: UI_COLORS.textStrong,
+    fontSize: 17,
     fontWeight: '700',
+    lineHeight: 22,
+    marginLeft: 8,
+  },
+  pinGlyph: {
+    width: 14,
+    height: 18,
+    alignItems: 'center',
+  },
+  pinGlyphCircle: {
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    borderWidth: 1.8,
+    borderColor: UI_COLORS.accentGreen,
+  },
+  pinGlyphPoint: {
+    width: 2,
+    height: 5,
+    backgroundColor: UI_COLORS.accentGreen,
+    borderRadius: 1,
+    marginTop: -1,
+  },
+  brandBadge: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  brandBadgeText: {
+    color: UI_COLORS.textStrong,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  screenTitle: {
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.screenTitle,
+  },
+  screenSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
+    marginTop: 6,
+    marginBottom: 22,
+    maxWidth: '86%',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: HOME_COLORS.subtle,
-    borderRadius: 19,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
     paddingHorizontal: 16,
-    minHeight: 52,
-    marginBottom: 20,
+    minHeight: UI_LAYOUT.searchHeight,
+    ...UI_SHADOWS.card,
   },
   searchGlyph: {
     width: 18,
     height: 18,
-    marginRight: 10,
+    marginRight: 12,
     position: 'relative',
   },
   searchGlyphCircle: {
@@ -499,7 +677,6 @@ const styles = StyleSheet.create({
     height: 11,
     borderWidth: 1.8,
     borderRadius: 5.5,
-    borderColor: '#181725',
   },
   searchGlyphHandle: {
     position: 'absolute',
@@ -508,136 +685,199 @@ const styles = StyleSheet.create({
     width: 6,
     height: 2,
     borderRadius: 1,
-    backgroundColor: '#181725',
     transform: [{ rotate: '45deg' }],
   },
   searchInput: {
     flex: 1,
-    color: HOME_COLORS.text,
-    fontSize: 14,
-    fontWeight: '600',
+    color: UI_COLORS.textStrong,
+    fontSize: 15,
+    fontWeight: '500',
     paddingVertical: 14,
   },
   clearButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#C7C7C7',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: UI_COLORS.surfaceTint,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
+  clearButtonPressed: {
+    opacity: 0.88,
+  },
   clearButtonLabel: {
-    color: '#FFFFFF',
+    color: UI_COLORS.mutedStrong,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderRadius: UI_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#D9E6D6',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 14,
+    marginBottom: 18,
+  },
+  statusBannerWarning: {
+    backgroundColor: UI_COLORS.errorSoft,
+    borderColor: '#EBCFC8',
+  },
+  statusBannerText: {
+    color: UI_COLORS.successText,
+    ...UI_TYPOGRAPHY.label,
+    flex: 1,
+    marginLeft: 10,
+  },
+  statusBannerTextWarning: {
+    color: UI_COLORS.accentRed,
+  },
+  heroCard: {
+    backgroundColor: UI_COLORS.banner,
+    borderRadius: UI_RADIUS.hero,
+    overflow: 'hidden',
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    paddingBottom: 20,
+    minHeight: 220,
+    position: 'relative',
+    marginBottom: 36,
+  },
+  heroPressed: {
+    opacity: 0.97,
+  },
+  heroCircleLarge: {
+    position: 'absolute',
+    right: -10,
+    bottom: -20,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: UI_COLORS.bannerSoft,
+  },
+  heroCircleSmall: {
+    position: 'absolute',
+    right: 76,
+    top: -24,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(215, 155, 90, 0.16)',
+  },
+  heroCopy: {
+    width: '56%',
+    zIndex: 1,
+  },
+  heroEyebrow: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 10,
+  },
+  heroTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 34,
+  },
+  heroSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
+    marginTop: 10,
+  },
+  heroTagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 16,
+  },
+  heroTag: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  heroTagLabel: {
+    color: UI_COLORS.textStrong,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 14,
   },
-  banner: {
-    minHeight: 116,
-    borderRadius: 18,
-    backgroundColor: HOME_COLORS.banner,
-    overflow: 'hidden',
-    marginBottom: 28,
-    paddingLeft: 24,
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  bannerPressed: {
-    opacity: 0.95,
-  },
-  bannerCirclePrimary: {
+  heroImage: {
     position: 'absolute',
-    right: 42,
-    top: -12,
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: HOME_COLORS.bannerAccent,
-    opacity: 0.15,
+    right: 4,
+    bottom: 4,
+    width: 188,
+    height: 160,
   },
-  bannerCircleSecondary: {
-    position: 'absolute',
-    left: 138,
-    bottom: -18,
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    backgroundColor: HOME_COLORS.bannerSoft,
-  },
-  bannerCopy: {
-    width: '52%',
-    zIndex: 1,
-  },
-  bannerTitle: {
-    color: HOME_COLORS.text,
-    fontSize: 19,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  bannerSubtitle: {
-    color: '#FC5A5A',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 6,
-  },
-  bannerImage: {
-    position: 'absolute',
-    right: 8,
-    bottom: 0,
-    width: 158,
-    height: 108,
+  sectionBlock: {
+    marginBottom: 34,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    marginBottom: 16,
   },
   sectionTitle: {
-    color: HOME_COLORS.text,
-    fontSize: 24,
-    fontWeight: '700',
-    lineHeight: 29,
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.sectionTitle,
+  },
+  sectionLinkButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+  },
+  sectionLinkButtonPressed: {
+    opacity: 0.85,
   },
   sectionLink: {
-    color: HOME_COLORS.accent,
-    fontSize: 16,
-    fontWeight: '600',
+    color: UI_COLORS.textStrong,
+    fontSize: 13,
+    fontWeight: '700',
   },
-  horizontalSectionContent: {
-    paddingRight: 25,
+  horizontalRail: {
+    marginHorizontal: -UI_LAYOUT.homeScreenPadding,
   },
-  productCardSpacing: {
-    marginRight: 15,
+  horizontalRailContent: {
+    paddingHorizontal: UI_LAYOUT.homeScreenPadding,
+    paddingVertical: 4,
   },
-  categoryRow: {
-    marginBottom: 22,
-  },
-  categorySpacing: {
-    marginRight: 15,
+  horizontalRailSpacer: {
+    width: HOME_HORIZONTAL_GAP,
   },
   groceriesGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 12,
   },
-  groceriesCardLeft: {
+  gridProductCard: {
     width: '48%',
-  },
-  groceriesCardRight: {
-    width: '48%',
+    marginBottom: 14,
   },
   emptyCard: {
-    backgroundColor: HOME_COLORS.surface,
-    borderRadius: 20,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
     padding: 24,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: HOME_COLORS.border,
+    ...UI_SHADOWS.card,
   },
   emptyTitle: {
-    color: HOME_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
@@ -645,19 +885,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptySubtitle: {
-    color: HOME_COLORS.muted,
-    fontSize: 15,
-    lineHeight: 22,
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
     textAlign: 'center',
   },
   emptySpacer: {
-    height: 16,
+    height: UI_SPACING.md,
   },
   bottomNavWrap: {
     position: 'absolute',
-    left: 25,
-    right: 25,
-    bottom: 16,
+    left: UI_LAYOUT.homeScreenPadding,
+    right: UI_LAYOUT.homeScreenPadding,
+    bottom: UI_LAYOUT.bottomNavBottom,
   },
 });
 

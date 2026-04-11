@@ -1,32 +1,56 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { COLORS } from '../constants/colors';
 import { AUTH_ROUTES } from '../constants/routes';
-import AuthLandingScreen from '../screens/shared/AuthLandingScreen';
+import {
+  LocationScreen,
+  NumberInputScreen,
+  SignInScreen,
+  SplashScreen,
+  VerificationScreen,
+  WelcomeScreen,
+} from '../screens/opening/OpeningFlowScreens';
 
 const Stack = createNativeStackNavigator();
 
 const screenOptions = {
-  headerStyle: {
-    backgroundColor: COLORS.surface,
-  },
-  headerTintColor: COLORS.primaryDark,
-  headerTitleStyle: {
-    color: COLORS.text,
-    fontWeight: '600',
-  },
-  contentStyle: {
-    backgroundColor: COLORS.background,
-  },
+  headerShown: false,
+  animation: 'slide_from_right',
 };
 
 function AuthNavigator() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator
+      initialRouteName={AUTH_ROUTES.SPLASH}
+      screenOptions={screenOptions}
+    >
       <Stack.Screen
-        name={AUTH_ROUTES.AUTH_LANDING}
-        component={AuthLandingScreen}
-        options={{ title: 'Grovy' }}
+        name={AUTH_ROUTES.SPLASH}
+        component={SplashScreen}
+        options={{
+          animation: 'fade',
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name={AUTH_ROUTES.ONBOARDING}
+        component={WelcomeScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name={AUTH_ROUTES.SIGN_IN}
+        component={SignInScreen}
+      />
+      <Stack.Screen
+        name={AUTH_ROUTES.NUMBER_INPUT}
+        component={NumberInputScreen}
+      />
+      <Stack.Screen
+        name={AUTH_ROUTES.VERIFICATION}
+        component={VerificationScreen}
+      />
+      <Stack.Screen
+        name={AUTH_ROUTES.LOCATION}
+        component={LocationScreen}
       />
     </Stack.Navigator>
   );

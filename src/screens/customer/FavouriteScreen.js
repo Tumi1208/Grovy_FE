@@ -5,23 +5,30 @@ import { getProductImageSource } from '../../assets/productImages';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
+import {
+  UI_COLORS,
+  UI_LAYOUT,
+  UI_RADIUS,
+  UI_SHADOWS,
+  UI_TYPOGRAPHY,
+} from '../../constants/ui';
 import { useCart } from '../../context/CartContext';
 import { useFavourite } from '../../context/FavouriteContext';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getProductSubtitle } from '../../utils/productPresentation';
 
-const FAVOURITE_COLORS = Object.freeze({
-  screen: '#FCF8F3',
-  surface: '#FFFFFF',
-  border: '#EEE7DF',
-  text: '#211A16',
-  muted: '#7F7870',
-  accent: '#D71920',
-});
+const EMPTY_FAVOURITE_IMAGE = require('../../assets/images/products/fruit-and-veggie-heart-scaled.png');
 
 function FavouriteScreen({ navigation }) {
-  const { totalItems } = useCart();
+  const { addToCart, totalItems } = useCart();
   const { favourites, removeFromFavourites } = useFavourite();
+
+  function handleOpenProduct(product) {
+    navigation.navigate(CUSTOMER_ROUTES.PRODUCT_DETAIL, {
+      productId: product.id,
+      initialProduct: product,
+    });
+  }
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -30,23 +37,42 @@ function FavouriteScreen({ navigation }) {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.title}>Favourite</Text>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>Saved items</Text>
+              <Text style={styles.subtitle}>
+                Keep your regular groceries close at hand.
+              </Text>
+            </View>
+
+            <View style={styles.countPill}>
+              <Text style={styles.countPillLabel}>{favourites.length}</Text>
+            </View>
+          </View>
 
           {favourites.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No favourites yet</Text>
+              <View style={styles.emptyImageWrap}>
+                <ProductImage
+                  name="Saved items"
+                  resizeMode="contain"
+                  source={EMPTY_FAVOURITE_IMAGE}
+                  style={styles.emptyImage}
+                />
+              </View>
+              <Text style={styles.emptyTitle}>No saved items yet</Text>
               <Text style={styles.emptySubtitle}>
-                Tap the heart on a product card or detail screen to save it here.
+                Tap the heart on a product to keep it here for later.
               </Text>
               <Pressable
-                android_ripple={{ color: '#D1383D' }}
+                android_ripple={{ color: '#3D5F39' }}
                 onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
                 style={({ pressed }) => [
                   styles.primaryButton,
                   pressed && styles.primaryButtonPressed,
                 ]}
               >
-                <Text style={styles.primaryButtonLabel}>Go to Shop</Text>
+                <Text style={styles.primaryButtonLabel}>Go to shop</Text>
               </Pressable>
             </View>
           ) : null}
@@ -54,13 +80,8 @@ function FavouriteScreen({ navigation }) {
           {favourites.map(product => (
             <View key={product.id} style={styles.row}>
               <Pressable
-                android_ripple={{ color: '#F2ECE5' }}
-                onPress={() =>
-                  navigation.navigate(CUSTOMER_ROUTES.PRODUCT_DETAIL, {
-                    productId: product.id,
-                    initialProduct: product,
-                  })
-                }
+                android_ripple={{ color: '#EEE7DC' }}
+                onPress={() => handleOpenProduct(product)}
                 style={({ pressed }) => [
                   styles.rowMain,
                   pressed && styles.rowPressed,
@@ -82,24 +103,33 @@ function FavouriteScreen({ navigation }) {
                   <Text numberOfLines={1} style={styles.meta}>
                     {getProductSubtitle(product)}
                   </Text>
-                </View>
-
-                <View style={styles.priceWrap}>
                   <Text style={styles.price}>{formatCurrency(product.price)}</Text>
-                  <Text style={styles.chevron}>{'>'}</Text>
                 </View>
               </Pressable>
 
-              <Pressable
-                android_ripple={{ color: '#F2ECE5' }}
-                onPress={() => removeFromFavourites(product.id)}
-                style={({ pressed }) => [
-                  styles.removeButton,
-                  pressed && styles.removeButtonPressed,
-                ]}
-              >
-                <Text style={styles.removeButtonIcon}>♥</Text>
-              </Pressable>
+              <View style={styles.actions}>
+                <Pressable
+                  android_ripple={{ color: '#3D5F39' }}
+                  onPress={() => addToCart(product, 1)}
+                  style={({ pressed }) => [
+                    styles.addButton,
+                    pressed && styles.addButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.addButtonLabel}>Add</Text>
+                </Pressable>
+
+                <Pressable
+                  android_ripple={{ color: '#EEE7DC' }}
+                  onPress={() => removeFromFavourites(product.id)}
+                  style={({ pressed }) => [
+                    styles.removeButton,
+                    pressed && styles.removeButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.removeButtonIcon}>♥</Text>
+                </Pressable>
+              </View>
             </View>
           ))}
         </ScrollView>
@@ -119,62 +149,101 @@ function FavouriteScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: FAVOURITE_COLORS.screen,
+    backgroundColor: UI_COLORS.screen,
   },
   screen: {
     flex: 1,
-    backgroundColor: FAVOURITE_COLORS.screen,
+    backgroundColor: UI_COLORS.screen,
   },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
+    paddingHorizontal: UI_LAYOUT.screenPadding,
+    paddingTop: UI_LAYOUT.screenTop,
     paddingBottom: 132,
   },
-  title: {
-    color: FAVOURITE_COLORS.text,
-    fontSize: 28,
-    fontWeight: '800',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
-  emptyState: {
-    backgroundColor: FAVOURITE_COLORS.surface,
-    borderRadius: 24,
+  title: {
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.screenTitle,
+  },
+  subtitle: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
+    marginTop: 6,
+    maxWidth: '82%',
+  },
+  countPill: {
+    minWidth: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
-    borderColor: FAVOURITE_COLORS.border,
+    borderColor: UI_COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  countPillLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  emptyState: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
     padding: 24,
     alignItems: 'center',
     marginBottom: 20,
+    ...UI_SHADOWS.card,
+  },
+  emptyImageWrap: {
+    width: 136,
+    height: 136,
+    borderRadius: 40,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  emptyImage: {
+    width: 98,
+    height: 98,
   },
   emptyTitle: {
-    color: FAVOURITE_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 22,
     fontWeight: '800',
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
-    color: FAVOURITE_COLORS.muted,
-    fontSize: 15,
-    lineHeight: 22,
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
     textAlign: 'center',
     marginBottom: 20,
   },
   primaryButton: {
     minWidth: 180,
-    backgroundColor: FAVOURITE_COLORS.accent,
-    borderRadius: 20,
+    minHeight: UI_LAYOUT.ctaHeight,
+    backgroundColor: UI_COLORS.accentGreen,
+    borderRadius: UI_RADIUS.xl,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 20,
   },
   primaryButtonPressed: {
-    opacity: 0.9,
+    backgroundColor: UI_COLORS.accentGreenPressed,
   },
   primaryButtonLabel: {
-    color: FAVOURITE_COLORS.surface,
-    fontSize: 17,
-    fontWeight: '700',
+    color: UI_COLORS.surface,
+    ...UI_TYPOGRAPHY.buttonLarge,
   },
   row: {
     flexDirection: 'row',
@@ -185,80 +254,97 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: FAVOURITE_COLORS.surface,
-    borderRadius: 20,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
     borderWidth: 1,
-    borderColor: FAVOURITE_COLORS.border,
+    borderColor: UI_COLORS.border,
     paddingHorizontal: 14,
     paddingVertical: 14,
+    ...UI_SHADOWS.card,
   },
   rowPressed: {
-    opacity: 0.94,
+    opacity: 0.96,
   },
   imageWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 18,
-    backgroundColor: '#F7F2EB',
+    width: 74,
+    height: 74,
+    borderRadius: 20,
+    backgroundColor: UI_COLORS.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
   image: {
-    width: 54,
-    height: 54,
-    backgroundColor: 'transparent',
+    width: 56,
+    height: 56,
   },
   copy: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: 10,
   },
   name: {
-    color: FAVOURITE_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 17,
     fontWeight: '700',
+    lineHeight: 22,
     marginBottom: 4,
   },
   meta: {
-    color: FAVOURITE_COLORS.muted,
-    fontSize: 14,
-  },
-  priceWrap: {
-    alignItems: 'flex-end',
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginBottom: 8,
   },
   price: {
-    color: FAVOURITE_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 6,
+    lineHeight: 22,
   },
-  chevron: {
-    color: FAVOURITE_COLORS.muted,
-    fontSize: 18,
-    fontWeight: '700',
+  actions: {
+    marginLeft: 10,
+    alignItems: 'stretch',
   },
-  removeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFE7E6',
+  addButton: {
+    minWidth: 64,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: UI_COLORS.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  addButtonPressed: {
+    backgroundColor: UI_COLORS.accentGreenPressed,
+  },
+  addButtonLabel: {
+    color: UI_COLORS.surface,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  removeButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: UI_COLORS.accentRedSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
   removeButtonPressed: {
-    opacity: 0.86,
+    opacity: 0.84,
   },
   removeButtonIcon: {
-    color: FAVOURITE_COLORS.accent,
-    fontSize: 18,
-    lineHeight: 18,
+    color: UI_COLORS.accentRed,
+    fontSize: 16,
+    lineHeight: 16,
   },
   bottomNavWrap: {
     position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 18,
+    left: UI_LAYOUT.bottomNavSide,
+    right: UI_LAYOUT.bottomNavSide,
+    bottom: UI_LAYOUT.bottomNavBottom,
   },
 });
 

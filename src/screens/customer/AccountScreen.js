@@ -3,35 +3,38 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
+import {
+  UI_COLORS,
+  UI_LAYOUT,
+  UI_RADIUS,
+  UI_SHADOWS,
+  UI_TYPOGRAPHY,
+} from '../../constants/ui';
 import { CUSTOMER_ACCOUNT_MENU } from '../../data/customerTabsData';
 import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
-
-const ACCOUNT_COLORS = Object.freeze({
-  screen: '#FCF8F3',
-  surface: '#FFFFFF',
-  border: '#EEE7DF',
-  text: '#211A16',
-  muted: '#7F7870',
-  accent: '#D71920',
-  accentPressed: '#C6161C',
-  avatar: '#EDE2D6',
-});
+import { useFavourite } from '../../context/FavouriteContext';
 
 function getAccountEmail(currentUser) {
   if (!currentUser?.name) {
     return 'demo.customer@grovy.app';
   }
 
-  return `${currentUser.name.trim().toLowerCase().replace(/\s+/g, '.')}@grovy.app`;
+  return `${currentUser.name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '.')}@grovy.app`;
 }
 
 function MenuRow({ label, onPress }) {
   return (
     <Pressable
-      android_ripple={{ color: '#F2ECE5' }}
+      android_ripple={{ color: '#EEE7DC' }}
       onPress={onPress}
-      style={({ pressed }) => [styles.menuRow, pressed && styles.menuRowPressed]}
+      style={({ pressed }) => [
+        styles.menuRow,
+        pressed && styles.menuRowPressed,
+      ]}
     >
       <Text style={styles.menuRowLabel}>{label}</Text>
       <Text style={styles.menuRowChevron}>{'>'}</Text>
@@ -39,9 +42,19 @@ function MenuRow({ label, onPress }) {
   );
 }
 
+function StatCard({ label, value }) {
+  return (
+    <View style={styles.statCard}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
 function AccountScreen({ navigation }) {
   const { currentUser, signOut } = useApp();
   const { totalItems } = useCart();
+  const { totalFavourites } = useFavourite();
   const userName = currentUser?.name || 'Demo Customer';
   const userEmail = getAccountEmail(currentUser);
 
@@ -60,8 +73,22 @@ function AccountScreen({ navigation }) {
             <View style={styles.avatar}>
               <Text style={styles.avatarLabel}>{userName.slice(0, 1)}</Text>
             </View>
-            <Text style={styles.userName}>{userName}</Text>
-            <Text style={styles.userEmail}>{userEmail}</Text>
+
+            <View style={styles.profileCopy}>
+              <Text style={styles.userName}>{userName}</Text>
+              <Text style={styles.userEmail}>{userEmail}</Text>
+            </View>
+          </View>
+
+          <View style={styles.statsRow}>
+            <StatCard
+              label="Items in cart"
+              value={`${totalItems}`}
+            />
+            <StatCard
+              label="Saved items"
+              value={`${totalFavourites}`}
+            />
           </View>
 
           <View style={styles.menuCard}>
@@ -76,14 +103,14 @@ function AccountScreen({ navigation }) {
           </View>
 
           <Pressable
-            android_ripple={{ color: '#D1383D' }}
+            android_ripple={{ color: '#F0E1DC' }}
             onPress={signOut}
             style={({ pressed }) => [
               styles.logoutButton,
               pressed && styles.logoutButtonPressed,
             ]}
           >
-            <Text style={styles.logoutButtonLabel}>Log Out</Text>
+            <Text style={styles.logoutButtonLabel}>Log out</Text>
           </Pressable>
         </ScrollView>
 
@@ -102,64 +129,95 @@ function AccountScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: ACCOUNT_COLORS.screen,
+    backgroundColor: UI_COLORS.screen,
   },
   screen: {
     flex: 1,
-    backgroundColor: ACCOUNT_COLORS.screen,
+    backgroundColor: UI_COLORS.screen,
   },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
+    paddingHorizontal: UI_LAYOUT.screenPadding,
+    paddingTop: UI_LAYOUT.screenTop,
     paddingBottom: 132,
   },
   title: {
-    color: ACCOUNT_COLORS.text,
-    fontSize: 28,
-    fontWeight: '800',
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.screenTitle,
     marginBottom: 22,
   },
   profileCard: {
-    backgroundColor: ACCOUNT_COLORS.surface,
-    borderRadius: 24,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
     borderWidth: 1,
-    borderColor: ACCOUNT_COLORS.border,
+    borderColor: UI_COLORS.border,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 28,
-    paddingHorizontal: 20,
-    marginBottom: 18,
+    padding: 18,
+    marginBottom: 16,
+    ...UI_SHADOWS.card,
   },
   avatar: {
     width: 74,
     height: 74,
     borderRadius: 37,
-    backgroundColor: ACCOUNT_COLORS.avatar,
+    backgroundColor: UI_COLORS.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginRight: 16,
   },
   avatarLabel: {
-    color: ACCOUNT_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 28,
     fontWeight: '800',
   },
+  profileCopy: {
+    flex: 1,
+  },
   userName: {
-    color: ACCOUNT_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 20,
     fontWeight: '800',
     marginBottom: 4,
+    lineHeight: 26,
   },
   userEmail: {
-    color: ACCOUNT_COLORS.muted,
-    fontSize: 14,
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  statCard: {
+    width: '48%',
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    ...UI_SHADOWS.card,
+  },
+  statValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 24,
+    fontWeight: '800',
+    lineHeight: 28,
+    marginBottom: 6,
+  },
+  statLabel: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
   },
   menuCard: {
-    backgroundColor: ACCOUNT_COLORS.surface,
-    borderRadius: 24,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
     borderWidth: 1,
-    borderColor: ACCOUNT_COLORS.border,
+    borderColor: UI_COLORS.border,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: 18,
+    ...UI_SHADOWS.card,
   },
   menuRow: {
     flexDirection: 'row',
@@ -169,43 +227,46 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
   },
   menuRowPressed: {
-    opacity: 0.92,
+    opacity: 0.94,
   },
   menuRowLabel: {
-    color: ACCOUNT_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 16,
     fontWeight: '600',
+    lineHeight: 22,
   },
   menuRowChevron: {
-    color: ACCOUNT_COLORS.muted,
+    color: UI_COLORS.mutedStrong,
     fontSize: 18,
     fontWeight: '700',
   },
   divider: {
-    height: 1,
-    backgroundColor: ACCOUNT_COLORS.border,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: UI_COLORS.border,
     marginHorizontal: 18,
   },
   logoutButton: {
-    backgroundColor: ACCOUNT_COLORS.accent,
-    borderRadius: 20,
+    minHeight: UI_LAYOUT.ctaHeight,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: '#E7CFC7',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 18,
   },
   logoutButtonPressed: {
-    backgroundColor: ACCOUNT_COLORS.accentPressed,
+    opacity: 0.86,
   },
   logoutButtonLabel: {
-    color: ACCOUNT_COLORS.surface,
-    fontSize: 18,
-    fontWeight: '700',
+    color: UI_COLORS.accentRed,
+    ...UI_TYPOGRAPHY.buttonLarge,
   },
   bottomNavWrap: {
     position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 18,
+    left: UI_LAYOUT.bottomNavSide,
+    right: UI_LAYOUT.bottomNavSide,
+    bottom: UI_LAYOUT.bottomNavBottom,
   },
 });
 

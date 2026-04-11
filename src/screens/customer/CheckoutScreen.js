@@ -9,7 +9,16 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { defaultProductImage } from '../../assets/productImages';
+import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
+import {
+  UI_COLORS,
+  UI_LAYOUT,
+  UI_RADIUS,
+  UI_SHADOWS,
+  UI_TYPOGRAPHY,
+} from '../../constants/ui';
 import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
 import {
@@ -17,21 +26,6 @@ import {
   submitOrder,
 } from '../../services/orderService';
 import { formatCurrency } from '../../utils/formatCurrency';
-
-const CHECKOUT_COLORS = Object.freeze({
-  screen: '#FCF8F3',
-  surface: '#FFFFFF',
-  surfaceMuted: '#F7F2EB',
-  border: '#EFE7DE',
-  text: '#181725',
-  muted: '#7C7C7C',
-  accent: '#E53935',
-  accentPressed: '#CF2E2A',
-  successSoft: '#EFF8F0',
-  successText: '#4B7A2A',
-  errorSoft: '#FFF2F2',
-  shadow: '#1C130B',
-});
 
 const DELIVERY_FEE = 0;
 const DISCOUNT_AMOUNT = 0;
@@ -59,17 +53,18 @@ function SummaryRow({ emphasized = false, label, value }) {
   );
 }
 
-function CheckoutOptionRow({ title, value }) {
+function HeaderButton({ children, onPress }) {
   return (
-    <View style={styles.optionRow}>
-      <Text style={styles.optionTitle}>{title}</Text>
-      <View style={styles.optionValueWrap}>
-        <Text numberOfLines={1} style={styles.optionValue}>
-          {value}
-        </Text>
-        <Text style={styles.optionArrow}>{'>'}</Text>
-      </View>
-    </View>
+    <Pressable
+      android_ripple={{ color: '#EEE6DC' }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.headerButton,
+        pressed && styles.headerButtonPressed,
+      ]}
+    >
+      {children}
+    </Pressable>
   );
 }
 
@@ -93,7 +88,7 @@ function CheckoutScreen({ navigation }) {
     }
 
     if (!customerName.trim() || !phone.trim() || !address.trim()) {
-      setErrorMessage('Please enter customer name, phone, and address.');
+      setErrorMessage('Please enter your name, phone number and address.');
       return;
     }
 
@@ -136,20 +131,30 @@ function CheckoutScreen({ navigation }) {
     return (
       <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>Nothing to checkout yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Return to your cart before placing an order.
-          </Text>
-          <Pressable
-            android_ripple={{ color: '#D1383D' }}
-            onPress={() => navigation.navigate(CUSTOMER_ROUTES.CART)}
-            style={({ pressed }) => [
-              styles.placeOrderButton,
-              pressed && styles.placeOrderButtonPressed,
-            ]}
-          >
-            <Text style={styles.placeOrderButtonLabel}>Back to Cart</Text>
-          </Pressable>
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyImageWrap}>
+              <ProductImage
+                name="Checkout"
+                resizeMode="contain"
+                source={defaultProductImage}
+                style={styles.emptyImage}
+              />
+            </View>
+            <Text style={styles.emptyTitle}>Nothing to check out yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Return to your cart before placing an order.
+            </Text>
+            <Pressable
+              android_ripple={{ color: '#3D5F39' }}
+              onPress={() => navigation.navigate(CUSTOMER_ROUTES.CART)}
+              style={({ pressed }) => [
+                styles.placeOrderButton,
+                pressed && styles.placeOrderButtonPressed,
+              ]}
+            >
+              <Text style={styles.placeOrderButtonLabel}>Back to cart</Text>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -158,75 +163,82 @@ function CheckoutScreen({ navigation }) {
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
+        <View style={styles.header}>
+          <HeaderButton onPress={() => navigation.goBack()}>
+            <Text style={styles.backIcon}>{'<'}</Text>
+          </HeaderButton>
+
+          <View style={styles.headerCopy}>
+            <Text style={styles.title}>Checkout</Text>
+            <Text style={styles.headerSubtitle}>
+              Delivery details and order review
+            </Text>
+          </View>
+        </View>
+
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <Text style={styles.title}>Checkout</Text>
-          </View>
-
-          <View style={styles.groupedCard}>
-            <CheckoutOptionRow title="Delivery" value={address.trim()} />
-            <View style={styles.divider} />
-            <CheckoutOptionRow title="Payment" value="Cash on delivery" />
-            <View style={styles.divider} />
-            <CheckoutOptionRow title="Promo Code" value="Pick discount" />
-            <View style={styles.divider} />
-            <CheckoutOptionRow
-              title="Total Cost"
-              value={formatCurrency(totalCost)}
-            />
-          </View>
-
-          <View style={styles.formCard}>
-            <Text style={styles.sectionTitle}>Receiver Details</Text>
-            <TextInput
-              value={customerName}
-              onChangeText={setCustomerName}
-              placeholder="Customer name"
-              placeholderTextColor={CHECKOUT_COLORS.muted}
-              style={styles.input}
-            />
-            <TextInput
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              placeholder="Phone number"
-              placeholderTextColor={CHECKOUT_COLORS.muted}
-              style={styles.input}
-            />
-            <TextInput
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Delivery address"
-              placeholderTextColor={CHECKOUT_COLORS.muted}
-              style={[styles.input, styles.multilineInput]}
-              multiline
-            />
-          </View>
-
           <View style={styles.summaryCard}>
-            <SummaryRow
-              label="Subtotal"
-              value={formatCurrency(subtotal)}
-            />
+            <Text style={styles.cardTitle}>Order summary</Text>
+
+            <SummaryRow label="Items" value={`${items.length}`} />
+            <SummaryRow label="Subtotal" value={formatCurrency(subtotal)} />
             <SummaryRow
               label="Delivery"
               value={DELIVERY_FEE > 0 ? formatCurrency(DELIVERY_FEE) : 'Free'}
             />
             <SummaryRow
-              label="Promo"
-              value={
-                DISCOUNT_AMOUNT > 0 ? `-${formatCurrency(DISCOUNT_AMOUNT)}` : 'None'
-              }
+              label="Payment"
+              value={DISCOUNT_AMOUNT > 0 ? 'Discount applied' : 'Cash'}
             />
-            <View style={styles.divider} />
+
+            <View style={styles.summaryDivider} />
+
             <SummaryRow
               emphasized
-              label="Total Cost"
+              label="Total"
               value={formatCurrency(totalCost)}
             />
+          </View>
+
+          <View style={styles.formCard}>
+            <Text style={styles.cardTitle}>Receiver details</Text>
+
+            <Text style={styles.inputLabel}>Full name</Text>
+            <TextInput
+              value={customerName}
+              onChangeText={setCustomerName}
+              placeholder="Customer name"
+              placeholderTextColor={UI_COLORS.muted}
+              style={styles.input}
+            />
+
+            <Text style={styles.inputLabel}>Phone number</Text>
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              placeholder="Phone number"
+              placeholderTextColor={UI_COLORS.muted}
+              style={styles.input}
+            />
+
+            <Text style={styles.inputLabel}>Delivery address</Text>
+            <TextInput
+              value={address}
+              onChangeText={setAddress}
+              placeholder="Delivery address"
+              placeholderTextColor={UI_COLORS.muted}
+              style={[styles.input, styles.multilineInput]}
+              multiline
+            />
+
+            <View style={styles.paymentNote}>
+              <Text style={styles.paymentNoteLabel}>Payment method</Text>
+              <Text style={styles.paymentNoteValue}>Cash on delivery</Text>
+            </View>
           </View>
 
           {errorMessage ? (
@@ -237,8 +249,15 @@ function CheckoutScreen({ navigation }) {
         </ScrollView>
 
         <View style={styles.footer}>
+          <View style={styles.footerTotalWrap}>
+            <Text style={styles.footerTotalLabel}>Order total</Text>
+            <Text style={styles.footerTotalValue}>
+              {formatCurrency(totalCost)}
+            </Text>
+          </View>
+
           <Pressable
-            android_ripple={{ color: '#D1383D' }}
+            android_ripple={{ color: '#3D5F39' }}
             disabled={isSubmitting}
             onPress={handlePlaceOrder}
             style={({ pressed }) => [
@@ -248,14 +267,9 @@ function CheckoutScreen({ navigation }) {
             ]}
           >
             {isSubmitting ? (
-              <ActivityIndicator color={CHECKOUT_COLORS.surface} size="small" />
+              <ActivityIndicator color={UI_COLORS.surface} size="small" />
             ) : (
-              <>
-                <Text style={styles.placeOrderButtonLabel}>Place Order</Text>
-                <Text style={styles.placeOrderButtonValue}>
-                  {formatCurrency(totalCost)}
-                </Text>
-              </>
+              <Text style={styles.placeOrderButtonLabel}>Place order</Text>
             )}
           </Pressable>
         </View>
@@ -267,197 +281,250 @@ function CheckoutScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: CHECKOUT_COLORS.screen,
+    backgroundColor: UI_COLORS.screen,
   },
   screen: {
     flex: 1,
-    backgroundColor: CHECKOUT_COLORS.screen,
-  },
-  content: {
-    paddingHorizontal: 24,
-    paddingBottom: 148,
+    backgroundColor: UI_COLORS.screen,
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 18,
+    paddingHorizontal: UI_LAYOUT.screenPadding,
+    paddingTop: 10,
+    paddingBottom: 16,
   },
-  title: {
-    color: CHECKOUT_COLORS.text,
+  headerButton: {
+    width: UI_LAYOUT.iconButton,
+    height: UI_LAYOUT.iconButton,
+    borderRadius: UI_RADIUS.lg,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  headerButtonPressed: {
+    opacity: 0.88,
+  },
+  backIcon: {
+    color: UI_COLORS.textStrong,
     fontSize: 22,
     fontWeight: '700',
+    lineHeight: 22,
   },
-  groupedCard: {
-    backgroundColor: CHECKOUT_COLORS.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: CHECKOUT_COLORS.border,
-    overflow: 'hidden',
-    marginBottom: 18,
-  },
-  optionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 20,
-  },
-  optionTitle: {
-    color: CHECKOUT_COLORS.text,
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  optionValueWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerCopy: {
     flex: 1,
-    justifyContent: 'flex-end',
-    marginLeft: 16,
   },
-  optionValue: {
-    color: CHECKOUT_COLORS.muted,
-    fontSize: 15,
-    textAlign: 'right',
-    maxWidth: '86%',
+  title: {
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.sectionTitle,
   },
-  optionArrow: {
-    color: CHECKOUT_COLORS.text,
-    fontSize: 16,
-    marginLeft: 10,
+  headerSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 4,
   },
-  formCard: {
-    backgroundColor: CHECKOUT_COLORS.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: CHECKOUT_COLORS.border,
-    padding: 18,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    color: CHECKOUT_COLORS.text,
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  input: {
-    backgroundColor: CHECKOUT_COLORS.surfaceMuted,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: CHECKOUT_COLORS.border,
-    color: CHECKOUT_COLORS.text,
-    marginBottom: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  multilineInput: {
-    minHeight: 88,
-    textAlignVertical: 'top',
+  content: {
+    paddingHorizontal: UI_LAYOUT.screenPadding,
+    paddingBottom: 152,
   },
   summaryCard: {
-    backgroundColor: CHECKOUT_COLORS.surface,
-    borderRadius: 18,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
     borderWidth: 1,
-    borderColor: CHECKOUT_COLORS.border,
-    padding: 18,
+    borderColor: UI_COLORS.border,
+    padding: 20,
+    marginBottom: 16,
+    ...UI_SHADOWS.card,
+  },
+  cardTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 26,
     marginBottom: 16,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 8,
   },
   summaryLabel: {
-    color: CHECKOUT_COLORS.muted,
-    fontSize: 16,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: CHECKOUT_COLORS.border,
-    marginVertical: 14,
+    color: UI_COLORS.mutedStrong,
+    fontSize: 15,
+    lineHeight: 20,
   },
   summaryLabelEmphasized: {
-    color: CHECKOUT_COLORS.text,
-    fontSize: 18,
-    fontWeight: '600',
+    color: UI_COLORS.textStrong,
+    fontWeight: '700',
   },
   summaryValue: {
-    color: CHECKOUT_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 16,
     fontWeight: '600',
+    lineHeight: 20,
   },
   summaryValueEmphasized: {
     fontSize: 22,
     fontWeight: '800',
+    lineHeight: 26,
+  },
+  summaryDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: UI_COLORS.border,
+    marginVertical: 10,
+  },
+  formCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 20,
+    marginBottom: 16,
+    ...UI_SHADOWS.card,
+  },
+  inputLabel: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
+    marginBottom: 8,
+  },
+  input: {
+    minHeight: UI_LAYOUT.searchHeight,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderRadius: UI_RADIUS.xl,
+    color: UI_COLORS.textStrong,
+    marginBottom: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  multilineInput: {
+    minHeight: 108,
+    textAlignVertical: 'top',
+  },
+  paymentNote: {
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderRadius: UI_RADIUS.xl,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    marginTop: 4,
+  },
+  paymentNoteLabel: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
+    marginBottom: 6,
+  },
+  paymentNoteValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 20,
   },
   errorBox: {
-    backgroundColor: CHECKOUT_COLORS.errorSoft,
-    borderRadius: 16,
+    backgroundColor: UI_COLORS.errorSoft,
+    borderRadius: UI_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#EBCFC8',
     padding: 16,
     marginBottom: 16,
   },
   errorText: {
-    color: CHECKOUT_COLORS.accent,
-    lineHeight: 22,
+    color: UI_COLORS.accentRed,
+    ...UI_TYPOGRAPHY.body,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
+    paddingHorizontal: UI_LAYOUT.screenPadding,
+  },
+  emptyCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 24,
     alignItems: 'center',
-    paddingHorizontal: 24,
+    ...UI_SHADOWS.card,
+  },
+  emptyImageWrap: {
+    width: 116,
+    height: 116,
+    borderRadius: 32,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  emptyImage: {
+    width: 82,
+    height: 82,
   },
   emptyTitle: {
-    color: CHECKOUT_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
-    color: CHECKOUT_COLORS.muted,
-    lineHeight: 22,
-    marginBottom: 24,
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
+    marginBottom: 22,
     textAlign: 'center',
   },
   footer: {
     position: 'absolute',
-    left: 24,
-    right: 24,
-    bottom: 24,
-    backgroundColor: CHECKOUT_COLORS.screen,
-  },
-  placeOrderButton: {
-    minHeight: 58,
-    backgroundColor: CHECKOUT_COLORS.accent,
-    borderRadius: 20,
-    paddingHorizontal: 22,
-    paddingVertical: 18,
+    left: UI_LAYOUT.footerSide,
+    right: UI_LAYOUT.footerSide,
+    bottom: UI_LAYOUT.footerBottom,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: CHECKOUT_COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 12,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 4,
+    ...UI_SHADOWS.floating,
+  },
+  footerTotalWrap: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingRight: 10,
+  },
+  footerTotalLabel: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
+    marginBottom: 4,
+  },
+  footerTotalValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 24,
+  },
+  placeOrderButton: {
+    minHeight: UI_LAYOUT.ctaHeight,
+    minWidth: 152,
+    backgroundColor: UI_COLORS.accentGreen,
+    borderRadius: UI_RADIUS.xl,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   placeOrderButtonPressed: {
-    backgroundColor: CHECKOUT_COLORS.accentPressed,
+    backgroundColor: UI_COLORS.accentGreenPressed,
   },
   placeOrderButtonDisabled: {
-    opacity: 0.7,
+    opacity: 0.72,
   },
   placeOrderButtonLabel: {
-    color: CHECKOUT_COLORS.surface,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  placeOrderButtonValue: {
-    color: CHECKOUT_COLORS.surface,
-    fontSize: 18,
-    fontWeight: '800',
+    color: UI_COLORS.surface,
+    ...UI_TYPOGRAPHY.buttonLarge,
   },
 });
 

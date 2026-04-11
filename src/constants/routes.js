@@ -5,7 +5,12 @@ export const ROOT_ROUTES = {
 };
 
 export const AUTH_ROUTES = {
-  AUTH_LANDING: 'AuthLanding',
+  SPLASH: 'AuthSplash',
+  ONBOARDING: 'AuthOnboarding',
+  SIGN_IN: 'AuthSignIn',
+  NUMBER_INPUT: 'AuthNumberInput',
+  VERIFICATION: 'AuthVerification',
+  LOCATION: 'AuthLocation',
 };
 
 export const CUSTOMER_ROUTES = {

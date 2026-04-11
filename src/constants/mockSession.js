@@ -27,8 +27,8 @@ export const MOCK_SESSION_PRESETS = {
   },
 };
 
-// Change this preset later if you want to preview auth or owner startup.
-export const DEFAULT_SESSION_PRESET = 'customerMvp';
+// Default to signed out so the app opens through the MVP onboarding flow.
+export const DEFAULT_SESSION_PRESET = 'signedOut';
 
 export function getMockSession(presetKey = DEFAULT_SESSION_PRESET) {
   const preset = Object.prototype.hasOwnProperty.call(

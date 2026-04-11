@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../constants/colors';
+import { UI_COLORS } from '../constants/ui';
 
 function ProductImage({ name, resizeMode = 'cover', source, style }) {
   if (source) {
@@ -25,17 +25,17 @@ function ProductImage({ name, resizeMode = 'cover', source, style }) {
 
 const styles = StyleSheet.create({
   image: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: 'transparent',
     borderRadius: 16,
   },
   placeholder: {
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
+    backgroundColor: UI_COLORS.surfaceMuted,
     borderRadius: 16,
     justifyContent: 'center',
   },
   placeholderText: {
-    color: COLORS.primaryDark,
+    color: UI_COLORS.accentGreen,
     fontSize: 24,
     fontWeight: '700',
   },

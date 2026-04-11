@@ -1,6 +1,13 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import ProductImage from './ProductImage';
+import {
+  UI_COLORS,
+  UI_RADIUS,
+  UI_SHADOWS,
+  UI_SPACING,
+  UI_TYPOGRAPHY,
+} from '../constants/ui';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getProductSubtitle } from '../utils/productPresentation';
 
@@ -14,10 +21,11 @@ function ProductCard({
   style,
 }) {
   const subtitle = getProductSubtitle(product);
+  const isAvailable = product?.stock > 0;
 
   return (
     <Pressable
-      android_ripple={{ color: '#F1EBE4' }}
+      android_ripple={{ color: '#F2ECE4' }}
       onPress={() => onPress(product)}
       style={({ pressed }) => [
         styles.card,
@@ -26,8 +34,14 @@ function ProductCard({
       ]}
     >
       <View style={styles.imagePanel}>
+        <View style={styles.categoryPill}>
+          <Text numberOfLines={1} style={styles.categoryPillLabel}>
+            {product.category}
+          </Text>
+        </View>
+
         <Pressable
-          android_ripple={{ color: '#EFE7DF' }}
+          android_ripple={{ color: '#F0E6DE' }}
           hitSlop={6}
           onPress={event => {
             event.stopPropagation();
@@ -66,11 +80,21 @@ function ProductCard({
           {subtitle}
         </Text>
 
+        <Text
+          style={[
+            styles.availability,
+            isAvailable ? styles.availabilityInStock : styles.availabilityOut,
+          ]}
+        >
+          {isAvailable ? `${product.stock} available` : 'Out of stock'}
+        </Text>
+
         <View style={styles.footerRow}>
           <Text style={styles.price}>{formatCurrency(product.price)}</Text>
 
           <Pressable
-            android_ripple={{ color: '#C31B22' }}
+            android_ripple={{ color: '#3C6240' }}
+            disabled={!isAvailable}
             hitSlop={6}
             onPress={event => {
               event.stopPropagation();
@@ -78,7 +102,8 @@ function ProductCard({
             }}
             style={({ pressed }) => [
               styles.actionBadge,
-              pressed && styles.actionBadgePressed,
+              !isAvailable && styles.actionBadgeDisabled,
+              pressed && isAvailable && styles.actionBadgePressed,
             ]}
           >
             <Text style={styles.actionBadgeLabel}>+</Text>
@@ -91,109 +116,131 @@ function ProductCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: UI_COLORS.surface,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#EEE7DF',
-    padding: 12,
-    minHeight: 228,
-    shadowColor: '#2A160B',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-    elevation: 2,
+    borderColor: UI_COLORS.border,
+    padding: 14,
+    minHeight: 248,
+    ...UI_SHADOWS.card,
   },
   pressedCard: {
-    opacity: 0.94,
+    opacity: 0.96,
   },
   imagePanel: {
-    backgroundColor: '#F8F5F1',
-    borderRadius: 18,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    minHeight: 120,
+    paddingHorizontal: 14,
+    paddingTop: 34,
+    paddingBottom: 18,
+    minHeight: 138,
     position: 'relative',
+  },
+  categoryPill: {
+    position: 'absolute',
+    top: UI_SPACING.sm,
+    left: UI_SPACING.sm,
+    maxWidth: '56%',
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  categoryPillLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
   },
   favouriteButton: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: UI_SPACING.sm,
+    right: UI_SPACING.sm,
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: UI_COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
   },
   favouriteButtonActive: {
-    backgroundColor: '#FFE7E6',
+    backgroundColor: UI_COLORS.accentRedSoft,
   },
   favouriteButtonPressed: {
     opacity: 0.88,
   },
   favouriteIcon: {
-    color: '#8A8178',
-    fontSize: 16,
-    lineHeight: 16,
+    color: UI_COLORS.muted,
+    fontSize: 15,
+    lineHeight: 15,
   },
   favouriteIconActive: {
-    color: '#D71920',
+    color: UI_COLORS.accentRed,
   },
   image: {
     width: '100%',
-    height: 96,
-    backgroundColor: 'transparent',
+    height: 104,
   },
   body: {
     flex: 1,
-    paddingTop: 12,
+    paddingTop: 14,
     justifyContent: 'space-between',
   },
   name: {
-    color: '#211A16',
-    fontSize: 16,
-    fontWeight: '700',
-    lineHeight: 21,
-    minHeight: 42,
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.cardTitle,
+    minHeight: 44,
   },
   subtitle: {
-    color: '#8A8178',
+    color: UI_COLORS.mutedStrong,
     fontSize: 13,
+    lineHeight: 18,
     marginTop: 6,
-    marginBottom: 14,
+  },
+  availability: {
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+    marginTop: 10,
+  },
+  availabilityInStock: {
+    color: UI_COLORS.accentGreen,
+  },
+  availabilityOut: {
+    color: UI_COLORS.accentRed,
   },
   footerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 16,
   },
   price: {
-    color: '#1E1815',
-    fontSize: 19,
-    fontWeight: '800',
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.price,
   },
   actionBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: '#D71920',
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: UI_COLORS.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  actionBadgeDisabled: {
+    backgroundColor: UI_COLORS.surfaceTint,
+  },
   actionBadgePressed: {
-    opacity: 0.9,
+    backgroundColor: UI_COLORS.accentGreenPressed,
   },
   actionBadgeLabel: {
-    color: '#FFFFFF',
-    fontSize: 24,
+    color: UI_COLORS.surface,
+    fontSize: 22,
     fontWeight: '700',
-    lineHeight: 26,
+    lineHeight: 22,
     marginTop: -1,
   },
 });

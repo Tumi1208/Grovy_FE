@@ -1,12 +1,16 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CUSTOMER_ROUTES } from '../constants/routes';
+import { UI_COLORS, UI_SHADOWS } from '../constants/ui';
 
 const NAV_COLORS = Object.freeze({
-  surface: '#FFFFFF',
-  text: '#7F7870',
-  active: '#D71920',
-  shadow: '#2A160B',
+  surface: UI_COLORS.surface,
+  border: UI_COLORS.border,
+  text: UI_COLORS.muted,
+  textStrong: UI_COLORS.textStrong,
+  active: UI_COLORS.accentGreen,
+  activeSoft: UI_COLORS.accentGreenSoft,
+  badge: UI_COLORS.accentRed,
 });
 
 function SearchGlyph({ active = false }) {
@@ -16,13 +20,11 @@ function SearchGlyph({ active = false }) {
         style={[
           styles.searchGlyphCircle,
           active && styles.iconBorderActive,
+          active && styles.iconFillSoft,
         ]}
       />
       <View
-        style={[
-          styles.searchGlyphHandle,
-          active && styles.iconFillActive,
-        ]}
+        style={[styles.searchGlyphHandle, active && styles.iconFillActive]}
       />
     </View>
   );
@@ -41,9 +43,7 @@ function ShopGlyph({ active = false }) {
 function CartGlyph({ active = false }) {
   return (
     <View style={styles.cartGlyph}>
-      <View
-        style={[styles.cartGlyphHandle, active && styles.iconFillActive]}
-      />
+      <View style={[styles.cartGlyphHandle, active && styles.iconFillActive]} />
       <View
         style={[styles.cartGlyphBasket, active && styles.iconBorderActive]}
       />
@@ -61,7 +61,9 @@ function CartGlyph({ active = false }) {
 
 function FavouriteGlyph({ active = false }) {
   return (
-    <Text style={[styles.heartGlyph, active && styles.textActive]}>♡</Text>
+    <Text style={[styles.heartGlyph, active && styles.textActive]}>
+      {active ? '♥' : '♡'}
+    </Text>
   );
 }
 
@@ -84,15 +86,14 @@ function BottomNavigationItem({
   icon,
   label,
   onPress,
-  variant = 'default',
 }) {
   return (
     <Pressable
-      android_ripple={{ color: '#F2ECE5' }}
+      android_ripple={{ color: '#E9F0E6' }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.navItem,
-        variant === 'figma' && styles.navItemFigma,
+        active && styles.navItemActive,
         pressed && styles.navItemPressed,
       ]}
     >
@@ -109,12 +110,7 @@ function BottomNavigationItem({
   );
 }
 
-function CustomerBottomNav({
-  activeRoute,
-  navigation,
-  totalItems = 0,
-  variant = 'default',
-}) {
+function CustomerBottomNav({ activeRoute, navigation, totalItems = 0 }) {
   const items = [
     {
       route: CUSTOMER_ROUTES.HOME,
@@ -134,7 +130,7 @@ function CustomerBottomNav({
     },
     {
       route: CUSTOMER_ROUTES.FAVOURITE,
-      label: 'Favourite',
+      label: 'Saved',
       renderIcon: isActive => <FavouriteGlyph active={isActive} />,
     },
     {
@@ -153,7 +149,7 @@ function CustomerBottomNav({
   }
 
   return (
-    <View style={[styles.navBar, variant === 'figma' && styles.navBarFigma]}>
+    <View style={styles.navBar}>
       {items.map(item => {
         const isActive = activeRoute === item.route;
 
@@ -165,7 +161,6 @@ function CustomerBottomNav({
             icon={item.renderIcon(isActive)}
             label={item.label}
             onPress={() => handleNavigate(item.route)}
-            variant={variant}
           />
         );
       })}
@@ -176,63 +171,42 @@ function CustomerBottomNav({
 const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: NAV_COLORS.surface,
-    borderRadius: 30,
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    shadowColor: NAV_COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 12,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 5,
-  },
-  navBarFigma: {
-    borderRadius: 18,
-    paddingHorizontal: 6,
-    paddingVertical: 10,
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: '#E8E8E8',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    borderColor: NAV_COLORS.border,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    ...UI_SHADOWS.floating,
   },
   navItem: {
     flex: 1,
+    minHeight: 58,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 60,
-    borderRadius: 18,
   },
-  navItemFigma: {
-    minHeight: 54,
-    borderRadius: 12,
+  navItemActive: {
+    backgroundColor: NAV_COLORS.activeSoft,
   },
   navItemPressed: {
     opacity: 0.9,
   },
   iconWrap: {
     minWidth: 28,
-    minHeight: 22,
+    minHeight: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   label: {
     color: NAV_COLORS.text,
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
   },
   labelActive: {
-    color: NAV_COLORS.active,
+    color: NAV_COLORS.textStrong,
     fontWeight: '700',
   },
   textActive: {
@@ -240,12 +214,12 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: -5,
-    right: -8,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: NAV_COLORS.active,
+    top: -6,
+    right: -9,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: NAV_COLORS.badge,
     paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
@@ -260,6 +234,9 @@ const styles = StyleSheet.create({
   },
   iconFillActive: {
     backgroundColor: NAV_COLORS.active,
+  },
+  iconFillSoft: {
+    backgroundColor: 'transparent',
   },
   searchGlyph: {
     width: 18,

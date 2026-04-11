@@ -1,23 +1,141 @@
-import { getProductImageSource } from '../assets/productImages';
+import {
+  getCategoryFallbackImage,
+  getProductImageSource,
+} from '../assets/productImages';
 
 const HOME_CATEGORY_STYLES = Object.freeze({
-  pulses: {
-    backgroundColor: '#EEF7F1',
-    accentColor: '#53B175',
+  fruits: {
+    title: 'Fresh fruit',
+    description: 'Apples, bananas and juice-ready picks',
+    backgroundColor: '#F5E8DF',
+    borderColor: '#E8D6C9',
+    accentColor: '#F1D7C7',
   },
-  rice: {
-    backgroundColor: '#FFF6E4',
-    accentColor: '#F8A44C',
+  vegetables: {
+    title: 'Vegetables',
+    description: 'Greens and staples for daily cooking',
+    backgroundColor: '#EAF0E3',
+    borderColor: '#D7E1CC',
+    accentColor: '#D7E5CB',
   },
+  pantry: {
+    title: 'Pantry',
+    description: 'Rice, noodles, pulses and cooking basics',
+    backgroundColor: '#F3ECE2',
+    borderColor: '#E3D8C8',
+    accentColor: '#E8D8C2',
+  },
+  beverages: {
+    title: 'Beverages',
+    description: 'Juice and soft drinks for the fridge',
+    backgroundColor: '#F7EEDC',
+    borderColor: '#E7DAB8',
+    accentColor: '#F0DEB4',
+  },
+  meat: {
+    title: 'Meat',
+    description: 'Chicken and beef for main meals',
+    backgroundColor: '#F6E6E3',
+    borderColor: '#E9D0CB',
+    accentColor: '#F0D4D0',
+  },
+});
+
+const HOME_SECTION_PRODUCTS = Object.freeze({
+  exclusiveOffer: [
+    {
+      id: 'grovy-apple-gala-001',
+      name: 'Gala Apples Bag',
+      price: 1.59,
+      category: 'Fruits',
+      imageKey: 'apple',
+    },
+    {
+      id: 'grovy-banana-organic-001',
+      name: 'Organic Banana Bunch',
+      price: 1.29,
+      category: 'Fruits',
+      imageKey: 'banana',
+    },
+    {
+      id: 'grovy-red-shimla-pepper-001',
+      name: 'Red Shimla Pepper',
+      price: 1.69,
+      category: 'Vegetables',
+      imageKey: 'shimlaPepper',
+    },
+    {
+      id: 'grovy-ginger-001',
+      name: 'Fresh Ginger Root',
+      price: 0.89,
+      category: 'Vegetables',
+      imageKey: 'ginger',
+    },
+  ],
+  bestSelling: [
+    {
+      id: 'grovy-orange-juice-001',
+      name: 'Orange Juice 1L',
+      price: 3.59,
+      category: 'Beverages',
+      imageKey: 'orangeJuice',
+    },
+    {
+      id: 'grovy-classic-cola-001',
+      name: 'Classic Cola Can',
+      price: 0.99,
+      category: 'Beverages',
+      imageKey: 'cokeClassic',
+    },
+    {
+      id: 'grovy-jasmine-rice-001',
+      name: 'Jasmine Rice',
+      price: 6.29,
+      category: 'Pantry',
+      imageKey: 'rice',
+    },
+    {
+      id: 'grovy-penne-pasta-001',
+      name: 'Penne Pasta',
+      price: 2.99,
+      category: 'Pantry',
+      imageKey: 'pasta',
+    },
+  ],
+  groceries: [
+    {
+      id: 'grovy-chicken-001',
+      name: 'Chicken Breast Cuts',
+      price: 6.49,
+      category: 'Meat',
+      imageKey: 'chicken',
+    },
+    {
+      id: 'grovy-beef-bone-001',
+      name: 'Beef Soup Bones',
+      price: 5.49,
+      category: 'Meat',
+      imageKey: 'beef',
+    },
+    {
+      id: 'grovy-basmati-rice-001',
+      name: 'Basmati Rice',
+      price: 6.69,
+      category: 'Pantry',
+      imageKey: 'rice',
+    },
+    {
+      id: 'grovy-red-lentils-001',
+      name: 'Red Lentils',
+      price: 2.89,
+      category: 'Pantry',
+      imageKey: 'pulses',
+    },
+  ],
 });
 
 const LOCAL_HOME_IMAGES = Object.freeze({
   banner: require('../assets/images/products/Vegetable-Bag copy.png'),
-  beefBone: require('../assets/images/products/beef.png'),
-  chicken: require('../assets/images/products/chicken.png'),
-  pulses: require('../assets/images/products/pulses.png'),
-  rice: require('../assets/images/products/rice.png'),
-  redMirch: require('../assets/images/products/shimla.png'),
 });
 
 function normalizeLookupKey(value) {
@@ -37,7 +155,8 @@ function createHomeMockProduct(overrides) {
     price: overrides.price || 0,
     category: overrides.category || 'Groceries',
     description:
-      overrides.description || 'Grovy Home local item used to match the Figma frame.',
+      overrides.description ||
+      'Everyday grocery item available in the Grovy assortment.',
     imageKey: overrides.imageKey || '',
     stock: overrides.stock || 12,
   };
@@ -52,20 +171,42 @@ function toHomeProduct(product, overrides = {}) {
       price: overrides.price,
       category: overrides.category,
       description: overrides.description,
+      imageKey: overrides.imageKey,
       stock: overrides.stock,
     });
 
   return {
     ...resolvedProduct,
     ...overrides,
-    imageSource: overrides.imageSource || getProductImageSource(resolvedProduct),
+    imageSource:
+      overrides.imageSource || getProductImageSource(resolvedProduct),
   };
 }
 
 function getProductByKey(productsByKey, ...keys) {
-  return keys
-    .map(key => productsByKey[normalizeLookupKey(key)])
-    .find(Boolean);
+  return keys.map(key => productsByKey[normalizeLookupKey(key)]).find(Boolean);
+}
+
+function buildConfiguredSection(productsByKey, items = []) {
+  return items.map(item =>
+    toHomeProduct(getProductByKey(productsByKey, item.id), item),
+  );
+}
+
+function buildCategoryCard(category) {
+  const normalizedCategory = normalizeLookupKey(category);
+  const config = HOME_CATEGORY_STYLES[normalizedCategory];
+
+  if (!config) {
+    return null;
+  }
+
+  return {
+    id: `grocery-${normalizedCategory}`,
+    category,
+    imageSource: getCategoryFallbackImage(category),
+    ...config,
+  };
 }
 
 export function buildHomeScreenData(products = []) {
@@ -89,105 +230,33 @@ export function buildHomeScreenData(products = []) {
     return accumulator;
   }, {});
 
-  const appleProduct = getProductByKey(
-    productsByKey,
-    'grovy-apple-001',
-    'apple',
-    'crisp-apple',
-  );
-  const bananaProduct = getProductByKey(
-    productsByKey,
-    'grovy-banana-001',
-    'banana',
-    'sweet-banana-bunch',
-  );
-  const gingerProduct = getProductByKey(
-    productsByKey,
-    'grovy-ginger-001',
-    'ginger',
-    'fresh-ginger-root',
-  );
-  const chickenProduct = getProductByKey(
-    productsByKey,
-    'grovy-chicken-001',
-    'chicken',
-    'chicken-breast-cuts',
-  );
-
-  const exclusiveOffer = [
-    toHomeProduct(appleProduct, {
-      name: 'Organic Apples',
-      description: '7pcs, Priceg',
-    }),
-    toHomeProduct(bananaProduct, {
-      name: 'Organic Bananas',
-      description: '7pcs, Priceg',
-    }),
-  ];
-
-  const bestSelling = [
-    toHomeProduct(
-      getProductByKey(productsByKey, 'grovy-shimla-pepper-001', 'shimlapepper'),
-      {
-        id: 'home-red-mirch',
-        name: 'Red Mirch',
-        description: '1kg, Priceg',
-        price: 4.99,
-        imageSource: LOCAL_HOME_IMAGES.redMirch,
-      },
-    ),
-    toHomeProduct(gingerProduct, {
-      name: 'Ginger',
-      description: '250gm, Priceg',
-    }),
-  ];
-
   const groceryCategories = [
-    {
-      id: 'grocery-pulses',
-      title: 'Pulses',
-      imageSource: LOCAL_HOME_IMAGES.pulses,
-      ...HOME_CATEGORY_STYLES.pulses,
-    },
-    {
-      id: 'grocery-rice',
-      title: 'Rice',
-      imageSource: LOCAL_HOME_IMAGES.rice,
-      ...HOME_CATEGORY_STYLES.rice,
-    },
-  ];
-
-  const groceries = [
-    toHomeProduct(
-      createHomeMockProduct({
-        id: 'home-beef-bone',
-        name: 'Beef Bone',
-        price: 4.99,
-        category: 'Meat',
-        stock: 10,
-      }),
-      {
-        description: '1kg, Priceg',
-        imageSource: LOCAL_HOME_IMAGES.beefBone,
-      },
-    ),
-    toHomeProduct(chickenProduct, {
-      name: 'Broiler Chicken',
-      description: '1kg, Priceg',
-      imageSource: LOCAL_HOME_IMAGES.chicken,
-    }),
-  ];
+    buildCategoryCard('Fruits'),
+    buildCategoryCard('Vegetables'),
+    buildCategoryCard('Pantry'),
+    buildCategoryCard('Beverages'),
+    buildCategoryCard('Meat'),
+  ].filter(Boolean);
 
   return {
     banner: {
-      title: 'Fresh Vegetables',
-      subtitle: 'Get Up To 40% OFF',
+      title: 'Fresh produce and pantry basics',
+      subtitle: 'A practical basket for everyday cooking at home.',
       imageSource: LOCAL_HOME_IMAGES.banner,
     },
-    exclusiveOffer,
-    bestSelling,
+    exclusiveOffer: buildConfiguredSection(
+      productsByKey,
+      HOME_SECTION_PRODUCTS.exclusiveOffer,
+    ),
+    bestSelling: buildConfiguredSection(
+      productsByKey,
+      HOME_SECTION_PRODUCTS.bestSelling,
+    ),
     groceryCategories,
-    groceries,
+    groceries: buildConfiguredSection(
+      productsByKey,
+      HOME_SECTION_PRODUCTS.groceries,
+    ),
   };
 }
 

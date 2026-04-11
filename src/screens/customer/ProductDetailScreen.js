@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  StatusBar,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   View,
@@ -13,6 +13,14 @@ import { getProductImageSource } from '../../assets/productImages';
 import PrimaryButton from '../../components/PrimaryButton';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
+import {
+  UI_COLORS,
+  UI_LAYOUT,
+  UI_RADIUS,
+  UI_SHADOWS,
+  UI_SPACING,
+  UI_TYPOGRAPHY,
+} from '../../constants/ui';
 import { useCart } from '../../context/CartContext';
 import { useFavourite } from '../../context/FavouriteContext';
 import { getProductDetailById } from '../../services/productService';
@@ -21,33 +29,14 @@ import { getProductSubtitle } from '../../utils/productPresentation';
 
 const MIN_QUANTITY = 1;
 
-const DETAIL_COLORS = Object.freeze({
-  screen: '#FCF8F3',
-  surface: '#FFFFFF',
-  surfaceMuted: '#F6F1EA',
-  border: '#EFE7DE',
-  text: '#181725',
-  mutedText: '#7C7C7C',
-  hero: '#F3F6E9',
-  accent: '#E53935',
-  accentPressed: '#CF2E2A',
-  successSoft: '#EFF8F0',
-  successText: '#4B7A2A',
-  errorSoft: '#FFF2F2',
-  shadow: '#1C130B',
-  minus: '#B7B7B7',
-});
-
 function normalizeRouteProductId(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function HeaderButton({ children, onPress, accessibilityLabel, style }) {
+function HeaderButton({ children, onPress, style }) {
   return (
     <Pressable
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
-      android_ripple={{ color: '#F1EBE3' }}
+      android_ripple={{ color: '#EDE5DB' }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.headerButton,
@@ -63,7 +52,7 @@ function HeaderButton({ children, onPress, accessibilityLabel, style }) {
 function QuantityButton({ disabled = false, label, onPress }) {
   return (
     <Pressable
-      android_ripple={{ color: '#F3EEE8' }}
+      android_ripple={{ color: '#EFE7DD' }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -86,6 +75,7 @@ function QuantityButton({ disabled = false, label, onPress }) {
 
 function DetailRow({
   expanded = false,
+  isLast = false,
   onPress,
   subtitle,
   title,
@@ -93,15 +83,30 @@ function DetailRow({
 }) {
   return (
     <Pressable
-      android_ripple={{ color: '#F2ECE3' }}
+      android_ripple={{ color: '#EFE8DE' }}
       onPress={onPress}
-      style={({ pressed }) => [styles.detailRow, pressed && styles.detailRowPressed]}
+      style={({ pressed }) => [
+        styles.detailRow,
+        isLast && styles.detailRowLast,
+        pressed && styles.detailRowPressed,
+      ]}
     >
       <View style={styles.detailRowHeader}>
         <Text style={styles.detailRowTitle}>{title}</Text>
         <View style={styles.detailRowRight}>
-          {value ? <Text style={styles.detailRowValue}>{value}</Text> : null}
-          <Text style={styles.detailRowArrow}>{expanded ? 'v' : '>'}</Text>
+          {value ? (
+            <View style={styles.detailRowValuePill}>
+              <Text style={styles.detailRowValue}>{value}</Text>
+            </View>
+          ) : null}
+          <Text
+            style={[
+              styles.detailRowArrow,
+              expanded && styles.detailRowArrowExpanded,
+            ]}
+          >
+            {'>'}
+          </Text>
         </View>
       </View>
 
@@ -123,7 +128,7 @@ function ProductDetailScreen({ navigation, route }) {
   const [quantity, setQuantity] = useState(MIN_QUANTITY);
   const [reloadKey, setReloadKey] = useState(0);
   const [expandedSection, setExpandedSection] = useState('details');
-  const { addToCart } = useCart();
+  const { addToCart, totalItems } = useCart();
   const { isFavourite, toggleFavourite } = useFavourite();
 
   useEffect(() => {
@@ -221,10 +226,10 @@ function ProductDetailScreen({ navigation, route }) {
     return (
       <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
         <View style={styles.centeredState}>
-          <ActivityIndicator color={DETAIL_COLORS.accent} size="large" />
-          <Text style={styles.stateTitle}>Loading product detail...</Text>
+          <ActivityIndicator color={UI_COLORS.accentGreen} size="large" />
+          <Text style={styles.stateTitle}>Loading product</Text>
           <Text style={styles.stateDescription}>
-            Fetching the latest product data from the Grovy backend.
+            We&apos;re getting the latest details ready.
           </Text>
         </View>
       </SafeAreaView>
@@ -235,15 +240,15 @@ function ProductDetailScreen({ navigation, route }) {
     return (
       <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
         <View style={styles.centeredState}>
-          <Text style={styles.stateTitle}>Could not load product detail.</Text>
+          <Text style={styles.stateTitle}>This product is unavailable</Text>
           <Text style={styles.stateDescription}>
-            {error || 'The selected product could not be resolved.'}
+            {error || 'The selected product could not be found.'}
           </Text>
           <View style={styles.stateSpacer} />
           <PrimaryButton title="Retry" onPress={handleRetry} />
           <View style={styles.buttonSpacer} />
           <PrimaryButton
-            title="Back to Home"
+            title="Back to shop"
             onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
             variant="secondary"
           />
@@ -260,27 +265,32 @@ function ProductDetailScreen({ navigation, route }) {
   const totalPriceLabel = formatCurrency(product.price * quantity);
   const favouriteActive = isFavourite(product.id);
   const nutritionValue =
-    product.category?.toLowerCase() === 'beverages' ? '100ml' : '100gr';
-  const nutritionDescription =
-    product.category?.toLowerCase() === 'beverages'
-      ? 'Nutrition info is not provided by the backend yet. Using the beverage serving label from the design layout.'
-      : 'Nutrition info is not provided by the backend yet. This row keeps the Figma structure visible for demo.';
+    product.category?.toLowerCase() === 'beverages' ? '100 ml' : '100 g';
+  const nutritionDescription = 'Nutrition details will appear here when available.';
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <StatusBar
-        backgroundColor={DETAIL_COLORS.screen}
+        backgroundColor={UI_COLORS.screenLight}
         barStyle="dark-content"
       />
       <View style={styles.screen}>
         <View style={styles.headerRow}>
-          <HeaderButton accessibilityLabel="Go back" onPress={handleBack}>
+          <HeaderButton onPress={handleBack}>
             <Text style={styles.backIcon}>{'<'}</Text>
           </HeaderButton>
 
-          <View style={styles.headerSpacer} />
-
-          <View style={styles.headerPlaceholder} />
+          <HeaderButton
+            onPress={() => navigation.navigate(CUSTOMER_ROUTES.CART)}
+            style={styles.cartButton}
+          >
+            <Text style={styles.cartButtonLabel}>Cart</Text>
+            {totalItems > 0 ? (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeLabel}>{totalItems}</Text>
+              </View>
+            ) : null}
+          </HeaderButton>
         </View>
 
         <ScrollView
@@ -289,9 +299,9 @@ function ProductDetailScreen({ navigation, route }) {
         >
           {loading ? (
             <View style={styles.infoBanner}>
-              <ActivityIndicator color={DETAIL_COLORS.successText} size="small" />
+              <ActivityIndicator color={UI_COLORS.accentGreen} size="small" />
               <Text style={styles.infoBannerText}>
-                Refreshing product detail from the API.
+                Refreshing the latest item details.
               </Text>
             </View>
           ) : null}
@@ -299,33 +309,24 @@ function ProductDetailScreen({ navigation, route }) {
           {error ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorBannerText}>
-                {error} Showing the product data passed from Home.
+                Showing the available item details while we reconnect.
               </Text>
             </View>
           ) : null}
 
           <View style={styles.heroCard}>
-            <ProductImage
-              name={product.name}
-              resizeMode="contain"
-              source={imageSource}
-              style={styles.productImage}
-            />
-          </View>
-
-          <View style={styles.detailContent}>
-            <View style={styles.titleRow}>
-              <View style={styles.titleCopy}>
-                <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.productSubtitle}>{productSubtitle}</Text>
+            <View style={styles.heroTopRow}>
+              <View style={styles.categoryPill}>
+                <Text style={styles.categoryPillLabel}>{product.category}</Text>
               </View>
 
               <Pressable
-                android_ripple={{ color: '#F4EEE7' }}
+                android_ripple={{ color: '#EDE5DB' }}
                 onPress={() => toggleFavourite(product)}
-                style={[
+                style={({ pressed }) => [
                   styles.favouriteButton,
                   favouriteActive && styles.favouriteButtonActive,
+                  pressed && styles.favouriteButtonPressed,
                 ]}
               >
                 <Text
@@ -339,8 +340,49 @@ function ProductDetailScreen({ navigation, route }) {
               </Pressable>
             </View>
 
-            <View style={styles.quantityPriceRow}>
+            <ProductImage
+              name={product.name}
+              resizeMode="contain"
+              source={imageSource}
+              style={styles.productImage}
+            />
+          </View>
+
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryMetaRow}>
+              <View
+                style={[
+                  styles.metaPill,
+                  isOutOfStock ? styles.metaPillWarning : styles.metaPillSuccess,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.metaPillLabel,
+                    isOutOfStock
+                      ? styles.metaPillLabelWarning
+                      : styles.metaPillLabelSuccess,
+                  ]}
+                >
+                  {isOutOfStock ? 'Out of stock' : `${product.stock} available`}
+                </Text>
+              </View>
+              <Text style={styles.summaryMetaText}>{productSubtitle}</Text>
+            </View>
+
+            <Text style={styles.productName}>{product.name}</Text>
+            <Text style={styles.productDescription}>{product.description}</Text>
+
+            <View style={styles.priceRow}>
+              <View>
+                <Text style={styles.priceCaption}>Price</Text>
+                <Text style={styles.priceValue}>
+                  {formatCurrency(product.price)}
+                </Text>
+              </View>
+
               <View style={styles.quantityBlock}>
+                <Text style={styles.quantityCaption}>Quantity</Text>
                 <View style={styles.quantityStepper}>
                   <QuantityButton
                     disabled={isOutOfStock || quantity <= MIN_QUANTITY}
@@ -354,45 +396,45 @@ function ProductDetailScreen({ navigation, route }) {
                     onPress={handleIncreaseQuantity}
                   />
                 </View>
-                <Text style={styles.quantityHelper}>
-                  {isOutOfStock ? 'Out of stock' : `${product.stock} available`}
-                </Text>
-              </View>
-
-              <View style={styles.priceBlock}>
-                <Text style={styles.priceLabel}>Price</Text>
-                <Text style={styles.priceValue}>{formatCurrency(product.price)}</Text>
               </View>
             </View>
+          </View>
 
-            <View style={styles.detailList}>
-              <DetailRow
-                expanded={expandedSection === 'details'}
-                onPress={() => handleToggleSection('details')}
-                subtitle={product.description}
-                title="Product Details"
-              />
-              <DetailRow
-                expanded={expandedSection === 'nutrition'}
-                onPress={() => handleToggleSection('nutrition')}
-                subtitle={nutritionDescription}
-                title="Nutritions"
-                value={nutritionValue}
-              />
-              <DetailRow
-                expanded={expandedSection === 'reviews'}
-                onPress={() => handleToggleSection('reviews')}
-                subtitle="Reviews are not connected from the backend yet. Keep this row for the Figma-aligned layout."
-                title="Reviews"
-                value="(0)"
-              />
-            </View>
+          <View style={styles.detailsCard}>
+            <Text style={styles.detailsTitle}>Product information</Text>
+
+            <DetailRow
+              expanded={expandedSection === 'details'}
+              onPress={() => handleToggleSection('details')}
+              subtitle={product.description}
+              title="About this item"
+            />
+            <DetailRow
+              expanded={expandedSection === 'nutrition'}
+              onPress={() => handleToggleSection('nutrition')}
+              subtitle={nutritionDescription}
+              title="Nutrition"
+              value={nutritionValue}
+            />
+            <DetailRow
+              expanded={expandedSection === 'reviews'}
+              isLast
+              onPress={() => handleToggleSection('reviews')}
+              subtitle="Customer reviews will show here once this item has ratings."
+              title="Reviews"
+              value="0"
+            />
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
+          <View style={styles.footerSummary}>
+            <Text style={styles.footerSummaryLabel}>Total</Text>
+            <Text style={styles.footerSummaryValue}>{totalPriceLabel}</Text>
+          </View>
+
           <Pressable
-            android_ripple={{ color: '#D1383D' }}
+            android_ripple={{ color: '#3B5B37' }}
             disabled={isOutOfStock}
             onPress={handleAddToCart}
             style={({ pressed }) => [
@@ -402,9 +444,8 @@ function ProductDetailScreen({ navigation, route }) {
             ]}
           >
             <Text style={styles.addToCartTitle}>
-              {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+              {isOutOfStock ? 'Unavailable' : `Add ${quantity} to cart`}
             </Text>
-            <Text style={styles.addToCartTotal}>{totalPriceLabel}</Text>
           </Pressable>
         </View>
       </View>
@@ -415,24 +456,24 @@ function ProductDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: DETAIL_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   screen: {
     flex: 1,
-    backgroundColor: DETAIL_COLORS.screen,
+    backgroundColor: UI_COLORS.screenLight,
   },
   content: {
-    paddingHorizontal: 24,
-    paddingBottom: 28,
+    paddingHorizontal: UI_LAYOUT.screenPadding,
+    paddingBottom: 144,
   },
   centeredState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: UI_LAYOUT.screenPadding,
   },
   stateTitle: {
-    color: DETAIL_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 24,
     fontWeight: '800',
     textAlign: 'center',
@@ -440,181 +481,241 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   stateDescription: {
-    color: DETAIL_COLORS.mutedText,
-    fontSize: 15,
-    lineHeight: 22,
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
     textAlign: 'center',
   },
   stateSpacer: {
-    height: 24,
+    height: UI_SPACING.xl,
   },
   buttonSpacer: {
-    height: 12,
+    height: UI_SPACING.sm,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 18,
-  },
-  headerSpacer: {
-    flex: 1,
-  },
-  headerPlaceholder: {
-    width: 44,
-    height: 44,
+    paddingHorizontal: UI_LAYOUT.screenPadding,
+    paddingTop: 10,
+    paddingBottom: 14,
   },
   headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: DETAIL_COLORS.surface,
+    minWidth: UI_LAYOUT.iconButton,
+    height: UI_LAYOUT.iconButton,
+    borderRadius: UI_RADIUS.lg,
+    backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
-    borderColor: DETAIL_COLORS.border,
+    borderColor: UI_COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: DETAIL_COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 2,
+    paddingHorizontal: 14,
   },
   headerButtonPressed: {
-    opacity: 0.92,
+    opacity: 0.9,
   },
   backIcon: {
-    color: DETAIL_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 22,
     fontWeight: '700',
-    lineHeight: 24,
+    lineHeight: 22,
+  },
+  cartButton: {
+    flexDirection: 'row',
+  },
+  cartButtonLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  cartBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: UI_COLORS.accentRed,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    marginLeft: 8,
+  },
+  cartBadgeLabel: {
+    color: UI_COLORS.surface,
+    fontSize: 10,
+    fontWeight: '700',
   },
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: DETAIL_COLORS.successSoft,
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderRadius: UI_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#D7E3D5',
+    paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 14,
   },
   infoBannerText: {
-    color: DETAIL_COLORS.successText,
-    fontSize: 13,
-    fontWeight: '600',
+    color: UI_COLORS.successText,
+    ...UI_TYPOGRAPHY.label,
     flex: 1,
+    marginLeft: 10,
   },
   errorBanner: {
-    backgroundColor: DETAIL_COLORS.errorSoft,
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    backgroundColor: UI_COLORS.errorSoft,
+    borderRadius: UI_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#EBCFC8',
+    paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 14,
   },
   errorBannerText: {
-    color: DETAIL_COLORS.accent,
-    fontSize: 13,
-    lineHeight: 20,
+    color: UI_COLORS.accentRed,
+    ...UI_TYPOGRAPHY.label,
+    lineHeight: 18,
   },
   heroCard: {
-    backgroundColor: DETAIL_COLORS.hero,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 26,
-    marginBottom: 28,
+    backgroundColor: UI_COLORS.hero,
+    borderRadius: 30,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 22,
+    marginBottom: 16,
   },
-  productImage: {
-    width: '100%',
-    height: 230,
-    alignSelf: 'center',
-    backgroundColor: 'transparent',
-  },
-  detailContent: {
-    paddingBottom: 8,
-  },
-  titleRow: {
+  heroTopRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 28,
+    marginBottom: 10,
   },
-  titleCopy: {
-    flex: 1,
-    paddingRight: 16,
+  categoryPill: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  categoryPillLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 14,
   },
   favouriteButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: DETAIL_COLORS.border,
-    backgroundColor: DETAIL_COLORS.surface,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: UI_COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   favouriteButtonActive: {
-    backgroundColor: '#FFE7E6',
-    borderColor: '#F5C8C6',
+    backgroundColor: UI_COLORS.accentRedSoft,
+  },
+  favouriteButtonPressed: {
+    opacity: 0.88,
   },
   favouriteIcon: {
-    color: DETAIL_COLORS.mutedText,
+    color: UI_COLORS.mutedStrong,
     fontSize: 18,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   favouriteIconActive: {
-    color: DETAIL_COLORS.accent,
+    color: UI_COLORS.accentRed,
+  },
+  productImage: {
+    width: '100%',
+    height: 248,
+  },
+  summaryCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 20,
+    marginBottom: 16,
+    ...UI_SHADOWS.card,
+  },
+  summaryMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  metaPill: {
+    borderRadius: UI_RADIUS.round,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  metaPillSuccess: {
+    backgroundColor: UI_COLORS.accentGreenSoft,
+  },
+  metaPillWarning: {
+    backgroundColor: UI_COLORS.accentRedSoft,
+  },
+  metaPillLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
+  metaPillLabelSuccess: {
+    color: UI_COLORS.accentGreen,
+  },
+  metaPillLabelWarning: {
+    color: UI_COLORS.accentRed,
+  },
+  summaryMetaText: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 13,
+    lineHeight: 18,
+    marginLeft: 12,
+    flex: 1,
+    textAlign: 'right',
   },
   productName: {
-    color: DETAIL_COLORS.text,
-    fontSize: 31,
-    fontWeight: '800',
-    lineHeight: 37,
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.heroTitle,
+    marginBottom: 10,
+  },
+  productDescription: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
+    marginBottom: 22,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  priceCaption: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
     marginBottom: 8,
   },
-  productSubtitle: {
-    color: DETAIL_COLORS.mutedText,
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  quantityPriceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
+  priceValue: {
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.priceLarge,
   },
   quantityBlock: {
-    flex: 1,
-    marginRight: 16,
-  },
-  priceBlock: {
     alignItems: 'flex-end',
   },
-  quantityHelper: {
-    color: DETAIL_COLORS.mutedText,
-    fontSize: 13,
-    marginTop: 10,
+  quantityCaption: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
+    marginBottom: 8,
   },
   quantityStepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: DETAIL_COLORS.surfaceMuted,
-    borderRadius: 18,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderRadius: UI_RADIUS.xl,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
   },
   quantityButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 17,
-    backgroundColor: DETAIL_COLORS.surface,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: UI_COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -625,47 +726,50 @@ const styles = StyleSheet.create({
     opacity: 0.42,
   },
   quantityButtonLabel: {
-    color: DETAIL_COLORS.minus,
-    fontSize: 26,
+    color: UI_COLORS.mutedStrong,
+    fontSize: 22,
     fontWeight: '700',
-    lineHeight: 28,
+    lineHeight: 22,
   },
   quantityButtonLabelAccent: {
-    color: DETAIL_COLORS.accent,
+    color: UI_COLORS.accentGreen,
   },
   quantityValue: {
-    color: DETAIL_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 18,
     fontWeight: '800',
-    marginHorizontal: 18,
+    marginHorizontal: 16,
     minWidth: 22,
     textAlign: 'center',
   },
-  priceLabel: {
-    color: DETAIL_COLORS.mutedText,
-    fontSize: 16,
-    lineHeight: 20,
-    marginBottom: 6,
+  detailsCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    overflow: 'hidden',
+    ...UI_SHADOWS.card,
   },
-  priceValue: {
-    color: DETAIL_COLORS.text,
-    fontSize: 28,
-    fontWeight: '800',
-    lineHeight: 34,
-  },
-  detailList: {
-    backgroundColor: DETAIL_COLORS.surface,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: DETAIL_COLORS.border,
+  detailsTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 6,
   },
   detailRow: {
+    paddingHorizontal: 20,
     paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: DETAIL_COLORS.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: UI_COLORS.border,
+  },
+  detailRowLast: {
+    borderBottomWidth: 0,
   },
   detailRowPressed: {
-    opacity: 0.92,
+    opacity: 0.95,
   },
   detailRowHeader: {
     flexDirection: 'row',
@@ -673,71 +777,88 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   detailRowTitle: {
-    color: DETAIL_COLORS.text,
+    color: UI_COLORS.textStrong,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   detailRowRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  detailRowValue: {
-    color: DETAIL_COLORS.mutedText,
-    fontSize: 15,
+  detailRowValuePill: {
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     marginRight: 10,
   },
+  detailRowValue: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   detailRowArrow: {
-    color: DETAIL_COLORS.text,
+    color: UI_COLORS.mutedStrong,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  detailRowArrowExpanded: {
+    transform: [{ rotate: '90deg' }],
   },
   detailRowSubtitle: {
-    color: DETAIL_COLORS.mutedText,
+    color: UI_COLORS.mutedStrong,
     fontSize: 14,
     lineHeight: 22,
     marginTop: 12,
-    paddingRight: 20,
+    paddingRight: 18,
   },
   footer: {
-    paddingHorizontal: 24,
-    paddingTop: 14,
-    paddingBottom: 12,
-    backgroundColor: DETAIL_COLORS.screen,
-  },
-  addToCartButton: {
+    position: 'absolute',
+    left: UI_LAYOUT.footerSide,
+    right: UI_LAYOUT.footerSide,
+    bottom: UI_LAYOUT.footerBottom,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: DETAIL_COLORS.accent,
-    borderRadius: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    shadowColor: DETAIL_COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 12,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 4,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 10,
+    ...UI_SHADOWS.floating,
   },
-  addToCartButtonPressed: {
-    backgroundColor: DETAIL_COLORS.accentPressed,
+  footerSummary: {
+    paddingHorizontal: 12,
+    paddingRight: 10,
   },
-  addToCartButtonDisabled: {
-    opacity: 0.55,
-    shadowOpacity: 0,
-    elevation: 0,
+  footerSummaryLabel: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
+    marginBottom: 4,
   },
-  addToCartTitle: {
-    color: DETAIL_COLORS.surface,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  addToCartTotal: {
-    color: DETAIL_COLORS.surface,
+  footerSummaryValue: {
+    color: UI_COLORS.textStrong,
     fontSize: 18,
     fontWeight: '800',
+    lineHeight: 22,
+  },
+  addToCartButton: {
+    flex: 1,
+    minHeight: UI_LAYOUT.ctaHeight,
+    borderRadius: UI_RADIUS.xl,
+    backgroundColor: UI_COLORS.accentGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  addToCartButtonPressed: {
+    backgroundColor: UI_COLORS.accentGreenPressed,
+  },
+  addToCartButtonDisabled: {
+    backgroundColor: UI_COLORS.surfaceTint,
+  },
+  addToCartTitle: {
+    color: UI_COLORS.surface,
+    ...UI_TYPOGRAPHY.buttonLarge,
   },
 });
 

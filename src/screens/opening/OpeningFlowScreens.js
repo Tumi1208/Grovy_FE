@@ -1,9 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -26,12 +24,7 @@ import {
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
 import { useApp } from '../../context/AppContext';
-import {
-  DEVICE_LOCATION_ERROR,
-  LOCATION_PERMISSION_STATUS,
-  getCurrentDeviceLocation,
-  requestLocationPermission,
-} from '../../services/deviceLocation';
+import { getLocationSuggestions } from '../../data/mockLocationOptions';
 
 const OPENING_COLORS = Object.freeze({
   accent: UI_COLORS.accentGreen,
@@ -204,10 +197,23 @@ function InlineNotice({
   }
 
   const isError = tone === 'error';
+  const isWarning = tone === 'warning';
 
   return (
-    <View style={[styles.noticeCard, isError && styles.noticeCardError]}>
-      <Text style={[styles.noticeText, isError && styles.noticeTextError]}>
+    <View
+      style={[
+        styles.noticeCard,
+        isError && styles.noticeCardError,
+        isWarning && styles.noticeCardWarning,
+      ]}
+    >
+      <Text
+        style={[
+          styles.noticeText,
+          isError && styles.noticeTextError,
+          isWarning && styles.noticeTextWarning,
+        ]}
+      >
         {message}
       </Text>
       {actionLabel && onPressAction ? (
@@ -223,6 +229,7 @@ function InlineNotice({
             style={[
               styles.noticeActionLabel,
               isError && styles.noticeActionLabelError,
+              isWarning && styles.noticeActionLabelWarning,
             ]}
           >
             {actionLabel}
@@ -297,8 +304,8 @@ function LocationIllustration() {
 
 function LocationActionCard({
   active = false,
+  badgeLabel,
   description,
-  isLoading = false,
   onPress,
   title,
 }) {
@@ -326,15 +333,17 @@ function LocationActionCard({
         <Text style={styles.locationActionDescription}>{description}</Text>
       </View>
 
-      {isLoading ? (
-        <ActivityIndicator color={OPENING_COLORS.accent} size="small" />
-      ) : (
-        <DirectionalHint
-          chevronSize={8}
-          color={OPENING_COLORS.muted}
-          mode="plain"
-        />
-      )}
+      {badgeLabel ? (
+        <View style={styles.locationActionBadge}>
+          <Text style={styles.locationActionBadgeLabel}>{badgeLabel}</Text>
+        </View>
+      ) : null}
+
+      <DirectionalHint
+        chevronSize={8}
+        color={OPENING_COLORS.muted}
+        mode="plain"
+      />
     </Pressable>
   );
 }
@@ -687,23 +696,29 @@ export function VerificationScreen({ navigation, route }) {
 export function LocationScreen({ navigation }) {
   const { completeCustomerOpeningFlow, openingFlow, saveOpeningLocation } =
     useApp();
+  const manualInputRef = useRef(null);
   const [manualLocation, setManualLocation] = useState(
     openingFlow.selectedLocation?.source === 'manual'
       ? openingFlow.selectedLocation.fullAddress
       : '',
   );
   const [selectedMethod, setSelectedMethod] = useState(
-    openingFlow.selectedLocation?.source || 'current',
+    openingFlow.selectedLocation?.source || 'manual',
   );
-  const [errorMessage, setErrorMessage] = useState('');
-  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
-  const [isPermissionBlocked, setIsPermissionBlocked] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(
+    openingFlow.selectedLocation?.source === 'manual'
+      ? openingFlow.selectedLocation.fullAddress
+      : '',
+  );
+  const [currentLocationMessage, setCurrentLocationMessage] = useState('');
+  const [manualErrorMessage, setManualErrorMessage] = useState('');
+  const [isSuggestionPanelVisible, setIsSuggestionPanelVisible] = useState(false);
 
-  const selectedLocation = openingFlow.selectedLocation;
-  const showManualEntry =
-    selectedMethod === 'manual' || Boolean(errorMessage) || isPermissionBlocked;
-  const currentLocationSelected =
-    selectedMethod === 'current' && selectedLocation?.source === 'current';
+  const suggestionItems = getLocationSuggestions(manualLocation, 6);
+  const showSuggestions = selectedMethod === 'manual' && isSuggestionPanelVisible;
+  const showSuggestionEmptyState =
+    showSuggestions && manualLocation.trim().length > 0 && !suggestionItems.length;
+  const hasManualValue = Boolean(manualLocation.trim());
 
   useEffect(() => {
     if (!openingFlow.isVerificationComplete) {
@@ -711,98 +726,73 @@ export function LocationScreen({ navigation }) {
     }
   }, [navigation, openingFlow.isVerificationComplete]);
 
+  function focusManualInput() {
+    requestAnimationFrame(() => {
+      manualInputRef.current?.focus();
+    });
+  }
+
   function handleManualEntry() {
     setSelectedMethod('manual');
-    setErrorMessage('');
-    setIsPermissionBlocked(false);
+    setCurrentLocationMessage('');
+    setManualErrorMessage('');
+    setIsSuggestionPanelVisible(true);
+    focusManualInput();
   }
 
-  async function handleUseCurrentLocation() {
-    if (isRequestingLocation) {
-      return;
-    }
-
-    setSelectedMethod('current');
-    setErrorMessage('');
-    setIsPermissionBlocked(false);
-
-    const permissionStatus = await requestLocationPermission();
-
-    if (permissionStatus === LOCATION_PERMISSION_STATUS.BLOCKED) {
-      setIsPermissionBlocked(true);
-      setSelectedMethod('manual');
-      setErrorMessage(
-        'Location access is off for Grovy. Open Settings or enter it manually.',
-      );
-      return;
-    }
-
-    if (permissionStatus === LOCATION_PERMISSION_STATUS.DENIED) {
-      setSelectedMethod('manual');
-      setErrorMessage('No worries, you can enter your area manually instead.');
-      return;
-    }
-
-    setIsRequestingLocation(true);
-
-    try {
-      const deviceLocation = await getCurrentDeviceLocation();
-      saveOpeningLocation(deviceLocation);
-      setManualLocation('');
-      setSelectedMethod('current');
-    } catch (error) {
-      setSelectedMethod('manual');
-      setErrorMessage(
-        error?.message || 'We could not detect your location right now.',
-      );
-
-      if (error?.type === DEVICE_LOCATION_ERROR.PERMISSION_DENIED) {
-        setIsPermissionBlocked(false);
-      }
-    } finally {
-      setIsRequestingLocation(false);
-    }
-  }
-
-  async function handleOpenSettings() {
-    await Linking.openSettings();
+  function handleUseCurrentLocation() {
+    setSelectedMethod('manual');
+    setManualErrorMessage('');
+    setCurrentLocationMessage(
+      'Current location detection is coming soon. Please enter your area manually for now.',
+    );
+    setIsSuggestionPanelVisible(true);
+    focusManualInput();
   }
 
   function handleManualLocationChange(value) {
     setManualLocation(value);
-
-    if (errorMessage) {
-      setErrorMessage('');
-    }
+    setSelectedSuggestion('');
+    setCurrentLocationMessage('');
+    setManualErrorMessage('');
 
     if (selectedMethod !== 'manual') {
       setSelectedMethod('manual');
     }
 
-    if (isPermissionBlocked) {
-      setIsPermissionBlocked(false);
+    if (!isSuggestionPanelVisible) {
+      setIsSuggestionPanelVisible(true);
     }
   }
 
+  function handleSelectSuggestion(locationLabel) {
+    setManualLocation(locationLabel);
+    setSelectedSuggestion(locationLabel);
+    setSelectedMethod('manual');
+    setCurrentLocationMessage('');
+    setManualErrorMessage('');
+    setIsSuggestionPanelVisible(false);
+    saveOpeningLocation(buildManualLocation(locationLabel));
+  }
+
+  function handleFocusManualInput() {
+    setSelectedMethod('manual');
+    setCurrentLocationMessage('');
+    setIsSuggestionPanelVisible(true);
+  }
+
   function handleContinue() {
-    if (selectedMethod === 'manual') {
-      if (!manualLocation.trim()) {
-        setErrorMessage('Please enter your area or address.');
-        return;
-      }
-
-      const manualSelection = buildManualLocation(manualLocation);
-      saveOpeningLocation(manualSelection);
-      completeCustomerOpeningFlow(manualSelection);
+    if (!manualLocation.trim()) {
+      setSelectedMethod('manual');
+      setManualErrorMessage('Please enter your area or address.');
+      setIsSuggestionPanelVisible(true);
+      focusManualInput();
       return;
     }
 
-    if (!selectedLocation) {
-      setErrorMessage('Choose your location before continuing.');
-      return;
-    }
-
-    completeCustomerOpeningFlow(selectedLocation);
+    const manualSelection = buildManualLocation(manualLocation);
+    saveOpeningLocation(manualSelection);
+    completeCustomerOpeningFlow(manualSelection);
   }
 
   return (
@@ -832,9 +822,8 @@ export function LocationScreen({ navigation }) {
             <Text style={styles.fieldLabel}>Choose a delivery location</Text>
 
             <LocationActionCard
-              active={selectedMethod === 'current'}
-              description="Ask for location permission and detect this device."
-              isLoading={isRequestingLocation}
+              badgeLabel="Coming soon"
+              description="Keep this saved for a future update. Manual entry works best for now."
               onPress={handleUseCurrentLocation}
               title="Use current location"
             />
@@ -846,47 +835,117 @@ export function LocationScreen({ navigation }) {
               title="Enter manually"
             />
 
-            {currentLocationSelected ? (
-              <View style={styles.locationSummaryCard}>
-                <Text style={styles.locationSummaryEyebrow}>Location ready</Text>
-                <Text style={styles.locationSummaryTitle}>
-                  {selectedLocation.label}
-                </Text>
-                <Text style={styles.locationSummaryDetail}>
-                  {selectedLocation.detail}
-                </Text>
+            <InlineNotice message={currentLocationMessage} tone="warning" />
+
+            <View style={styles.manualEntryWrap}>
+              <Text style={styles.fieldLabel}>Manual location</Text>
+              <View style={styles.textFieldWrap}>
+                <TextInput
+                  autoCapitalize="words"
+                  onChangeText={handleManualLocationChange}
+                  onFocus={handleFocusManualInput}
+                  placeholder="District 1, Ho Chi Minh City"
+                  placeholderTextColor={OPENING_COLORS.mutedSoft}
+                  ref={manualInputRef}
+                  selectionColor={OPENING_COLORS.accent}
+                  style={styles.textField}
+                  value={manualLocation}
+                />
               </View>
-            ) : null}
+              <Text style={styles.helperText}>
+                Search from nearby areas or keep your own typed location.
+              </Text>
 
-            <InlineNotice
-              actionLabel={isPermissionBlocked ? 'Open settings' : null}
-              message={errorMessage}
-              onPressAction={isPermissionBlocked ? handleOpenSettings : null}
-              tone="error"
-            />
-
-            {showManualEntry ? (
-              <View style={styles.manualEntryWrap}>
-                <Text style={styles.fieldLabel}>Manual location</Text>
-                <View style={styles.textFieldWrap}>
-                  <TextInput
-                    autoCapitalize="words"
-                    onChangeText={handleManualLocationChange}
-                    placeholder="District 1, Ho Chi Minh City"
-                    placeholderTextColor={OPENING_COLORS.mutedSoft}
-                    selectionColor={OPENING_COLORS.accent}
-                    style={styles.textField}
-                    value={manualLocation}
-                  />
+              {hasManualValue ? (
+                <View style={styles.locationSummaryCard}>
+                  <Text style={styles.locationSummaryEyebrow}>
+                    {selectedSuggestion ? 'Selected area' : 'Manual area'}
+                  </Text>
+                  <Text style={styles.locationSummaryTitle}>{manualLocation.trim()}</Text>
+                  <Text style={styles.locationSummaryDetail}>
+                    {selectedSuggestion
+                      ? 'Picked from suggestions'
+                      : 'You can continue with this text as entered.'}
+                  </Text>
                 </View>
-                <Text style={styles.helperText}>
-                  Keep it short and clear so the demo can continue smoothly.
-                </Text>
-              </View>
-            ) : null}
+              ) : null}
+
+              {showSuggestions ? (
+                <View style={styles.suggestionsCard}>
+                  <Text style={styles.suggestionsHeading}>
+                    {manualLocation.trim() ? 'Matching areas' : 'Popular areas'}
+                  </Text>
+
+                  {showSuggestionEmptyState ? (
+                    <View style={styles.suggestionsEmptyState}>
+                      <Text style={styles.suggestionsEmptyTitle}>
+                        No matching areas found
+                      </Text>
+                      <Text style={styles.suggestionsEmptySubtitle}>
+                        You can keep your typed location and continue.
+                      </Text>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      keyboardShouldPersistTaps="handled"
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                      style={styles.suggestionsList}
+                    >
+                      {suggestionItems.map(locationLabel => {
+                        const isSelected = selectedSuggestion === locationLabel;
+
+                        return (
+                          <Pressable
+                            key={locationLabel}
+                            android_ripple={{ color: '#E8ECE2' }}
+                            onPress={() => handleSelectSuggestion(locationLabel)}
+                            style={({ pressed }) => [
+                              styles.suggestionItem,
+                              isSelected && styles.suggestionItemSelected,
+                              pressed && styles.suggestionItemPressed,
+                            ]}
+                          >
+                            <View style={styles.suggestionCopy}>
+                              <Text
+                                style={[
+                                  styles.suggestionLabel,
+                                  isSelected && styles.suggestionLabelSelected,
+                                ]}
+                              >
+                                {locationLabel}
+                              </Text>
+                              <Text style={styles.suggestionMeta}>
+                                Tap to use this area
+                              </Text>
+                            </View>
+                            {isSelected ? (
+                              <View style={styles.suggestionBadge}>
+                                <Text style={styles.suggestionBadgeLabel}>
+                                  Selected
+                                </Text>
+                              </View>
+                            ) : (
+                              <DirectionalHint
+                                chevronSize={8}
+                                color={OPENING_COLORS.muted}
+                                mode="plain"
+                              />
+                            )}
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+                </View>
+              ) : null}
+
+              <InlineNotice message={manualErrorMessage} tone="error" />
+            </View>
           </View>
 
           <PrimaryButton
+            disabled={!hasManualValue}
             onPress={handleContinue}
             style={[styles.primaryAction, styles.locationAction]}
             title="Continue to shop"
@@ -1269,12 +1328,19 @@ const styles = StyleSheet.create({
     borderColor: '#EBCFC8',
     backgroundColor: UI_COLORS.errorSoft,
   },
+  noticeCardWarning: {
+    borderColor: '#E6D7BC',
+    backgroundColor: UI_COLORS.banner,
+  },
   noticeText: {
     color: OPENING_COLORS.accent,
     ...UI_TYPOGRAPHY.label,
   },
   noticeTextError: {
     color: UI_COLORS.accentRed,
+  },
+  noticeTextWarning: {
+    color: OPENING_COLORS.muted,
   },
   noticeActionButton: {
     alignSelf: 'flex-start',
@@ -1291,6 +1357,9 @@ const styles = StyleSheet.create({
   },
   noticeActionLabelError: {
     color: UI_COLORS.accentRed,
+  },
+  noticeActionLabelWarning: {
+    color: OPENING_COLORS.text,
   },
   phoneInputRow: {
     flexDirection: 'row',
@@ -1444,6 +1513,23 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 3,
   },
+  locationActionBadge: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: OPENING_COLORS.surface,
+    borderWidth: 1,
+    borderColor: OPENING_COLORS.border,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 10,
+  },
+  locationActionBadgeLabel: {
+    color: OPENING_COLORS.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
   locationContent: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingTop: 12,
@@ -1522,6 +1608,100 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   manualEntryWrap: {
+    marginTop: 4,
+  },
+  suggestionsCard: {
+    marginTop: 14,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: OPENING_COLORS.border,
+    backgroundColor: OPENING_COLORS.surface,
+    padding: 12,
+    ...UI_SHADOWS.card,
+  },
+  suggestionsHeading: {
+    color: OPENING_COLORS.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 10,
+  },
+  suggestionsList: {
+    maxHeight: 252,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: OPENING_COLORS.borderSoft,
+    backgroundColor: OPENING_COLORS.surfaceSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    marginBottom: 10,
+  },
+  suggestionItemSelected: {
+    borderColor: '#D2E0CF',
+    backgroundColor: OPENING_COLORS.accentSoft,
+  },
+  suggestionItemPressed: {
+    opacity: 0.96,
+  },
+  suggestionCopy: {
+    flex: 1,
+    marginRight: 12,
+  },
+  suggestionLabel: {
+    color: OPENING_COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  suggestionLabelSelected: {
+    color: OPENING_COLORS.accent,
+  },
+  suggestionMeta: {
+    color: OPENING_COLORS.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  suggestionBadge: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: OPENING_COLORS.surface,
+    borderWidth: 1,
+    borderColor: '#D2E0CF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  suggestionBadgeLabel: {
+    color: OPENING_COLORS.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.28,
+  },
+  suggestionsEmptyState: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: OPENING_COLORS.borderSoft,
+    backgroundColor: OPENING_COLORS.surfaceSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  suggestionsEmptyTitle: {
+    color: OPENING_COLORS.text,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  suggestionsEmptySubtitle: {
+    color: OPENING_COLORS.muted,
+    fontSize: 12,
+    lineHeight: 17,
     marginTop: 4,
   },
   locationSummaryCard: {

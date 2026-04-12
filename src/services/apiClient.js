@@ -1,5 +1,11 @@
 import { API_BASE_URL } from '../config/api';
 
+let authToken = '';
+
+export function setApiAuthToken(nextToken) {
+  authToken = nextToken || '';
+}
+
 async function parseResponse(response) {
   const rawBody = await response.text();
 
@@ -24,6 +30,11 @@ export async function apiRequest(path, options = {}) {
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
+        ...(authToken
+          ? {
+              Authorization: `Bearer ${authToken}`,
+            }
+          : {}),
         ...headers,
       },
       ...restOptions,

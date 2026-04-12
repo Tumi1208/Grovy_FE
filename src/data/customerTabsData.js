@@ -51,6 +51,7 @@ export const FAVOURITE_PRODUCT_IDS = Object.freeze([
 ]);
 
 export const CUSTOMER_ACCOUNT_MENU = Object.freeze([
+  'Edit Profile',
   'Orders',
   'Delivery Address',
   'Payment Methods',

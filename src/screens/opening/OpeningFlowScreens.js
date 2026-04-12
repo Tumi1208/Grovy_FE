@@ -97,10 +97,12 @@ function BackButton({ onPress }) {
   return (
     <Pressable
       android_ripple={{ color: '#EEE7DC' }}
+      disabled={!onPress}
       hitSlop={8}
       onPress={onPress}
       style={({ pressed }) => [
         styles.backButton,
+        !onPress && styles.backButtonDisabled,
         pressed && styles.backButtonPressed,
       ]}
     >
@@ -112,6 +114,19 @@ function BackButton({ onPress }) {
       />
     </Pressable>
   );
+}
+
+function buildBackHandler(navigation, fallbackRouteName = null) {
+  return () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    if (fallbackRouteName) {
+      navigation.navigate(fallbackRouteName);
+    }
+  };
 }
 
 function CountryCodeChip({ label = DEFAULT_COUNTRY_CODE }) {
@@ -378,6 +393,8 @@ export function SplashScreen({ navigation }) {
 }
 
 export function WelcomeScreen({ navigation }) {
+  const { completeOnboarding } = useApp();
+
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.lightSafeArea}>
       <StatusBar
@@ -409,7 +426,7 @@ export function WelcomeScreen({ navigation }) {
           </View>
 
           <PrimaryButton
-            onPress={() => navigation.navigate(AUTH_ROUTES.SIGN_IN)}
+            onPress={completeOnboarding}
             style={styles.primaryAction}
             title="Get started"
           />
@@ -419,9 +436,19 @@ export function WelcomeScreen({ navigation }) {
   );
 }
 
-export function SignInScreen({ navigation }) {
-  function handleContinue() {
+export function EntryScreen({ navigation }) {
+  const handleBack = buildBackHandler(navigation, AUTH_ROUTES.ONBOARDING);
+  const [socialMessage, setSocialMessage] = useState('');
+
+  function handleContinueWithPhone() {
+    setSocialMessage('');
     navigation.navigate(AUTH_ROUTES.NUMBER_INPUT);
+  }
+
+  function handleMockSocial(providerLabel) {
+    setSocialMessage(
+      `${providerLabel} sign in is still mock-only. Use phone, Sign In or Sign Up to continue the demo.`,
+    );
   }
 
   return (
@@ -445,16 +472,34 @@ export function SignInScreen({ navigation }) {
         </View>
 
         <View style={styles.signInCard}>
-          <BackButton onPress={() => navigation.goBack()} />
+          <BackButton onPress={handleBack} />
           <ScreenHeader
-            eyebrow="Welcome back"
-            subtitle="Use your mobile number or a saved account to continue."
-            title="Choose how to enter"
+            eyebrow="Start here"
+            subtitle="Pick the path you want to demo. Phone stays mocked, email Sign In and Sign Up keep the real backend flow."
+            title="How would you like to continue?"
+          />
+
+          <PrimaryButton
+            onPress={() => {
+              setSocialMessage('');
+              navigation.navigate(AUTH_ROUTES.SIGN_IN);
+            }}
+            style={styles.entryPrimaryAction}
+            title="Go to Sign In"
+          />
+          <PrimaryButton
+            onPress={() => {
+              setSocialMessage('');
+              navigation.navigate(AUTH_ROUTES.SIGN_UP);
+            }}
+            style={styles.entrySecondaryAction}
+            title="Go to Sign Up"
+            variant="secondary"
           />
 
           <Pressable
             android_ripple={{ color: '#EEE7DC' }}
-            onPress={handleContinue}
+            onPress={handleContinueWithPhone}
             style={({ pressed }) => [
               styles.phoneEntryButton,
               pressed && styles.phoneEntryButtonPressed,
@@ -483,19 +528,23 @@ export function SignInScreen({ navigation }) {
 
           <SocialButton
             iconLabel="G"
-            onPress={handleContinue}
+            onPress={() => handleMockSocial('Google')}
             tone="google"
             title="Continue with Google"
           />
           <SocialButton
             iconLabel="A"
-            onPress={handleContinue}
+            onPress={() => handleMockSocial('Apple')}
             tone="apple"
             title="Continue with Apple"
           />
 
           <InlineNotice
-            message="Phone, OTP, Google and Apple stay in mock mode for this demo."
+            message={
+              socialMessage ||
+              'Google and Apple stay in mock mode for now. Continue with phone or move into Sign In and Sign Up.'
+            }
+            tone={socialMessage ? 'warning' : 'neutral'}
           />
         </View>
       </ScrollView>
@@ -505,6 +554,7 @@ export function SignInScreen({ navigation }) {
 
 export function NumberInputScreen({ navigation, route }) {
   const { openingFlow, saveOpeningPhone } = useApp();
+  const handleBack = buildBackHandler(navigation, AUTH_ROUTES.ENTRY);
   const initialCountryCode =
     route.params?.countryCode ||
     openingFlow.countryCode ||
@@ -547,7 +597,7 @@ export function NumberInputScreen({ navigation, route }) {
       >
         <View style={styles.formScreen}>
           <View>
-            <BackButton onPress={() => navigation.goBack()} />
+            <BackButton onPress={handleBack} />
             <ScreenHeader
               eyebrow="Sign in"
               subtitle="We'll send a short verification code before you continue."
@@ -595,6 +645,7 @@ export function NumberInputScreen({ navigation, route }) {
 
 export function VerificationScreen({ navigation, route }) {
   const { completeOpeningVerification, openingFlow } = useApp();
+  const handleBack = buildBackHandler(navigation, AUTH_ROUTES.NUMBER_INPUT);
   const inputRef = useRef(null);
   const [code, setCode] = useState(
     route.params?.code || openingFlow.verificationCode || '',
@@ -621,7 +672,9 @@ export function VerificationScreen({ navigation, route }) {
 
     setErrorMessage('');
     completeOpeningVerification(code);
-    navigation.navigate(AUTH_ROUTES.LOCATION);
+    navigation.navigate(AUTH_ROUTES.LOCATION, {
+      backRouteName: AUTH_ROUTES.VERIFICATION,
+    });
   }
 
   return (
@@ -636,7 +689,7 @@ export function VerificationScreen({ navigation, route }) {
       >
         <View style={styles.formScreen}>
           <View>
-            <BackButton onPress={() => navigation.goBack()} />
+            <BackButton onPress={handleBack} />
             <ScreenHeader
               eyebrow="Verification"
               subtitle={`Enter the 4-digit code sent to ${countryCode} ${phoneNumber}.`}
@@ -664,7 +717,7 @@ export function VerificationScreen({ navigation, route }) {
                 value={code}
               />
               <Text style={styles.helperText}>
-                Any 4 digits work for this demo. You can also use {MOCK_OTP_CODE}.
+                Any 4 digits work for this demo, or tap the helper below to autofill 1234.
               </Text>
               <InlineNotice message={errorMessage} tone="error" />
               <Pressable
@@ -685,7 +738,7 @@ export function VerificationScreen({ navigation, route }) {
           <PrimaryButton
             onPress={handleNext}
             style={styles.primaryAction}
-            title="Verify code"
+            title="Continue to location"
           />
         </View>
       </KeyboardAvoidingView>
@@ -693,22 +746,37 @@ export function VerificationScreen({ navigation, route }) {
   );
 }
 
-export function LocationScreen({ navigation }) {
-  const { completeCustomerOpeningFlow, openingFlow, saveOpeningLocation } =
-    useApp();
-  const manualInputRef = useRef(null);
-  const [manualLocation, setManualLocation] = useState(
-    openingFlow.selectedLocation?.source === 'manual'
-      ? openingFlow.selectedLocation.fullAddress
-      : '',
+export function LocationScreen({ navigation, route }) {
+  const {
+    completeCustomerOpeningFlow,
+    currentUser,
+    isAuthenticated,
+    openingFlow,
+    saveOpeningLocation,
+  } = useApp();
+  const canAccessLocationStep =
+    isAuthenticated || openingFlow.isVerificationComplete;
+  const handleBack = buildBackHandler(
+    navigation,
+    route.params?.backRouteName ||
+      (openingFlow.isVerificationComplete
+        ? AUTH_ROUTES.VERIFICATION
+        : AUTH_ROUTES.ENTRY),
   );
+  const initialLocationValue =
+    openingFlow.selectedLocation?.fullAddress ||
+    openingFlow.selectedLocation?.detail ||
+    currentUser?.location?.fullAddress ||
+    currentUser?.location?.detail ||
+    currentUser?.location?.label ||
+    '';
+  const manualInputRef = useRef(null);
+  const [manualLocation, setManualLocation] = useState(initialLocationValue);
   const [selectedMethod, setSelectedMethod] = useState(
     openingFlow.selectedLocation?.source || 'manual',
   );
   const [selectedSuggestion, setSelectedSuggestion] = useState(
-    openingFlow.selectedLocation?.source === 'manual'
-      ? openingFlow.selectedLocation.fullAddress
-      : '',
+    openingFlow.selectedLocation?.source === 'manual' ? initialLocationValue : '',
   );
   const [currentLocationMessage, setCurrentLocationMessage] = useState('');
   const [manualErrorMessage, setManualErrorMessage] = useState('');
@@ -721,10 +789,10 @@ export function LocationScreen({ navigation }) {
   const hasManualValue = Boolean(manualLocation.trim());
 
   useEffect(() => {
-    if (!openingFlow.isVerificationComplete) {
-      navigation.replace(AUTH_ROUTES.VERIFICATION);
+    if (!canAccessLocationStep) {
+      navigation.replace(AUTH_ROUTES.ENTRY);
     }
-  }, [navigation, openingFlow.isVerificationComplete]);
+  }, [canAccessLocationStep, navigation]);
 
   function focusManualInput() {
     requestAnimationFrame(() => {
@@ -808,9 +876,9 @@ export function LocationScreen({ navigation }) {
         <ScrollView
           contentContainerStyle={styles.locationContent}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <BackButton onPress={() => navigation.goBack()} />
+        showsVerticalScrollIndicator={false}
+      >
+          <BackButton onPress={handleBack} />
           <LocationIllustration />
           <ScreenHeader
             eyebrow="Almost there"
@@ -1095,6 +1163,12 @@ const styles = StyleSheet.create({
   primaryAction: {
     width: '100%',
   },
+  entryPrimaryAction: {
+    marginBottom: 12,
+  },
+  entrySecondaryAction: {
+    marginBottom: 18,
+  },
   locationAction: {
     marginTop: 18,
   },
@@ -1266,6 +1340,9 @@ const styles = StyleSheet.create({
   },
   backButtonPressed: {
     opacity: 0.9,
+  },
+  backButtonDisabled: {
+    opacity: 0.45,
   },
   screenHeader: {
     marginTop: 26,

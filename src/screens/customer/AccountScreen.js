@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
 import DirectionalHint from '../../components/DirectionalHint';
@@ -11,21 +11,22 @@ import {
   UI_SHADOWS,
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
+import { useAccountData } from '../../context/AccountDataContext';
 import { CUSTOMER_ACCOUNT_MENU } from '../../data/customerTabsData';
 import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
-import { useFavourite } from '../../context/FavouriteContext';
+import { formatPaymentMethodShortLabel } from '../../utils/accountFormatting';
+import { getUserInitials } from '../../utils/userProfile';
 
-function getAccountEmail(currentUser) {
-  if (!currentUser?.name) {
-    return 'demo.customer@grovy.app';
-  }
-
-  return `${currentUser.name
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '.')}@grovy.app`;
-}
+const ACCOUNT_MENU_ROUTES = Object.freeze({
+  'Edit Profile': CUSTOMER_ROUTES.PROFILE_MANAGEMENT,
+  Orders: CUSTOMER_ROUTES.ACCOUNT_ORDERS,
+  'Delivery Address': CUSTOMER_ROUTES.DELIVERY_ADDRESSES,
+  'Payment Methods': CUSTOMER_ROUTES.PAYMENT_METHODS,
+  Notifications: CUSTOMER_ROUTES.NOTIFICATION_SETTINGS,
+  Help: CUSTOMER_ROUTES.HELP_SUPPORT,
+  About: CUSTOMER_ROUTES.ABOUT_GROVY,
+});
 
 function MenuRow({ label, onPress }) {
   return (
@@ -68,11 +69,26 @@ function StatCard({ label, style, value }) {
 function AccountScreen({ navigation }) {
   const { currentUser, signOut } = useApp();
   const { totalItems } = useCart();
-  const { totalFavourites } = useFavourite();
-  const userName = currentUser?.name || 'Demo Customer';
-  const userEmail = getAccountEmail(currentUser);
+  const { defaultAddress, defaultPaymentMethod, orders } = useAccountData();
+  const userName = currentUser?.displayName || currentUser?.name || 'Grovy Member';
+  const userEmail = currentUser?.email || 'youraccount@grovy.app';
+  const userPhone = currentUser?.phone || '';
+  const avatarUrl = currentUser?.avatarUrl || '';
+  const profileTags = [
+    'Grovy member',
+    formatPaymentMethodShortLabel(defaultPaymentMethod),
+    defaultAddress ? `Default: ${defaultAddress.label}` : '',
+  ].filter(Boolean);
 
-  function handleMenuPress() {}
+  function handleMenuPress(label) {
+    const routeName = ACCOUNT_MENU_ROUTES[label];
+
+    if (!routeName) {
+      return;
+    }
+
+    navigation.navigate(routeName);
+  }
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -89,19 +105,27 @@ function AccountScreen({ navigation }) {
 
           <View style={styles.profileCard}>
             <View style={styles.profileTopRow}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarLabel}>{userName.slice(0, 1)}</Text>
-              </View>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarLabel}>{getUserInitials(userName)}</Text>
+                </View>
+              )}
 
               <View style={styles.profileCopy}>
                 <Text style={styles.userName}>{userName}</Text>
                 <Text style={styles.userEmail}>{userEmail}</Text>
+                {userPhone ? (
+                  <Text style={styles.userMeta}>{userPhone}</Text>
+                ) : null}
               </View>
             </View>
 
             <View style={styles.profileTagRow}>
-              <ProfileTag label="Grovy member" />
-              <ProfileTag label="Cash on delivery" />
+              {profileTags.map(label => (
+                <ProfileTag key={label} label={label} />
+              ))}
             </View>
 
             <View style={styles.statsRow}>
@@ -111,9 +135,9 @@ function AccountScreen({ navigation }) {
                 value={`${totalItems}`}
               />
               <StatCard
-                label="Saved items"
+                label="Orders"
                 style={styles.profileStatCard}
-                value={`${totalFavourites}`}
+                value={`${orders.length}`}
               />
             </View>
           </View>
@@ -122,7 +146,10 @@ function AccountScreen({ navigation }) {
           <View style={styles.menuCard}>
             {CUSTOMER_ACCOUNT_MENU.map((label, index) => (
               <View key={label}>
-                <MenuRow label={label} onPress={handleMenuPress} />
+                <MenuRow
+                  label={label}
+                  onPress={() => handleMenuPress(label)}
+                />
                 {index < CUSTOMER_ACCOUNT_MENU.length - 1 ? (
                   <View style={styles.divider} />
                 ) : null}
@@ -210,9 +237,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 16,
   },
+  avatarImage: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    marginRight: 16,
+  },
   avatarLabel: {
     color: UI_COLORS.accentGreen,
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '800',
   },
   profileCopy: {
@@ -228,6 +261,11 @@ const styles = StyleSheet.create({
   userEmail: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.meta,
+  },
+  userMeta: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 4,
   },
   profileTagRow: {
     flexDirection: 'row',

@@ -23,12 +23,18 @@ import {
   UI_SHADOWS,
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
+import { useAccountData } from '../../context/AccountDataContext';
 import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
 import {
   buildCreateOrderPayload,
   submitOrder,
 } from '../../services/orderService';
+import {
+  buildAddressFullText,
+  formatPaymentMethodMeta,
+  formatPaymentMethodShortLabel,
+} from '../../utils/accountFormatting';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 const DELIVERY_FEE = 0;
@@ -114,10 +120,18 @@ function OrderPreviewRow({ item }) {
 function CheckoutScreen({ navigation }) {
   const { items, subtotal, clearCart } = useCart();
   const { currentUser } = useApp();
-  const [customerName, setCustomerName] = useState(currentUser?.name || '');
-  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const { addCheckoutOrder, defaultAddress, defaultPaymentMethod } =
+    useAccountData();
+  const [customerName, setCustomerName] = useState(
+    defaultAddress?.recipientName || currentUser?.name || '',
+  );
+  const [phone, setPhone] = useState(
+    defaultAddress?.phoneNumber || currentUser?.phone || '',
+  );
   const [address, setAddress] = useState(
-    currentUser?.deliveryAddress || '199 Grovy Street, Fresh District',
+    buildAddressFullText(defaultAddress) ||
+      currentUser?.deliveryAddress ||
+      '199 Grovy Street, Fresh District',
   );
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -150,6 +164,18 @@ function CheckoutScreen({ navigation }) {
         totalAmount: totalCost,
       });
       const result = await submitOrder(orderPayload);
+      const savedOrder = addCheckoutOrder({
+        apiOrder: result.order,
+        cartItems: items,
+        customerName: customerName.trim(),
+        phoneNumber: phone.trim(),
+        addressText: address,
+        addressRecord: defaultAddress,
+        paymentMethod: defaultPaymentMethod,
+        deliveryFee: DELIVERY_FEE,
+        submitMode: result.mode,
+        fallbackReason: result.fallbackReason || '',
+      });
 
       clearCart();
       navigation.reset({
@@ -158,7 +184,7 @@ function CheckoutScreen({ navigation }) {
           {
             name: CUSTOMER_ROUTES.ORDER_SUCCESS,
             params: {
-              order: result.order,
+              orderId: savedOrder.id,
               submitMode: result.mode,
               fallbackReason: result.fallbackReason || '',
             },
@@ -253,13 +279,17 @@ function CheckoutScreen({ navigation }) {
 
             <SummaryRow
               label="Delivery"
-              description={address}
+              description={
+                defaultAddress?.label
+                  ? `${defaultAddress.label} • ${address}`
+                  : address
+              }
               value={DELIVERY_FEE > 0 ? formatCurrency(DELIVERY_FEE) : 'Free'}
             />
             <SummaryRow
               label="Payment"
-              description="Cash on delivery"
-              value="Cash"
+              description={formatPaymentMethodMeta(defaultPaymentMethod)}
+              value={formatPaymentMethodShortLabel(defaultPaymentMethod)}
             />
             <SummaryRow
               label="Promo"
@@ -317,12 +347,12 @@ function CheckoutScreen({ navigation }) {
             />
 
             <View style={styles.paymentNote}>
-              <Text style={styles.paymentNoteLabel}>Order note</Text>
+              <Text style={styles.paymentNoteLabel}>Saved preferences</Text>
               <Text style={styles.paymentNoteValue}>
-                We&apos;ll use these details to confirm delivery.
+                Default address and payment come from your Account settings.
               </Text>
               <Text style={styles.paymentHelpText}>
-                Keep your phone nearby so the courier can reach you if needed.
+                Editing the receiver fields here updates this order only and keeps your saved address book intact.
               </Text>
             </View>
           </View>

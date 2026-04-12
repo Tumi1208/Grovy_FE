@@ -2,6 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
+import { useAccountData } from '../../context/AccountDataContext';
+import { formatOrderDate } from '../../utils/accountFormatting';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 const SUCCESS_COLORS = Object.freeze({
@@ -18,12 +20,39 @@ const SUCCESS_COLORS = Object.freeze({
 });
 
 function OrderSuccessScreen({ navigation, route }) {
-  const order = route.params?.order;
+  const { getOrderById } = useAccountData();
+  const orderId = route.params?.orderId || '';
+  const order = getOrderById(orderId);
   const submitMode = route.params?.submitMode || 'api';
   const fallbackReason = route.params?.fallbackReason || '';
   const itemCount = Array.isArray(order?.items)
     ? order.items.reduce((sum, item) => sum + item.quantity, 0)
     : 0;
+
+  function handleTrackOrder() {
+    if (!orderId) {
+      navigation.reset({
+        index: 1,
+        routes: [
+          { name: CUSTOMER_ROUTES.ACCOUNT },
+          { name: CUSTOMER_ROUTES.ACCOUNT_ORDERS },
+        ],
+      });
+      return;
+    }
+
+    navigation.reset({
+      index: 2,
+      routes: [
+        { name: CUSTOMER_ROUTES.ACCOUNT },
+        { name: CUSTOMER_ROUTES.ACCOUNT_ORDERS },
+        {
+          name: CUSTOMER_ROUTES.ORDER_DETAIL,
+          params: { orderId },
+        },
+      ],
+    });
+  }
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -52,6 +81,9 @@ function OrderSuccessScreen({ navigation, route }) {
               Status: {order.status || 'accepted'}
             </Text>
             <Text style={styles.summaryText}>
+              Placed: {formatOrderDate(order.createdAt)}
+            </Text>
+            <Text style={styles.summaryText}>
               Flow: {submitMode === 'api' ? 'Backend API' : 'Local demo fallback'}
             </Text>
             {submitMode === 'local' && fallbackReason ? (
@@ -62,14 +94,15 @@ function OrderSuccessScreen({ navigation, route }) {
 
         <Pressable
           android_ripple={{ color: '#F1EBE3' }}
-          disabled
+          onPress={handleTrackOrder}
           style={({ pressed }) => [
             styles.secondaryButton,
-            styles.secondaryButtonDisabled,
             pressed && styles.secondaryButtonPressed,
           ]}
         >
-          <Text style={styles.secondaryButtonLabel}>Track Order (Soon)</Text>
+          <Text style={styles.secondaryButtonLabel}>
+            {orderId ? 'Track order' : 'View orders'}
+          </Text>
         </Pressable>
 
         <Pressable
@@ -177,9 +210,6 @@ const styles = StyleSheet.create({
   },
   secondaryButtonPressed: {
     opacity: 0.86,
-  },
-  secondaryButtonDisabled: {
-    opacity: 0.55,
   },
   secondaryButtonLabel: {
     color: SUCCESS_COLORS.text,

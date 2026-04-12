@@ -145,34 +145,24 @@ function CartScreen({ navigation }) {
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>My cart</Text>
+          <View style={styles.headerCopy}>
+            <Text style={styles.headerEyebrow}>Ready to order</Text>
+            <Text style={styles.headerTitle}>Cart</Text>
             <Text style={styles.headerSubtitle}>
               Review your basket before checkout.
             </Text>
           </View>
 
           <View style={styles.headerPill}>
+            <Text style={styles.headerPillValue}>{totalItems}</Text>
             <Text style={styles.headerPillLabel}>
-              {totalItems} item{totalItems === 1 ? '' : 's'}
+              item{totalItems === 1 ? '' : 's'}
             </Text>
           </View>
         </View>
 
         {hasItems ? (
           <>
-            <View style={styles.supportRow}>
-              <View style={styles.supportPill}>
-                <Text style={styles.supportPillLabel}>
-                  Fresh items together
-                </Text>
-              </View>
-              <View style={styles.supportPill}>
-                <Text style={styles.supportPillLabel}>
-                  Delivery details at checkout
-                </Text>
-              </View>
-            </View>
             <ScrollView
               contentContainerStyle={styles.content}
               showsVerticalScrollIndicator={false}
@@ -269,7 +259,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingTop: 10,
-    paddingBottom: 14,
+    paddingBottom: 18,
+  },
+  headerCopy: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  headerEyebrow: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 4,
   },
   headerTitle: {
     color: UI_COLORS.textStrong,
@@ -281,52 +284,41 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   headerPill: {
-    borderRadius: UI_RADIUS.round,
+    minWidth: 72,
+    borderRadius: 24,
     backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 6,
+    alignItems: 'center',
+    ...UI_SHADOWS.card,
+  },
+  headerPillValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 22,
   },
   headerPillLabel: {
     color: UI_COLORS.mutedStrong,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 14,
-  },
-  supportRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: UI_LAYOUT.screenPadding,
-    marginBottom: 12,
-  },
-  supportPill: {
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderRadius: UI_RADIUS.round,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  supportPillLabel: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 15,
+    marginTop: 2,
   },
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
+    paddingTop: 2,
     paddingBottom: 214,
   },
   itemRow: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 18,
+    padding: 17,
     marginBottom: 16,
     ...UI_SHADOWS.card,
   },
@@ -335,9 +327,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   imageWrap: {
-    width: 86,
-    height: 86,
-    borderRadius: 22,
+    width: 82,
+    height: 82,
+    borderRadius: 21,
     backgroundColor: UI_COLORS.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -371,9 +363,9 @@ const styles = StyleSheet.create({
   },
   itemName: {
     color: UI_COLORS.textStrong,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
-    lineHeight: 22,
+    lineHeight: 23,
     marginBottom: 6,
   },
   itemSubtitle: {
@@ -402,10 +394,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   removeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: UI_COLORS.surface,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: UI_COLORS.surfaceSoft,
     borderWidth: 1,
     borderColor: UI_COLORS.borderSoft,
     alignItems: 'center',
@@ -423,7 +415,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginTop: 18,
+    marginTop: 16,
   },
   quantityGroup: {
     flexDirection: 'row',
@@ -432,13 +424,13 @@ const styles = StyleSheet.create({
     borderRadius: UI_RADIUS.xl,
     borderWidth: 1,
     borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 5,
   },
   quantityButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
     backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
     borderColor: UI_COLORS.borderSoft,
@@ -489,10 +481,10 @@ const styles = StyleSheet.create({
     right: UI_LAYOUT.footerSide,
     bottom: 92,
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 8,
+    padding: 9,
     flexDirection: 'row',
     alignItems: 'center',
     ...UI_SHADOWS.floating,
@@ -518,13 +510,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     marginTop: 4,
-    maxWidth: 160,
+    maxWidth: 150,
   },
   checkoutButton: {
     minHeight: UI_LAYOUT.ctaHeight,
     minWidth: 148,
     backgroundColor: UI_COLORS.accentGreen,
-    borderRadius: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: UI_COLORS.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,

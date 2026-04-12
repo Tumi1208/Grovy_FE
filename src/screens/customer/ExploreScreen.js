@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryFallbackImage } from '../../assets/productImages';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
-import ChevronIcon from '../../components/icons/ChevronIcon';
+import DirectionalHint from '../../components/DirectionalHint';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -60,9 +60,13 @@ function ExploreCategoryCard({ card, itemCount, onPress }) {
           <View style={styles.categoryCountPill}>
             <Text style={styles.categoryCountLabel}>{itemCount} items</Text>
           </View>
-          <View style={styles.categoryIndicator}>
-            <ChevronIcon color={UI_COLORS.mutedStrong} size={10} />
-          </View>
+          <DirectionalHint
+            chevronSize={8}
+            color={UI_COLORS.mutedStrong}
+            mode="tinted"
+            size={22}
+            style={styles.categoryIndicator}
+          />
         </View>
 
         <Text style={styles.categoryLabel}>{card.title}</Text>
@@ -319,14 +323,7 @@ const styles = StyleSheet.create({
     lineHeight: 13,
   },
   categoryIndicator: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.36)',
-    backgroundColor: 'rgba(255, 255, 255, 0.48)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginLeft: 12,
   },
   categoryLabel: {
     color: UI_COLORS.textStrong,

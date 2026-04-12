@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
-import ChevronIcon from '../../components/icons/ChevronIcon';
+import DirectionalHint from '../../components/DirectionalHint';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -38,9 +38,12 @@ function MenuRow({ label, onPress }) {
       ]}
     >
       <Text style={styles.menuRowLabel}>{label}</Text>
-      <View style={styles.menuRowIndicator}>
-        <ChevronIcon color={UI_COLORS.mutedStrong} size={10} />
-      </View>
+      <DirectionalHint
+        chevronSize={8}
+        color={UI_COLORS.mutedStrong}
+        mode="plain"
+        style={styles.menuRowIndicator}
+      />
     </Pressable>
   );
 }
@@ -53,9 +56,9 @@ function ProfileTag({ label }) {
   );
 }
 
-function StatCard({ label, value }) {
+function StatCard({ label, style, value }) {
   return (
-    <View style={styles.statCard}>
+    <View style={[styles.statCard, style]}>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -85,25 +88,34 @@ function AccountScreen({ navigation }) {
           </Text>
 
           <View style={styles.profileCard}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarLabel}>{userName.slice(0, 1)}</Text>
-            </View>
+            <View style={styles.profileTopRow}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarLabel}>{userName.slice(0, 1)}</Text>
+              </View>
 
-            <View style={styles.profileCopy}>
-              <Text style={styles.userName}>{userName}</Text>
-              <Text style={styles.userEmail}>{userEmail}</Text>
-
-              <View style={styles.profileTagRow}>
-                <ProfileTag label="Grovy member" />
-                <ProfileTag label="Cash on delivery" />
+              <View style={styles.profileCopy}>
+                <Text style={styles.userName}>{userName}</Text>
+                <Text style={styles.userEmail}>{userEmail}</Text>
               </View>
             </View>
-          </View>
 
-          <Text style={styles.sectionLabel}>Shopping snapshot</Text>
-          <View style={styles.statsRow}>
-            <StatCard label="Items in cart" value={`${totalItems}`} />
-            <StatCard label="Saved items" value={`${totalFavourites}`} />
+            <View style={styles.profileTagRow}>
+              <ProfileTag label="Grovy member" />
+              <ProfileTag label="Cash on delivery" />
+            </View>
+
+            <View style={styles.statsRow}>
+              <StatCard
+                label="Items in cart"
+                style={styles.profileStatCard}
+                value={`${totalItems}`}
+              />
+              <StatCard
+                label="Saved items"
+                style={styles.profileStatCard}
+                value={`${totalFavourites}`}
+              />
+            </View>
           </View>
 
           <Text style={styles.sectionLabel}>Preferences</Text>
@@ -178,14 +190,16 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 20,
     marginBottom: 18,
     ...UI_SHADOWS.card,
+  },
+  profileTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   avatar: {
     width: 74,
@@ -218,7 +232,7 @@ const styles = StyleSheet.create({
   profileTagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 12,
+    marginTop: 14,
   },
   profileTag: {
     borderRadius: UI_RADIUS.round,
@@ -248,23 +262,25 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginTop: 14,
   },
   statCard: {
     width: '48%',
-    backgroundColor: UI_COLORS.surface,
-    borderRadius: 24,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: UI_COLORS.border,
-    paddingVertical: 20,
+    borderColor: UI_COLORS.borderSoft,
+    paddingVertical: 18,
     paddingHorizontal: 16,
-    ...UI_SHADOWS.card,
+  },
+  profileStatCard: {
+    width: '48%',
   },
   statValue: {
     color: UI_COLORS.textStrong,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    lineHeight: 28,
+    lineHeight: 26,
     marginBottom: 6,
   },
   statLabel: {
@@ -273,7 +289,7 @@ const styles = StyleSheet.create({
   },
   menuCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     overflow: 'hidden',
@@ -285,7 +301,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 18,
-    paddingVertical: 18,
+    paddingVertical: 17,
   },
   menuRowPressed: {
     opacity: 0.94,
@@ -297,14 +313,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   menuRowIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginLeft: 8,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
@@ -313,7 +322,7 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     minHeight: UI_LAYOUT.ctaHeight,
-    backgroundColor: UI_COLORS.surface,
+    backgroundColor: '#FFF7F6',
     borderRadius: UI_RADIUS.xl,
     borderWidth: 1,
     borderColor: '#E7CFC7',

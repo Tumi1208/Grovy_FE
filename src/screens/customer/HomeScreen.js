@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
+import DirectionalHint from '../../components/DirectionalHint';
 import HomeProductCard, {
   HomeCategoryCard,
 } from '../../components/home/HomeProductCard';
-import ChevronIcon from '../../components/icons/ChevronIcon';
 import PrimaryButton from '../../components/PrimaryButton';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -27,6 +27,7 @@ import {
   UI_SPACING,
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
+import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
 import {
   buildHomeScreenData,
@@ -92,7 +93,11 @@ function SectionHeader({ onSeeAll, title }) {
         >
           <View style={styles.sectionLinkRow}>
             <Text style={styles.sectionLink}>See all</Text>
-            <ChevronIcon color={UI_COLORS.mutedStrong} size={10} />
+            <DirectionalHint
+              chevronSize={8}
+              color={UI_COLORS.mutedStrong}
+              mode="plain"
+            />
           </View>
         </Pressable>
       ) : null}
@@ -150,14 +155,21 @@ function HomeHero({ banner, onPress }) {
 
         <View style={styles.heroTagRow}>
           <View style={styles.heroTag}>
-            <Text style={styles.heroTagLabel}>Produce</Text>
+            <Text style={styles.heroTagLabel}>Fresh produce</Text>
           </View>
           <View style={styles.heroTag}>
-            <Text style={styles.heroTagLabel}>Pantry</Text>
+            <Text style={styles.heroTagLabel}>Pantry basics</Text>
           </View>
-          <View style={styles.heroTag}>
-            <Text style={styles.heroTagLabel}>Drinks</Text>
-          </View>
+        </View>
+
+        <View style={styles.heroActionRow}>
+          <Text style={styles.heroActionLabel}>Open weekly basket</Text>
+          <DirectionalHint
+            chevronSize={8}
+            color={UI_COLORS.textStrong}
+            mode="tinted"
+            size={22}
+          />
         </View>
       </View>
 
@@ -315,7 +327,16 @@ function HomeScreen({ navigation }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const { currentUser } = useApp();
   const { addToCart, totalItems } = useCart();
+  const deliveryLocation =
+    currentUser?.location?.shortLabel ||
+    currentUser?.location?.label ||
+    'HCMC, Vietnam';
+  const deliveryLocationMeta =
+    currentUser?.location?.source === 'current'
+      ? currentUser?.location?.detail
+      : '';
 
   useEffect(() => {
     let isMounted = true;
@@ -435,22 +456,30 @@ function HomeScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.headerRow}>
-            <View style={styles.headerCopy}>
-              <Text style={styles.headerEyebrow}>Deliver to</Text>
+            <View style={styles.deliveryCard}>
+              <Text style={styles.headerEyebrow}>Delivering to</Text>
               <View style={styles.locationRow}>
                 <PinGlyph />
-                <Text style={styles.locationLabel}>HCMC, Vietnam</Text>
+                <Text numberOfLines={1} style={styles.locationLabel}>
+                  {deliveryLocation}
+                </Text>
               </View>
+              {deliveryLocationMeta ? (
+                <Text numberOfLines={1} style={styles.locationMeta}>
+                  {deliveryLocationMeta}
+                </Text>
+              ) : null}
             </View>
 
             <View style={styles.brandBadge}>
-              <Text style={styles.brandBadgeText}>Grovy</Text>
+              <Text style={styles.brandBadgeText}>Open daily</Text>
             </View>
           </View>
 
-          <Text style={styles.screenTitle}>Fresh groceries for the week</Text>
+          <Text style={styles.screenTitle}>Groceries for the week</Text>
           <Text style={styles.screenSubtitle}>
-            Produce, pantry basics and drinks in one practical shop.
+            Fresh produce, pantry staples and fridge basics in one grounded,
+            easy shop.
           </Text>
 
           <View style={styles.searchBar}>
@@ -582,13 +611,21 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    marginBottom: 20,
   },
-  headerCopy: {
+  deliveryCard: {
     flex: 1,
-    paddingRight: 16,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingRight: 14,
+    marginRight: 12,
+    ...UI_SHADOWS.card,
   },
   headerEyebrow: {
     color: UI_COLORS.mutedStrong,
@@ -609,6 +646,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 22,
     marginLeft: 8,
+  },
+  locationMeta: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 6,
+    marginLeft: 22,
   },
   pinGlyph: {
     width: 14,
@@ -631,14 +675,14 @@ const styles = StyleSheet.create({
   },
   brandBadge: {
     borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.surfaceSoft,
+    backgroundColor: UI_COLORS.accentGreenSoft,
     borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
+    borderColor: '#D7E4D4',
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
   brandBadgeText: {
-    color: UI_COLORS.textStrong,
+    color: UI_COLORS.accentGreen,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 16,
@@ -646,13 +690,14 @@ const styles = StyleSheet.create({
   screenTitle: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.screenTitle,
+    maxWidth: '90%',
   },
   screenSubtitle: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     marginTop: 6,
-    marginBottom: 22,
-    maxWidth: '92%',
+    marginBottom: 24,
+    maxWidth: '90%',
   },
   searchBar: {
     flexDirection: 'row',
@@ -663,6 +708,7 @@ const styles = StyleSheet.create({
     borderColor: UI_COLORS.border,
     paddingHorizontal: 16,
     minHeight: UI_LAYOUT.searchHeight,
+    marginBottom: 6,
     ...UI_SHADOWS.card,
   },
   searchGlyph: {
@@ -747,10 +793,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 22,
     paddingTop: 22,
-    paddingBottom: 20,
-    minHeight: 220,
+    paddingBottom: 22,
+    minHeight: 228,
     position: 'relative',
     marginBottom: 36,
+    ...UI_SHADOWS.card,
   },
   heroPressed: {
     opacity: 0.97,
@@ -774,7 +821,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(215, 155, 90, 0.13)',
   },
   heroCopy: {
-    width: '56%',
+    width: '57%',
     zIndex: 1,
   },
   heroEyebrow: {
@@ -796,6 +843,7 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     marginTop: 10,
+    maxWidth: '94%',
   },
   heroTagRow: {
     flexDirection: 'row',
@@ -818,6 +866,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 14,
   },
+  heroActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    marginLeft: -1,
+  },
+  heroActionLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginRight: 6,
+  },
   heroImage: {
     position: 'absolute',
     right: 4,
@@ -826,23 +888,21 @@ const styles = StyleSheet.create({
     height: 160,
   },
   sectionBlock: {
-    marginBottom: 38,
+    marginBottom: 34,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   sectionTitle: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.sectionTitle,
   },
   sectionLinkButton: {
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.surfaceSoft,
+    marginLeft: 10,
+    paddingVertical: 4,
   },
   sectionLinkButtonPressed: {
     opacity: 0.85,
@@ -855,7 +915,7 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     fontSize: 13,
     fontWeight: '700',
-    marginRight: 4,
+    marginRight: 2,
   },
   horizontalRail: {
     marginHorizontal: -UI_LAYOUT.homeScreenPadding,

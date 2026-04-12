@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import DirectionalHint from '../DirectionalHint';
 import ProductImage from '../ProductImage';
-import ChevronIcon from '../icons/ChevronIcon';
 import {
   UI_COLORS,
   UI_RADIUS,
@@ -107,9 +107,13 @@ export function HomeCategoryCard({ category, onPress, style }) {
           <Text numberOfLines={2} style={styles.categoryTitle}>
             {category.title}
           </Text>
-          <View style={styles.categoryIndicator}>
-            <ChevronIcon color={UI_COLORS.mutedStrong} size={10} />
-          </View>
+          <DirectionalHint
+            chevronSize={8}
+            color={UI_COLORS.mutedStrong}
+            mode="tinted"
+            size={22}
+            style={styles.categoryIndicator}
+          />
         </View>
         {category.description ? (
           <Text numberOfLines={2} style={styles.categoryDescription}>
@@ -266,14 +270,8 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   categoryIndicator: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.38)',
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 2,
+    marginLeft: 8,
   },
   categoryDescription: {
     color: UI_COLORS.mutedStrong,

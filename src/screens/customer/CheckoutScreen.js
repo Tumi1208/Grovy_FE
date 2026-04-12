@@ -34,17 +34,28 @@ import { formatCurrency } from '../../utils/formatCurrency';
 const DELIVERY_FEE = 0;
 const DISCOUNT_AMOUNT = 0;
 
-function SummaryRow({ emphasized = false, label, value }) {
+function SummaryRow({
+  description,
+  emphasized = false,
+  isLast = false,
+  label,
+  value,
+}) {
   return (
-    <View style={styles.summaryRow}>
-      <Text
-        style={[
-          styles.summaryLabel,
-          emphasized && styles.summaryLabelEmphasized,
-        ]}
-      >
-        {label}
-      </Text>
+    <View style={[styles.summaryRow, !isLast && styles.summaryRowBorder]}>
+      <View style={styles.summaryCopy}>
+        <Text
+          style={[
+            styles.summaryLabel,
+            emphasized && styles.summaryLabelEmphasized,
+          ]}
+        >
+          {label}
+        </Text>
+        {description ? (
+          <Text style={styles.summaryDescription}>{description}</Text>
+        ) : null}
+      </View>
       <Text
         style={[
           styles.summaryValue,
@@ -105,7 +116,9 @@ function CheckoutScreen({ navigation }) {
   const { currentUser } = useApp();
   const [customerName, setCustomerName] = useState(currentUser?.name || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
-  const [address, setAddress] = useState('199 Grovy Street, Fresh District');
+  const [address, setAddress] = useState(
+    currentUser?.deliveryAddress || '199 Grovy Street, Fresh District',
+  );
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -206,6 +219,7 @@ function CheckoutScreen({ navigation }) {
           </HeaderButton>
 
           <View style={styles.headerCopy}>
+            <Text style={styles.headerEyebrow}>Final step</Text>
             <Text style={styles.title}>Checkout</Text>
             <Text style={styles.headerSubtitle}>
               Delivery details and order review
@@ -217,15 +231,6 @@ function CheckoutScreen({ navigation }) {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.supportRow}>
-            <View style={styles.supportPill}>
-              <Text style={styles.supportPillLabel}>Free delivery</Text>
-            </View>
-            <View style={styles.supportPill}>
-              <Text style={styles.supportPillLabel}>Cash on delivery</Text>
-            </View>
-          </View>
-
           <View style={styles.previewCard}>
             <View style={styles.cardHeadingRow}>
               <Text style={styles.cardTitle}>In your order</Text>
@@ -244,23 +249,36 @@ function CheckoutScreen({ navigation }) {
           </View>
 
           <View style={styles.summaryCard}>
-            <Text style={styles.cardTitle}>Order summary</Text>
+            <Text style={styles.cardTitle}>Delivery and payment</Text>
 
-            <SummaryRow label="Items" value={`${items.length}`} />
-            <SummaryRow label="Subtotal" value={formatCurrency(subtotal)} />
             <SummaryRow
               label="Delivery"
+              description={address}
               value={DELIVERY_FEE > 0 ? formatCurrency(DELIVERY_FEE) : 'Free'}
             />
             <SummaryRow
               label="Payment"
-              value={DISCOUNT_AMOUNT > 0 ? 'Discount applied' : 'Cash'}
+              description="Cash on delivery"
+              value="Cash"
             />
-
-            <View style={styles.summaryDivider} />
+            <SummaryRow
+              label="Promo"
+              description={
+                DISCOUNT_AMOUNT > 0
+                  ? 'Discount has been applied'
+                  : 'No promo code added'
+              }
+              value={
+                DISCOUNT_AMOUNT > 0 ? formatCurrency(DISCOUNT_AMOUNT) : 'None'
+              }
+            />
 
             <SummaryRow
               emphasized
+              description={`${items.length} item${
+                items.length === 1 ? '' : 's'
+              } • Subtotal ${formatCurrency(subtotal)}`}
+              isLast
               label="Total"
               value={formatCurrency(totalCost)}
             />
@@ -299,11 +317,12 @@ function CheckoutScreen({ navigation }) {
             />
 
             <View style={styles.paymentNote}>
-              <Text style={styles.paymentNoteLabel}>Payment method</Text>
-              <Text style={styles.paymentNoteValue}>Cash on delivery</Text>
+              <Text style={styles.paymentNoteLabel}>Order note</Text>
+              <Text style={styles.paymentNoteValue}>
+                We&apos;ll use these details to confirm delivery.
+              </Text>
               <Text style={styles.paymentHelpText}>
-                We&apos;ll use your delivery details to place and confirm the
-                order.
+                Keep your phone nearby so the courier can reach you if needed.
               </Text>
             </View>
           </View>
@@ -378,6 +397,15 @@ const styles = StyleSheet.create({
   headerCopy: {
     flex: 1,
   },
+  headerEyebrow: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 4,
+  },
   title: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.sectionTitle,
@@ -389,32 +417,12 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
+    paddingTop: 2,
     paddingBottom: 168,
-  },
-  supportRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 14,
-  },
-  supportPill: {
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderRadius: UI_RADIUS.round,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  supportPillLabel: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 15,
   },
   previewCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 20,
@@ -478,7 +486,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 20,
@@ -495,13 +503,27 @@ const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
+    alignItems: 'flex-start',
+    paddingVertical: 14,
+  },
+  summaryRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: UI_COLORS.border,
+  },
+  summaryCopy: {
+    flex: 1,
+    paddingRight: 14,
   },
   summaryLabel: {
     color: UI_COLORS.mutedStrong,
     fontSize: 15,
     lineHeight: 20,
+  },
+  summaryDescription: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 4,
   },
   summaryLabelEmphasized: {
     color: UI_COLORS.textStrong,
@@ -518,14 +540,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 26,
   },
-  summaryDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: UI_COLORS.border,
-    marginVertical: 10,
-  },
   formCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 20,
@@ -557,6 +574,8 @@ const styles = StyleSheet.create({
   paymentNote: {
     backgroundColor: UI_COLORS.surfaceSoft,
     borderRadius: UI_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     paddingHorizontal: 16,
     paddingVertical: 15,
     marginTop: 4,
@@ -568,7 +587,7 @@ const styles = StyleSheet.create({
   },
   paymentNoteValue: {
     color: UI_COLORS.textStrong,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     lineHeight: 20,
   },
@@ -636,10 +655,10 @@ const styles = StyleSheet.create({
     right: UI_LAYOUT.footerSide,
     bottom: UI_LAYOUT.footerBottom,
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 8,
+    padding: 9,
     flexDirection: 'row',
     alignItems: 'center',
     ...UI_SHADOWS.floating,
@@ -664,7 +683,9 @@ const styles = StyleSheet.create({
     minHeight: UI_LAYOUT.ctaHeight,
     minWidth: 152,
     backgroundColor: UI_COLORS.accentGreen,
-    borderRadius: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: UI_COLORS.accentGreen,
     paddingHorizontal: 20,
     paddingVertical: 18,
     alignItems: 'center',

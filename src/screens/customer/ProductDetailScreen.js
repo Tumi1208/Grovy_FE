@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProductImageSource } from '../../assets/productImages';
+import DirectionalHint from '../../components/DirectionalHint';
 import ChevronIcon from '../../components/icons/ChevronIcon';
 import PrimaryButton from '../../components/PrimaryButton';
 import ProductImage from '../../components/ProductImage';
@@ -100,14 +101,14 @@ function DetailRow({
               <Text style={styles.detailRowValue}>{value}</Text>
             </View>
           ) : null}
-          <View style={styles.detailRowIndicator}>
-            <ChevronIcon
-              color={UI_COLORS.mutedStrong}
-              direction={expanded ? 'down' : 'right'}
-              size={10}
-              strokeWidth={1.7}
-            />
-          </View>
+          <DirectionalHint
+            chevronSize={8}
+            color={UI_COLORS.mutedStrong}
+            direction={expanded ? 'down' : 'right'}
+            mode="plain"
+            strokeWidth={1.55}
+            style={styles.detailRowIndicator}
+          />
         </View>
       </View>
 
@@ -378,14 +379,19 @@ function ProductDetailScreen({ navigation, route }) {
                   {isOutOfStock ? 'Out of stock' : `${product.stock} available`}
                 </Text>
               </View>
-              <Text style={styles.summaryMetaText}>{productSubtitle}</Text>
+              <Text style={styles.summaryMetaText}>
+                {isOutOfStock
+                  ? 'Unavailable today'
+                  : `${product.stock} left today`}
+              </Text>
             </View>
 
             <Text style={styles.productName}>{product.name}</Text>
+            <Text style={styles.productSubtitle}>{productSubtitle}</Text>
             <Text style={styles.productDescription}>{product.description}</Text>
 
             <View style={styles.priceRow}>
-              <View>
+              <View style={styles.priceBlock}>
                 <Text style={styles.priceCaption}>Price</Text>
                 <Text style={styles.priceValue}>
                   {formatCurrency(product.price)}
@@ -475,6 +481,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
+    paddingTop: 2,
     paddingBottom: 144,
   },
   centeredState: {
@@ -590,10 +597,10 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     borderWidth: 1,
     borderColor: '#DEE4D7',
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     paddingTop: 18,
-    paddingBottom: 22,
-    marginBottom: 16,
+    paddingBottom: 18,
+    marginBottom: 14,
     position: 'relative',
     overflow: 'hidden',
     ...UI_SHADOWS.card,
@@ -620,11 +627,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   categoryPill: {
     borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
@@ -635,12 +644,12 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   favouriteButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: UI_COLORS.surface,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
     borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
+    borderColor: 'rgba(255, 255, 255, 0.44)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -660,23 +669,23 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    height: 240,
+    height: 232,
     zIndex: 1,
   },
   summaryCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 22,
-    marginBottom: 16,
+    padding: 24,
+    marginBottom: 14,
     ...UI_SHADOWS.card,
   },
   summaryMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 16,
   },
   metaPill: {
     borderRadius: UI_RADIUS.round,
@@ -710,18 +719,30 @@ const styles = StyleSheet.create({
   },
   productName: {
     color: UI_COLORS.textStrong,
-    ...UI_TYPOGRAPHY.heroTitle,
-    marginBottom: 10,
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 36,
+    marginBottom: 6,
+  },
+  productSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
   },
   productDescription: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
-    marginBottom: 22,
+    marginBottom: 24,
   },
   priceRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  priceBlock: {
+    flex: 1,
+    paddingRight: 14,
   },
   priceCaption: {
     color: UI_COLORS.mutedStrong,
@@ -734,6 +755,7 @@ const styles = StyleSheet.create({
   },
   quantityBlock: {
     alignItems: 'flex-end',
+    minWidth: 150,
   },
   quantityCaption: {
     color: UI_COLORS.mutedStrong,
@@ -747,13 +769,13 @@ const styles = StyleSheet.create({
     borderRadius: UI_RADIUS.xl,
     borderWidth: 1,
     borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 5,
   },
   quantityButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
     backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
     borderColor: UI_COLORS.borderSoft,
@@ -779,13 +801,13 @@ const styles = StyleSheet.create({
     color: UI_COLORS.textStrong,
     fontSize: 18,
     fontWeight: '800',
-    marginHorizontal: 16,
+    marginHorizontal: 14,
     minWidth: 22,
     textAlign: 'center',
   },
   detailsCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     overflow: 'hidden',
@@ -802,7 +824,7 @@ const styles = StyleSheet.create({
   },
   detailRow: {
     paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingVertical: 17,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: UI_COLORS.border,
   },
@@ -841,14 +863,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   detailRowIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginLeft: 4,
   },
   detailRowSubtitle: {
     color: UI_COLORS.mutedStrong,
@@ -865,10 +880,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 8,
+    padding: 9,
     ...UI_SHADOWS.floating,
   },
   footerSummary: {
@@ -889,8 +904,10 @@ const styles = StyleSheet.create({
   addToCartButton: {
     flex: 1,
     minHeight: UI_LAYOUT.ctaHeight,
-    borderRadius: 18,
+    borderRadius: 16,
     backgroundColor: UI_COLORS.accentGreen,
+    borderWidth: 1,
+    borderColor: UI_COLORS.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,

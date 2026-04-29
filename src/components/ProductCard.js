@@ -8,11 +8,11 @@ import {
   UI_SPACING,
   UI_TYPOGRAPHY,
 } from '../constants/ui';
+import { getProductImage } from '../constants/productImages';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getProductSubtitle } from '../utils/productPresentation';
 
 function ProductCard({
-  imageSource,
   isFavourite = false,
   onAddToCart,
   onPress,
@@ -20,6 +20,7 @@ function ProductCard({
   product,
   style,
 }) {
+  const imageSource = getProductImage(product?.imageKey);
   const subtitle = getProductSubtitle(product);
   const isAvailable = product?.stock > 0;
 

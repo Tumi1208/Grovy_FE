@@ -49,7 +49,7 @@ const OPENING_COLORS = Object.freeze({
 const OPENING_IMAGES = Object.freeze({
   welcome: require('../../assets/images/products/Vegetable-Bag copy.png'),
   signIn: require('../../assets/images/products/veg and fruits.png'),
-  location: require('../../assets/images/products/fruit-and-veggie-heart-scaled.png'),
+  location: require('../../assets/illustrations/locator.png'),
 });
 
 const DEFAULT_COUNTRY_CODE = '+84';
@@ -307,12 +307,6 @@ function LocationIllustration() {
         source={OPENING_IMAGES.location}
         style={styles.locationImage}
       />
-      <View style={styles.pinWrap}>
-        <View style={styles.pinHead}>
-          <View style={styles.pinInnerDot} />
-        </View>
-        <View style={styles.pinTail} />
-      </View>
     </View>
   );
 }
@@ -1624,7 +1618,7 @@ const styles = StyleSheet.create({
     backgroundColor: OPENING_COLORS.canvas,
   },
   locationIllustrationCard: {
-    height: 228,
+    height: 210,
     borderRadius: UI_RADIUS.hero,
     borderWidth: 1,
     borderColor: '#DEE4D7',
@@ -1653,36 +1647,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(84, 122, 78, 0.1)',
   },
   locationImage: {
-    width: 186,
-    height: 186,
-    opacity: 0.4,
-  },
-  pinWrap: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  pinHead: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: OPENING_COLORS.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pinInnerDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: OPENING_COLORS.surface,
-  },
-  pinTail: {
-    width: 18,
-    height: 30,
-    marginTop: -6,
-    backgroundColor: OPENING_COLORS.accent,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    transform: [{ rotate: '45deg' }],
+    width: 180,
+    height: 130,
   },
   textFieldWrap: {
     flexDirection: 'row',

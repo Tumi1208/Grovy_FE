@@ -13,6 +13,7 @@ import {
   defaultProductImage,
   getProductImageSource,
 } from '../../assets/productImages';
+import OrderSuccessModal from '../../components/orders/OrderSuccessModal';
 import ChevronIcon from '../../components/icons/ChevronIcon';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
@@ -135,11 +136,53 @@ function CheckoutScreen({ navigation }) {
   );
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successState, setSuccessState] = useState(null);
 
   const totalCost = useMemo(
     () => Math.max(0, subtotal + DELIVERY_FEE - DISCOUNT_AMOUNT),
     [subtotal],
   );
+  const displayItems = successState?.cartItems || items;
+  const displaySubtotal = successState?.subtotal ?? subtotal;
+  const displayTotalCost = successState?.totalCost ?? totalCost;
+  const showSuccessModal = Boolean(successState?.order);
+
+  function handleBackToHome() {
+    setSuccessState(null);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: CUSTOMER_ROUTES.HOME }],
+    });
+  }
+
+  function handleTrackOrder() {
+    const orderId = successState?.order?.id || '';
+
+    setSuccessState(null);
+
+    if (!orderId) {
+      navigation.reset({
+        index: 1,
+        routes: [
+          { name: CUSTOMER_ROUTES.ACCOUNT },
+          { name: CUSTOMER_ROUTES.ACCOUNT_ORDERS },
+        ],
+      });
+      return;
+    }
+
+    navigation.reset({
+      index: 2,
+      routes: [
+        { name: CUSTOMER_ROUTES.ACCOUNT },
+        { name: CUSTOMER_ROUTES.ACCOUNT_ORDERS },
+        {
+          name: CUSTOMER_ROUTES.ORDER_DETAIL,
+          params: { orderId },
+        },
+      ],
+    });
+  }
 
   async function handlePlaceOrder() {
     if (isSubmitting) {
@@ -169,18 +212,15 @@ function CheckoutScreen({ navigation }) {
       const order = await submitOrder(orderPayload);
       const savedOrder = addCheckoutOrder(order);
 
-      clearCart();
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: CUSTOMER_ROUTES.ORDER_SUCCESS,
-            params: {
-              orderId: savedOrder.id,
-            },
-          },
-        ],
+      setSuccessState({
+        order: savedOrder,
+        cartItems: items.map(item => ({
+          ...item,
+        })),
+        subtotal,
+        totalCost,
       });
+      clearCart();
     } catch (error) {
       setErrorMessage(error.message || 'Could not place your order.');
     } finally {
@@ -188,7 +228,7 @@ function CheckoutScreen({ navigation }) {
     }
   }
 
-  if (items.length === 0) {
+  if (displayItems.length === 0) {
     return (
       <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
         <View style={styles.emptyContainer}>
@@ -250,16 +290,17 @@ function CheckoutScreen({ navigation }) {
           <View style={styles.previewCard}>
             <View style={styles.cardHeadingRow}>
               <Text style={styles.cardTitle}>In your order</Text>
-              <Text style={styles.cardMeta}>{items.length} items</Text>
+              <Text style={styles.cardMeta}>{displayItems.length} items</Text>
             </View>
 
-            {items.slice(0, 3).map(item => (
+            {displayItems.slice(0, 3).map(item => (
               <OrderPreviewRow item={item} key={item.product.id} />
             ))}
 
-            {items.length > 3 ? (
+            {displayItems.length > 3 ? (
               <Text style={styles.previewMoreLabel}>
-                +{items.length - 3} more item{items.length - 3 === 1 ? '' : 's'}
+                +{displayItems.length - 3} more item
+                {displayItems.length - 3 === 1 ? '' : 's'}
               </Text>
             ) : null}
           </View>
@@ -295,12 +336,12 @@ function CheckoutScreen({ navigation }) {
 
             <SummaryRow
               emphasized
-              description={`${items.length} item${
-                items.length === 1 ? '' : 's'
-              } • Subtotal ${formatCurrency(subtotal)}`}
+              description={`${displayItems.length} item${
+                displayItems.length === 1 ? '' : 's'
+              } • Subtotal ${formatCurrency(displaySubtotal)}`}
               isLast
               label="Total"
-              value={formatCurrency(totalCost)}
+              value={formatCurrency(displayTotalCost)}
             />
           </View>
 
@@ -358,7 +399,7 @@ function CheckoutScreen({ navigation }) {
           <View style={styles.footerTotalWrap}>
             <Text style={styles.footerTotalLabel}>Order total</Text>
             <Text style={styles.footerTotalValue}>
-              {formatCurrency(totalCost)}
+              {formatCurrency(displayTotalCost)}
             </Text>
           </View>
 
@@ -379,6 +420,14 @@ function CheckoutScreen({ navigation }) {
             )}
           </Pressable>
         </View>
+
+        <OrderSuccessModal
+          onBackToHome={handleBackToHome}
+          onRequestClose={handleBackToHome}
+          onTrackOrder={handleTrackOrder}
+          order={successState?.order || null}
+          visible={showSuccessModal}
+        />
       </View>
     </SafeAreaView>
   );

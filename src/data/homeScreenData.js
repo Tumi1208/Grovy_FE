@@ -2,6 +2,7 @@ import {
   getCategoryFallbackImage,
   getProductImageSource,
 } from '../assets/productImages';
+import { productMatchesSearch } from '../utils/search';
 
 const HOME_CATEGORY_STYLES = Object.freeze({
   fruits: {
@@ -261,15 +262,5 @@ export function buildHomeScreenData(products = []) {
 }
 
 export function filterHomeSectionProducts(products = [], query = '') {
-  const normalizedQuery = normalizeLookupKey(query);
-
-  if (!normalizedQuery) {
-    return products;
-  }
-
-  return products.filter(product =>
-    `${product.name} ${product.description} ${product.category}`
-      .toLowerCase()
-      .includes(normalizedQuery),
-  );
+  return products.filter(product => productMatchesSearch(product, query));
 }

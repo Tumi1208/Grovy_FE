@@ -2,6 +2,28 @@ function normalizeText(value, fallback = '') {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback;
 }
 
+function normalizeSearchField(value, fallback = '') {
+  if (typeof value === 'string' || typeof value === 'number') {
+    const normalizedValue = String(value).trim();
+
+    return normalizedValue || fallback;
+  }
+
+  return fallback;
+}
+
+function normalizeStringList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => normalizeSearchField(item))
+      .filter(Boolean);
+  }
+
+  const normalizedValue = normalizeSearchField(value);
+
+  return normalizedValue ? [normalizedValue] : [];
+}
+
 function normalizeNonNegativeNumber(value, fallback = 0) {
   const parsedValue = Number(value);
 
@@ -48,6 +70,10 @@ export function normalizeProduct(product = {}) {
       product.description,
       'No description available yet.',
     ),
+    unit: normalizeSearchField(product.unit),
+    size: normalizeSearchField(product.size),
+    tags: normalizeStringList(product.tags),
+    keywords: normalizeStringList(product.keywords),
     imageKey: normalizedImageKey,
     image: normalizedImage,
     stock: normalizeNonNegativeNumber(product.stock),

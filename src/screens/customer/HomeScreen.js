@@ -18,6 +18,7 @@ import HomeProductCard, {
   HomeCategoryCard,
 } from '../../components/home/HomeProductCard';
 import PrimaryButton from '../../components/PrimaryButton';
+import { getProductImage } from '../../constants/productImages';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -29,17 +30,14 @@ import {
 } from '../../constants/ui';
 import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
-import {
-  buildHomeScreenData,
-  filterHomeSectionProducts,
-} from '../../data/homeScreenData';
+import { buildHomeScreenData } from '../../data/homeScreenData';
 import { getProducts } from '../../services/productService';
+import {
+  normalizeSearchText,
+  productMatchesSearch,
+} from '../../utils/search';
 
 const HOME_HORIZONTAL_GAP = 14;
-
-function normalizeSearchValue(value) {
-  return typeof value === 'string' ? value.trim().toLowerCase() : '';
-}
 
 function getHomeProductCardWidth(viewportWidth) {
   const availableWidth = Math.max(
@@ -320,6 +318,23 @@ function HomeScreenEmptyState({
   );
 }
 
+function HomeSearchEmptyState({ onResetFilters }) {
+  return (
+    <View style={styles.emptyCard}>
+      <Text style={styles.emptyTitle}>No products found</Text>
+      <Text style={styles.emptySubtitle}>
+        Try another keyword or clear the search.
+      </Text>
+      <View style={styles.emptySpacer} />
+      <PrimaryButton
+        title="Clear Search"
+        onPress={onResetFilters}
+        variant="secondary"
+      />
+    </View>
+  );
+}
+
 function HomeScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const [products, setProducts] = useState([]);
@@ -417,7 +432,16 @@ function HomeScreen({ navigation }) {
   }
 
   const homeData = useMemo(() => buildHomeScreenData(products), [products]);
-  const normalizedSearchQuery = normalizeSearchValue(searchQuery);
+  const normalizedSearchQuery = normalizeSearchText(searchQuery);
+  const hasSearchQuery = Boolean(normalizedSearchQuery);
+  const searchResults = hasSearchQuery
+    ? products
+      .filter(product => productMatchesSearch(product, normalizedSearchQuery))
+      .map(product => ({
+        ...product,
+        imageSource: getProductImage(product.imageKey),
+      }))
+    : [];
   const horizontalCardWidth = useMemo(
     () => getHomeProductCardWidth(width),
     [width],
@@ -426,26 +450,16 @@ function HomeScreen({ navigation }) {
     () => getHomeCategoryCardWidth(width),
     [width],
   );
-  const freshPicks = filterHomeSectionProducts(
-    homeData.exclusiveOffer,
-    normalizedSearchQuery,
-  );
-  const popularItems = filterHomeSectionProducts(
-    homeData.bestSelling,
-    normalizedSearchQuery,
-  );
-  const pantryAndProtein = filterHomeSectionProducts(
-    homeData.groceries,
-    normalizedSearchQuery,
-  );
-  const hasCatalogItems =
+  const hasCatalogItems = products.length > 0;
+  const hasHomeContent =
     homeData.exclusiveOffer.length > 0 ||
     homeData.bestSelling.length > 0 ||
     homeData.groceries.length > 0;
-  const hasProductResults =
-    freshPicks.length > 0 ||
-    popularItems.length > 0 ||
-    pantryAndProtein.length > 0;
+  const searchResultsLabel =
+    searchResults.length === 1
+      ? '1 product'
+      : `${searchResults.length} products`;
+  const trimmedSearchQuery = searchQuery.trim();
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -508,78 +522,128 @@ function HomeScreen({ navigation }) {
 
           <HomeStatusBanner errorMessage={errorMessage} isLoading={isLoading} />
 
-          <HomeHero
-            banner={homeData.banner}
-            onPress={() =>
-              homeData.exclusiveOffer[0]
-                ? handleOpenProduct(homeData.exclusiveOffer[0])
-                : null
-            }
-          />
-
-          <View style={styles.sectionBlock}>
-            <SectionHeader onSeeAll={handleOpenExplore} title="Shop by aisle" />
-            <View style={styles.horizontalRail}>
-              <HomeCategoryRow
-                cardWidth={categoryCardWidth}
-                items={homeData.groceryCategories}
-                onPressCategory={handleOpenCategory}
-              />
-            </View>
-          </View>
-
-          {hasProductResults ? (
+          {hasSearchQuery ? (
             <>
-              <View style={styles.sectionBlock}>
-                <SectionHeader
-                  onSeeAll={handleOpenExplore}
-                  title="Fresh picks"
-                />
-                <View style={styles.horizontalRail}>
-                  <HomeSectionRow
-                    cardWidth={horizontalCardWidth}
-                    items={freshPicks}
+              {searchResults.length > 0 ? (
+                <View style={styles.searchResultsSection}>
+                  <View style={styles.searchResultsHeader}>
+                    <View style={styles.searchResultsCopy}>
+                      <Text style={styles.sectionTitle}>Search results</Text>
+                      <Text style={styles.searchResultsMeta}>
+                        {`${searchResultsLabel} for "${trimmedSearchQuery}"`}
+                      </Text>
+                    </View>
+                    <Pressable
+                      android_ripple={{ color: '#E6EEE3' }}
+                      hitSlop={6}
+                      onPress={handleResetFilters}
+                      style={({ pressed }) => [
+                        styles.searchResultsClearButton,
+                        pressed && styles.searchResultsClearButtonPressed,
+                      ]}
+                    >
+                      <Text style={styles.searchResultsClearLabel}>
+                        Clear Search
+                      </Text>
+                    </Pressable>
+                  </View>
+                  <HomeGroceriesGrid
+                    items={searchResults}
                     onAddToCart={handleQuickAddToCart}
                     onOpenProduct={handleOpenProduct}
                   />
                 </View>
-              </View>
-
-              <View style={styles.sectionBlock}>
-                <SectionHeader
-                  onSeeAll={handleOpenExplore}
-                  title="Popular in store"
+              ) : isLoading || (errorMessage && !hasCatalogItems) ? (
+                <HomeScreenEmptyState
+                  errorMessage={errorMessage}
+                  hasProducts={hasCatalogItems}
+                  isLoading={isLoading}
+                  onResetFilters={handleResetFilters}
+                  onRetry={handleReloadProducts}
                 />
-                <View style={styles.horizontalRail}>
-                  <HomeSectionRow
-                    cardWidth={horizontalCardWidth}
-                    items={popularItems}
-                    onAddToCart={handleQuickAddToCart}
-                    onOpenProduct={handleOpenProduct}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.sectionBlock}>
-                <SectionHeader
-                  onSeeAll={handleOpenExplore}
-                  title="Pantry and protein"
-                />
-                <HomeGroceriesGrid
-                  items={pantryAndProtein}
-                  onAddToCart={handleQuickAddToCart}
-                  onOpenProduct={handleOpenProduct}
-                />
-              </View>
+              ) : (
+                <HomeSearchEmptyState onResetFilters={handleResetFilters} />
+              )}
             </>
           ) : (
-            <HomeScreenEmptyState
-              errorMessage={errorMessage}
-              hasProducts={hasCatalogItems}
-              isLoading={isLoading}
-              onResetFilters={handleResetFilters}
-              onRetry={handleReloadProducts}
-            />
+            <>
+              <HomeHero
+                banner={homeData.banner}
+                onPress={() =>
+                  homeData.exclusiveOffer[0]
+                    ? handleOpenProduct(homeData.exclusiveOffer[0])
+                    : null
+                }
+              />
+
+              <View style={styles.sectionBlock}>
+                <SectionHeader
+                  onSeeAll={handleOpenExplore}
+                  title="Shop by aisle"
+                />
+                <View style={styles.horizontalRail}>
+                  <HomeCategoryRow
+                    cardWidth={categoryCardWidth}
+                    items={homeData.groceryCategories}
+                    onPressCategory={handleOpenCategory}
+                  />
+                </View>
+              </View>
+
+              {hasHomeContent ? (
+                <>
+                  <View style={styles.sectionBlock}>
+                    <SectionHeader
+                      onSeeAll={handleOpenExplore}
+                      title="Fresh picks"
+                    />
+                    <View style={styles.horizontalRail}>
+                      <HomeSectionRow
+                        cardWidth={horizontalCardWidth}
+                        items={homeData.exclusiveOffer}
+                        onAddToCart={handleQuickAddToCart}
+                        onOpenProduct={handleOpenProduct}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.sectionBlock}>
+                    <SectionHeader
+                      onSeeAll={handleOpenExplore}
+                      title="Popular in store"
+                    />
+                    <View style={styles.horizontalRail}>
+                      <HomeSectionRow
+                        cardWidth={horizontalCardWidth}
+                        items={homeData.bestSelling}
+                        onAddToCart={handleQuickAddToCart}
+                        onOpenProduct={handleOpenProduct}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.sectionBlock}>
+                    <SectionHeader
+                      onSeeAll={handleOpenExplore}
+                      title="Pantry and protein"
+                    />
+                    <HomeGroceriesGrid
+                      items={homeData.groceries}
+                      onAddToCart={handleQuickAddToCart}
+                      onOpenProduct={handleOpenProduct}
+                    />
+                  </View>
+                </>
+              ) : (
+                <HomeScreenEmptyState
+                  errorMessage={errorMessage}
+                  hasProducts={hasCatalogItems}
+                  isLoading={isLoading}
+                  onResetFilters={handleResetFilters}
+                  onRetry={handleReloadProducts}
+                />
+              )}
+            </>
           )}
         </ScrollView>
 
@@ -889,6 +953,42 @@ const styles = StyleSheet.create({
   },
   sectionBlock: {
     marginBottom: 34,
+  },
+  searchResultsSection: {
+    marginTop: 18,
+    marginBottom: 34,
+  },
+  searchResultsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  searchResultsCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  searchResultsMeta: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
+    marginTop: 4,
+  },
+  searchResultsClearButton: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderWidth: 1,
+    borderColor: '#D7E4D4',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchResultsClearButtonPressed: {
+    opacity: 0.88,
+  },
+  searchResultsClearLabel: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
   },
   sectionHeader: {
     flexDirection: 'row',

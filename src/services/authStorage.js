@@ -106,6 +106,22 @@ async function storeBooleanValue(storageKey, value) {
   return AsyncStorage.setItem(storageKey, value ? 'true' : 'false');
 }
 
+async function removeStorageKeys(storageKeys) {
+  const keys = Array.isArray(storageKeys)
+    ? storageKeys.filter(Boolean)
+    : [];
+
+  if (!keys.length) {
+    return null;
+  }
+
+  if (typeof AsyncStorage.multiRemove === 'function') {
+    return AsyncStorage.multiRemove(keys);
+  }
+
+  return Promise.all(keys.map(storageKey => AsyncStorage.removeItem(storageKey)));
+}
+
 export async function getStoredAuthToken() {
   return AsyncStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
 }
@@ -285,7 +301,7 @@ export async function migrateLegacyLocationState(user) {
 
   if (legacyCompletedValue !== null || legacyLocationValue) {
     tasks.push(
-      AsyncStorage.multiRemove([
+      removeStorageKeys([
         LEGACY_LOCATION_COMPLETED_STORAGE_KEY,
         LEGACY_OPENING_LOCATION_STORAGE_KEY,
       ]),
@@ -298,7 +314,7 @@ export async function migrateLegacyLocationState(user) {
 }
 
 export async function clearLegacyUserData() {
-  await AsyncStorage.multiRemove([
+  await removeStorageKeys([
     ...LEGACY_USER_DATA_STORAGE_KEYS,
     LEGACY_LOCATION_COMPLETED_STORAGE_KEY,
     LEGACY_OPENING_LOCATION_STORAGE_KEY,

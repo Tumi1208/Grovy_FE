@@ -9,11 +9,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getProductImageSource } from '../../assets/productImages';
 import DirectionalHint from '../../components/DirectionalHint';
 import ChevronIcon from '../../components/icons/ChevronIcon';
 import PrimaryButton from '../../components/PrimaryButton';
 import ProductImage from '../../components/ProductImage';
+import { getProductImage } from '../../constants/productImages';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -259,7 +259,7 @@ function ProductDetailScreen({ navigation, route }) {
     );
   }
 
-  const imageSource = getProductImageSource(product);
+  const imageSource = getProductImage(product?.imageKey);
   const isOutOfStock = product.stock <= 0;
   const isIncreaseDisabled =
     isOutOfStock || (product.stock > 0 && quantity >= product.stock);

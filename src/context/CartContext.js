@@ -1,4 +1,16 @@
-import React, { createContext, useContext, useReducer } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+  useState,
+} from 'react';
+import { useApp } from './AppContext';
+import {
+  getStoredCart,
+  getUserStorageScope,
+  storeCart,
+} from '../services/authStorage';
 
 const CartContext = createContext(null);
 
@@ -16,8 +28,26 @@ function normalizeCartQuantity(value, fallback = 1) {
   return parsedValue;
 }
 
+function normalizeStoredCartItems(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .filter(item => item?.product?.id)
+    .map(item => ({
+      product: item.product,
+      quantity: normalizeCartQuantity(item.quantity),
+    }));
+}
+
 function cartReducer(state, action) {
   switch (action.type) {
+    case 'HYDRATE_CART':
+      return {
+        ...state,
+        items: normalizeStoredCartItems(action.payload),
+      };
     case 'ADD_TO_CART': {
       const { product, quantity } = action.payload || {};
 
@@ -81,7 +111,60 @@ function cartReducer(state, action) {
 }
 
 export function CartProvider({ children }) {
+  const { currentUser } = useApp();
+  const storageScope = currentUser?.isPreviewUser
+    ? ''
+    : getUserStorageScope(currentUser);
   const [state, dispatch] = useReducer(cartReducer, initialState);
+  const [isStorageHydrated, setIsStorageHydrated] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function restoreCartState() {
+      setIsStorageHydrated(false);
+
+      try {
+        const storedItems = storageScope ? await getStoredCart(storageScope) : [];
+
+        if (!isActive) {
+          return;
+        }
+
+        dispatch({
+          type: 'HYDRATE_CART',
+          payload: storedItems,
+        });
+      } catch {
+        if (!isActive) {
+          return;
+        }
+
+        dispatch({
+          type: 'HYDRATE_CART',
+          payload: [],
+        });
+      } finally {
+        if (isActive) {
+          setIsStorageHydrated(true);
+        }
+      }
+    }
+
+    restoreCartState();
+
+    return () => {
+      isActive = false;
+    };
+  }, [storageScope]);
+
+  useEffect(() => {
+    if (!isStorageHydrated || !storageScope) {
+      return;
+    }
+
+    storeCart(storageScope, state.items).catch(() => {});
+  }, [isStorageHydrated, state.items, storageScope]);
 
   const subtotal = state.items.reduce(
     (sum, item) => sum + item.product.price * item.quantity,

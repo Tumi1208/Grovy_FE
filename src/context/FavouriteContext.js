@@ -1,4 +1,17 @@
-import React, { createContext, useContext, useMemo, useReducer } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useState,
+} from 'react';
+import { useApp } from './AppContext';
+import {
+  getStoredSavedItems,
+  getUserStorageScope,
+  storeSavedItems,
+} from '../services/authStorage';
 
 const FavouriteContext = createContext(null);
 
@@ -6,8 +19,21 @@ const initialState = {
   items: [],
 };
 
+function normalizeStoredFavouriteItems(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items.filter(item => item?.id);
+}
+
 function favouriteReducer(state, action) {
   switch (action.type) {
+    case 'HYDRATE_FAVOURITES':
+      return {
+        ...state,
+        items: normalizeStoredFavouriteItems(action.payload),
+      };
     case 'ADD_TO_FAVOURITES': {
       const product = action.payload?.product;
 
@@ -60,7 +86,62 @@ function favouriteReducer(state, action) {
 }
 
 export function FavouriteProvider({ children }) {
+  const { currentUser } = useApp();
+  const storageScope = currentUser?.isPreviewUser
+    ? ''
+    : getUserStorageScope(currentUser);
   const [state, dispatch] = useReducer(favouriteReducer, initialState);
+  const [isStorageHydrated, setIsStorageHydrated] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function restoreFavouriteState() {
+      setIsStorageHydrated(false);
+
+      try {
+        const storedItems = storageScope
+          ? await getStoredSavedItems(storageScope)
+          : [];
+
+        if (!isActive) {
+          return;
+        }
+
+        dispatch({
+          type: 'HYDRATE_FAVOURITES',
+          payload: storedItems,
+        });
+      } catch {
+        if (!isActive) {
+          return;
+        }
+
+        dispatch({
+          type: 'HYDRATE_FAVOURITES',
+          payload: [],
+        });
+      } finally {
+        if (isActive) {
+          setIsStorageHydrated(true);
+        }
+      }
+    }
+
+    restoreFavouriteState();
+
+    return () => {
+      isActive = false;
+    };
+  }, [storageScope]);
+
+  useEffect(() => {
+    if (!isStorageHydrated || !storageScope) {
+      return;
+    }
+
+    storeSavedItems(storageScope, state.items).catch(() => {});
+  }, [isStorageHydrated, state.items, storageScope]);
 
   const favouriteIds = useMemo(
     () => new Set(state.items.map(item => item.id)),

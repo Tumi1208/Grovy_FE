@@ -26,6 +26,10 @@ jest.mock('../src/context/AppContext', () => ({
   useApp: () => mockUseApp(),
 }));
 
+jest.mock('../src/services/authStorage', () => ({
+  getUserStorageScope: jest.fn(() => 'mock-user'),
+}));
+
 jest.mock('../src/components/PrimaryButton', () => {
   const MockReact = require('react');
 
@@ -83,7 +87,7 @@ describe('navigation flow wiring', () => {
   it('keeps the correct root initial routes', () => {
     expect(
       getAuthInitialRouteName({
-        hasCompletedLocationSetup: false,
+        hasCompletedLocation: false,
         hasCompletedOnboarding: false,
         isAuthenticated: false,
       }),
@@ -91,7 +95,7 @@ describe('navigation flow wiring', () => {
 
     expect(
       getAuthInitialRouteName({
-        hasCompletedLocationSetup: false,
+        hasCompletedLocation: false,
         hasCompletedOnboarding: true,
         isAuthenticated: true,
       }),
@@ -99,17 +103,25 @@ describe('navigation flow wiring', () => {
 
     expect(
       getAuthInitialRouteName({
-        hasCompletedLocationSetup: true,
+        hasCompletedLocation: true,
         hasCompletedOnboarding: true,
         isAuthenticated: false,
       }),
     ).toBe(AUTH_ROUTES.ENTRY);
+
+    expect(
+      getAuthInitialRouteName({
+        hasCompletedLocation: false,
+        hasCompletedOnboarding: false,
+        isAuthenticated: true,
+      }),
+    ).toBe(AUTH_ROUTES.LOCATION);
   });
 
   it('unlocks the customer app for a completed phone preview session', () => {
     expect(
       shouldShowCustomerApp({
-        hasCompletedLocationSetup: true,
+        hasCompletedLocation: true,
         isAuthenticated: false,
         isPreviewSession: true,
         role: 'user',
@@ -118,7 +130,7 @@ describe('navigation flow wiring', () => {
 
     expect(
       shouldShowCustomerApp({
-        hasCompletedLocationSetup: false,
+        hasCompletedLocation: false,
         isAuthenticated: false,
         isPreviewSession: true,
         role: 'user',

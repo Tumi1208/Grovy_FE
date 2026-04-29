@@ -4,34 +4,35 @@ import AppLoadingScreen from '../components/AppLoadingScreen';
 import { AUTH_ROUTES, ROOT_ROUTES } from '../constants/routes';
 import { ROLES } from '../constants/roles';
 import { useApp } from '../context/AppContext';
+import { getUserStorageScope } from '../services/authStorage';
 import AuthNavigator from './AuthNavigator';
 import CustomerNavigator from './CustomerNavigator';
 import OwnerNavigator from './OwnerNavigator';
 
 export function getAuthInitialRouteName({
-  hasCompletedLocationSetup,
+  hasCompletedLocation,
   hasCompletedOnboarding,
   isAuthenticated,
 }) {
-  if (!hasCompletedOnboarding) {
-    return AUTH_ROUTES.SPLASH;
+  if (isAuthenticated && !hasCompletedLocation) {
+    return AUTH_ROUTES.LOCATION;
   }
 
-  if (isAuthenticated && !hasCompletedLocationSetup) {
-    return AUTH_ROUTES.LOCATION;
+  if (!hasCompletedOnboarding) {
+    return AUTH_ROUTES.SPLASH;
   }
 
   return AUTH_ROUTES.ENTRY;
 }
 
 export function shouldShowCustomerApp({
-  hasCompletedLocationSetup,
+  hasCompletedLocation,
   isAuthenticated,
   isPreviewSession,
   role,
 }) {
   return (
-    hasCompletedLocationSetup &&
+    hasCompletedLocation &&
     role === ROLES.CUSTOMER &&
     (isAuthenticated || isPreviewSession)
   );
@@ -39,45 +40,47 @@ export function shouldShowCustomerApp({
 
 function AppNavigator() {
   const {
-    hasCompletedLocationSetup,
+    currentUser,
+    hasCompletedLocation,
     hasCompletedOnboarding,
     isAuthenticated,
-    isInitializing,
+    isAuthLoading,
     isPreviewSession,
     role,
   } = useApp();
 
-  if (isInitializing) {
+  if (isAuthLoading) {
     return <AppLoadingScreen />;
   }
 
+  const userScope = getUserStorageScope(currentUser) || role || 'guest';
   let navigationKey = ROOT_ROUTES.AUTH_FLOW;
   let navigator = null;
 
-  if (isAuthenticated && hasCompletedLocationSetup && role === ROLES.OWNER) {
-    navigationKey = ROOT_ROUTES.OWNER_FLOW;
-    navigator = <OwnerNavigator key={ROOT_ROUTES.OWNER_FLOW} />;
+  if (isAuthenticated && hasCompletedLocation && role === ROLES.OWNER) {
+    navigationKey = `${ROOT_ROUTES.OWNER_FLOW}-${userScope}`;
+    navigator = <OwnerNavigator key={navigationKey} />;
   }
 
   const canShowCustomerApp = shouldShowCustomerApp({
-    hasCompletedLocationSetup,
+    hasCompletedLocation,
     isAuthenticated,
     isPreviewSession,
     role,
   });
 
   if (!navigator && canShowCustomerApp) {
-    navigationKey = ROOT_ROUTES.CUSTOMER_FLOW;
-    navigator = <CustomerNavigator key={ROOT_ROUTES.CUSTOMER_FLOW} />;
+    navigationKey = `${ROOT_ROUTES.CUSTOMER_FLOW}-${userScope}`;
+    navigator = <CustomerNavigator key={navigationKey} />;
   }
 
   if (!navigator) {
     const initialRouteName = getAuthInitialRouteName({
-      hasCompletedLocationSetup,
+      hasCompletedLocation,
       hasCompletedOnboarding,
       isAuthenticated,
     });
-    const flowKey = `${ROOT_ROUTES.AUTH_FLOW}-${initialRouteName}`;
+    const flowKey = `${ROOT_ROUTES.AUTH_FLOW}-${initialRouteName}-${userScope}`;
     navigationKey = flowKey;
     navigator = (
       <AuthNavigator

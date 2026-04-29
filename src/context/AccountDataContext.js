@@ -4,6 +4,8 @@ import React, {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
+  useState,
 } from 'react';
 import { useApp } from './AppContext';
 import {
@@ -12,6 +14,13 @@ import {
   DEFAULT_NOTIFICATION_SETTINGS,
 } from '../data/accountMockData';
 import { listMyOrders } from '../services/orderService';
+import {
+  getStoredAccountData,
+  getStoredOrders,
+  getUserStorageScope,
+  storeAccountData,
+  storeOrders,
+} from '../services/authStorage';
 import { detectCardBrand } from '../utils/accountFormatting';
 
 const AccountDataContext = createContext(null);
@@ -56,6 +65,8 @@ function ensureCollectionDefault(items) {
 
 function accountDataReducer(state, action) {
   switch (action.type) {
+    case 'HYDRATE_STATE':
+      return action.payload;
     case 'ADD_ORDER': {
       const nextOrders = [
         action.payload,
@@ -183,37 +194,59 @@ function accountDataReducer(state, action) {
   }
 }
 
-function buildInitialState({ currentUser, openingFlow }) {
-  const addresses =
-    Array.isArray(currentUser?.addresses) && currentUser.addresses.length > 0
+function buildInitialState({
+  currentUser,
+  openingFlow,
+  persistedAccountData = null,
+  persistedOrders = null,
+}) {
+  const addresses = Array.isArray(persistedAccountData?.addresses)
+    ? persistedAccountData.addresses
+    : Array.isArray(currentUser?.addresses) && currentUser.addresses.length > 0
       ? currentUser.addresses
       : buildInitialAddresses({ currentUser, openingFlow });
-  const paymentMethods =
-    Array.isArray(currentUser?.paymentMethods) &&
-    currentUser.paymentMethods.length > 0
+  const paymentMethods = Array.isArray(persistedAccountData?.paymentMethods)
+    ? persistedAccountData.paymentMethods
+    : Array.isArray(currentUser?.paymentMethods) &&
+        currentUser.paymentMethods.length > 0
       ? currentUser.paymentMethods
       : buildInitialPaymentMethods({ currentUser });
 
   return {
-    orders: [],
+    orders: Array.isArray(persistedOrders) ? persistedOrders : [],
     ordersLoading: false,
     ordersError: '',
-    addresses: sortAddresses(addresses),
-    paymentMethods: sortPaymentMethods(paymentMethods),
+    addresses: sortAddresses(ensureCollectionDefault(addresses)),
+    paymentMethods: sortPaymentMethods(
+      ensureCollectionDefault(paymentMethods),
+    ),
     notificationSettings: {
       ...DEFAULT_NOTIFICATION_SETTINGS,
       ...(currentUser?.notificationSettings || {}),
+      ...(persistedAccountData?.notificationSettings || {}),
     },
   };
 }
 
 export function AccountDataProvider({ children }) {
   const { currentUser, isPreviewSession, openingFlow } = useApp();
+  const storageScope = currentUser?.isPreviewUser
+    ? ''
+    : getUserStorageScope(currentUser);
   const [state, dispatch] = useReducer(
     accountDataReducer,
-    { currentUser, openingFlow },
-    buildInitialState,
+    buildInitialState({ currentUser, openingFlow }),
   );
+  const [isStorageHydrated, setIsStorageHydrated] = useState(false);
+  const bootstrapStateRef = useRef({
+    currentUser,
+    openingFlow,
+  });
+
+  bootstrapStateRef.current = {
+    currentUser,
+    openingFlow,
+  };
 
   const defaultAddress = useMemo(
     () => state.addresses.find(address => address.isDefault) || null,
@@ -224,6 +257,85 @@ export function AccountDataProvider({ children }) {
       state.paymentMethods.find(paymentMethod => paymentMethod.isDefault) || null,
     [state.paymentMethods],
   );
+  const persistedAccountSnapshot = useMemo(
+    () => ({
+      addresses: state.addresses,
+      paymentMethods: state.paymentMethods,
+      notificationSettings: state.notificationSettings,
+    }),
+    [state.addresses, state.notificationSettings, state.paymentMethods],
+  );
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function restoreAccountState() {
+      const bootstrapState = bootstrapStateRef.current;
+
+      setIsStorageHydrated(false);
+
+      try {
+        const [persistedAccountData, persistedOrders] = storageScope
+          ? await Promise.all([
+              getStoredAccountData(storageScope),
+              getStoredOrders(storageScope),
+            ])
+          : [null, []];
+
+        if (!isActive) {
+          return;
+        }
+
+        dispatch({
+          type: 'HYDRATE_STATE',
+          payload: buildInitialState({
+            currentUser: bootstrapState.currentUser,
+            openingFlow: bootstrapState.openingFlow,
+            persistedAccountData,
+            persistedOrders,
+          }),
+        });
+      } catch {
+        if (!isActive) {
+          return;
+        }
+
+        dispatch({
+          type: 'HYDRATE_STATE',
+          payload: buildInitialState({
+            currentUser: bootstrapState.currentUser,
+            openingFlow: bootstrapState.openingFlow,
+          }),
+        });
+      } finally {
+        if (isActive) {
+          setIsStorageHydrated(true);
+        }
+      }
+    }
+
+    restoreAccountState();
+
+    return () => {
+      isActive = false;
+    };
+  }, [storageScope]);
+
+  useEffect(() => {
+    if (!isStorageHydrated || !storageScope) {
+      return;
+    }
+
+    Promise.all([
+      storeAccountData(storageScope, persistedAccountSnapshot),
+      storeOrders(storageScope, state.orders),
+    ]).catch(() => {});
+  }, [
+    isStorageHydrated,
+    persistedAccountSnapshot,
+    state.orders,
+    storageScope,
+  ]);
 
   useEffect(() => {
     let isActive = true;

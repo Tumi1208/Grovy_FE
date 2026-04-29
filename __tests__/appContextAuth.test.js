@@ -4,13 +4,16 @@ import { Text } from 'react-native';
 import { AppProvider, useApp } from '../src/context/AppContext';
 
 jest.mock('../src/services/authStorage', () => ({
+  clearLegacyUserData: jest.fn(),
   clearStoredAuthToken: jest.fn(),
   clearStoredAuthUser: jest.fn(),
+  clearStoredOpeningLocation: jest.fn(),
   getStoredAuthToken: jest.fn(),
   getStoredAuthUser: jest.fn(),
   getStoredLocationCompleted: jest.fn(),
   getStoredOnboardingCompleted: jest.fn(),
   getStoredOpeningLocation: jest.fn(),
+  migrateLegacyLocationState: jest.fn(),
   storeAuthToken: jest.fn(),
   storeAuthUser: jest.fn(),
   storeLocationCompleted: jest.fn(),
@@ -30,13 +33,16 @@ jest.mock('../src/services/apiClient', () => ({
 }));
 
 const {
+  clearLegacyUserData,
   clearStoredAuthToken,
   clearStoredAuthUser,
+  clearStoredOpeningLocation,
   getStoredAuthToken,
   getStoredAuthUser,
   getStoredLocationCompleted,
   getStoredOnboardingCompleted,
   getStoredOpeningLocation,
+  migrateLegacyLocationState,
   storeAuthToken,
   storeAuthUser,
   storeLocationCompleted,
@@ -82,13 +88,16 @@ describe('AppContext auth session flow', () => {
   beforeEach(() => {
     latestAppContext = null;
 
+    clearLegacyUserData.mockResolvedValue();
     clearStoredAuthToken.mockResolvedValue();
     clearStoredAuthUser.mockResolvedValue();
+    clearStoredOpeningLocation.mockResolvedValue();
     getStoredAuthToken.mockResolvedValue('');
     getStoredAuthUser.mockResolvedValue(null);
     getStoredLocationCompleted.mockResolvedValue(true);
     getStoredOnboardingCompleted.mockResolvedValue(true);
     getStoredOpeningLocation.mockResolvedValue(null);
+    migrateLegacyLocationState.mockResolvedValue();
     storeAuthToken.mockResolvedValue();
     storeAuthUser.mockResolvedValue();
     storeLocationCompleted.mockResolvedValue();
@@ -169,8 +178,50 @@ describe('AppContext auth session flow', () => {
 
     expect(clearStoredAuthToken).toHaveBeenCalled();
     expect(clearStoredAuthUser).toHaveBeenCalled();
+    expect(clearLegacyUserData).toHaveBeenCalled();
     expect(latestAppContext.isAuthenticated).toBe(false);
+    expect(latestAppContext.hasCompletedLocation).toBe(false);
     expect(latestAppContext.currentUser).toBe(null);
     expect(setApiAuthToken).toHaveBeenLastCalledWith('');
+  });
+
+  it('forces a new signup session back through location setup', async () => {
+    await act(async () => {
+      TestRenderer.create(
+        <AppProvider>
+          <AppContextProbe />
+        </AppProvider>,
+      );
+    });
+
+    await act(async () => {
+      await latestAppContext.signUp({
+        displayName: 'New User',
+        email: 'new@grovy.app',
+        password: 'Grovy123',
+      });
+    });
+
+    expect(signUpWithEmail).toHaveBeenCalledWith({
+      displayName: 'New User',
+      email: 'new@grovy.app',
+      password: 'Grovy123',
+    });
+    expect(latestAppContext.isAuthenticated).toBe(true);
+    expect(latestAppContext.currentUser?.email).toBe('new@grovy.app');
+    expect(latestAppContext.hasCompletedLocation).toBe(false);
+    expect(storeLocationCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'user-2',
+        email: 'new@grovy.app',
+      }),
+      false,
+    );
+    expect(clearStoredOpeningLocation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'user-2',
+        email: 'new@grovy.app',
+      }),
+    );
   });
 });

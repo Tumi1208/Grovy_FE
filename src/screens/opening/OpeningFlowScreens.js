@@ -756,12 +756,15 @@ export function LocationScreen({ navigation, route }) {
   } = useApp();
   const canAccessLocationStep =
     isAuthenticated || openingFlow.isVerificationComplete;
-  const handleBack = buildBackHandler(
-    navigation,
-    route.params?.backRouteName ||
+  const fallbackRouteName = isAuthenticated
+    ? null
+    : route.params?.backRouteName ||
       (openingFlow.isVerificationComplete
         ? AUTH_ROUTES.VERIFICATION
-        : AUTH_ROUTES.ENTRY),
+        : AUTH_ROUTES.ENTRY);
+  const handleBack = buildBackHandler(
+    navigation,
+    fallbackRouteName,
   );
   const initialLocationValue =
     openingFlow.selectedLocation?.fullAddress ||
@@ -849,7 +852,7 @@ export function LocationScreen({ navigation, route }) {
     setIsSuggestionPanelVisible(true);
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     if (!manualLocation.trim()) {
       setSelectedMethod('manual');
       setManualErrorMessage('Please enter your area or address.');
@@ -860,7 +863,14 @@ export function LocationScreen({ navigation, route }) {
 
     const manualSelection = buildManualLocation(manualLocation);
     saveOpeningLocation(manualSelection);
-    completeCustomerOpeningFlow(manualSelection);
+
+    try {
+      await completeCustomerOpeningFlow(manualSelection);
+    } catch (error) {
+      setManualErrorMessage(
+        error.message || 'Could not save your location right now.',
+      );
+    }
   }
 
   return (

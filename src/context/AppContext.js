@@ -6,13 +6,16 @@ import React, {
   useState,
 } from 'react';
 import {
+  clearLegacyUserData,
   clearStoredAuthUser,
   clearStoredAuthToken,
+  clearStoredOpeningLocation,
   getStoredAuthToken,
   getStoredAuthUser,
   getStoredLocationCompleted,
   getStoredOnboardingCompleted,
   getStoredOpeningLocation,
+  migrateLegacyLocationState,
   storeAuthToken,
   storeAuthUser,
   storeLocationCompleted,
@@ -74,6 +77,29 @@ function buildPhonePreviewUser(openingFlow) {
   };
 }
 
+async function getResolvedLocationState(user) {
+  if (!user) {
+    return {
+      hasCompletedLocation: false,
+      location: null,
+    };
+  }
+
+  await migrateLegacyLocationState(user);
+
+  const [storedLocationCompleted, storedOpeningLocation] = await Promise.all([
+    getStoredLocationCompleted(user),
+    getStoredOpeningLocation(user),
+  ]);
+
+  const resolvedLocation = storedOpeningLocation || user.location || null;
+
+  return {
+    hasCompletedLocation: storedLocationCompleted || Boolean(resolvedLocation),
+    location: resolvedLocation,
+  };
+}
+
 export function AppProvider({ children }) {
   const [baseCurrentUser, setBaseCurrentUser] = useState(null);
   const [authToken, setAuthToken] = useState('');
@@ -83,61 +109,67 @@ export function AppProvider({ children }) {
     useState(false);
   const [openingFlow, setOpeningFlow] = useState(getInitialOpeningFlow);
 
+  function clearInMemorySession() {
+    setApiAuthToken('');
+    setAuthToken('');
+    setBaseCurrentUser(null);
+    setHasCompletedLocationSetup(false);
+    setOpeningFlow(getInitialOpeningFlow());
+  }
+
   useEffect(() => {
     let isMounted = true;
 
     async function restoreAppState() {
       try {
-        const [
-          storedToken,
-          storedUser,
-          storedOnboardingCompleted,
-          storedLocationCompleted,
-          storedOpeningLocation,
-        ] = await Promise.all([
-          getStoredAuthToken(),
-          getStoredAuthUser(),
-          getStoredOnboardingCompleted(),
-          getStoredLocationCompleted(),
-          getStoredOpeningLocation(),
-        ]);
+        const storedOnboardingCompleted = await getStoredOnboardingCompleted();
 
         if (!isMounted) {
           return;
         }
 
         setHasCompletedOnboarding(storedOnboardingCompleted);
-        setHasCompletedLocationSetup(storedLocationCompleted);
-        setOpeningFlow(getInitialOpeningFlow(storedOpeningLocation));
+
+        const [storedToken, storedUser] = await Promise.all([
+          getStoredAuthToken(),
+          getStoredAuthUser(),
+        ]);
 
         if (!storedToken) {
+          if (storedUser) {
+            await clearStoredAuthUser();
+          }
+
+          if (isMounted) {
+            setHasCompletedLocationSetup(false);
+            setOpeningFlow(getInitialOpeningFlow());
+          }
+
           return;
         }
 
         setApiAuthToken(storedToken);
 
-        if (storedUser) {
-          setAuthToken(storedToken);
-          setBaseCurrentUser(storedUser);
-          return;
-        }
+        const nextUser = storedUser || (await getCurrentUserProfile());
+        const locationState = await getResolvedLocationState(nextUser);
 
-        const user = await getCurrentUserProfile();
+        if (!storedUser) {
+          await storeAuthUser(nextUser);
+        }
 
         if (!isMounted) {
           return;
         }
 
-        await storeAuthUser(user);
         setAuthToken(storedToken);
-        setBaseCurrentUser(user);
+        setBaseCurrentUser(nextUser);
+        setHasCompletedLocationSetup(locationState.hasCompletedLocation);
+        setOpeningFlow(getInitialOpeningFlow(locationState.location));
       } catch (error) {
-        setApiAuthToken('');
         await Promise.all([clearStoredAuthToken(), clearStoredAuthUser()]);
 
         if (isMounted) {
-          setAuthToken('');
-          setBaseCurrentUser(null);
+          clearInMemorySession();
         }
       } finally {
         if (isMounted) {
@@ -181,25 +213,42 @@ export function AppProvider({ children }) {
     };
   }, [baseCurrentUser, openingFlow.selectedLocation, previewCurrentUser]);
 
-  async function applySession(nextSession) {
+  async function applySession(
+    nextSession,
+    { forceLocationSelection = false } = {},
+  ) {
     if (!nextSession?.token || !nextSession?.user) {
       throw new Error('The server returned an incomplete session.');
     }
 
+    const nextLocationState = forceLocationSelection
+      ? {
+          hasCompletedLocation: false,
+          location: null,
+        }
+      : await getResolvedLocationState(nextSession.user);
+
     setApiAuthToken(nextSession.token);
     setAuthToken(nextSession.token);
     setBaseCurrentUser(nextSession.user);
+    setHasCompletedLocationSetup(nextLocationState.hasCompletedLocation);
+    setOpeningFlow(getInitialOpeningFlow(nextLocationState.location));
 
     try {
-      await Promise.all([
+      const storageTasks = [
         storeAuthToken(nextSession.token),
         storeAuthUser(nextSession.user),
-      ]);
+      ];
+
+      if (forceLocationSelection) {
+        storageTasks.push(storeLocationCompleted(nextSession.user, false));
+        storageTasks.push(clearStoredOpeningLocation(nextSession.user));
+      }
+
+      await Promise.all(storageTasks);
     } catch (error) {
-      setApiAuthToken('');
-      setAuthToken('');
-      setBaseCurrentUser(null);
       await Promise.all([clearStoredAuthToken(), clearStoredAuthUser()]);
+      clearInMemorySession();
       throw error;
     }
 
@@ -213,7 +262,9 @@ export function AppProvider({ children }) {
 
   async function signUp(credentials) {
     const nextSession = await signUpWithEmail(credentials);
-    return applySession(nextSession);
+    return applySession(nextSession, {
+      forceLocationSelection: true,
+    });
   }
 
   async function refreshCurrentUser() {
@@ -270,25 +321,36 @@ export function AppProvider({ children }) {
         ? { ...openingFlow.selectedLocation }
         : null;
 
-    saveOpeningLocation(resolvedLocation);
-    setHasCompletedLocationSetup(true);
+    if (!baseCurrentUser) {
+      setOpeningFlow(currentValue => ({
+        ...currentValue,
+        selectedLocation: resolvedLocation,
+      }));
+      setHasCompletedLocationSetup(true);
+      return;
+    }
+
     await Promise.all([
-      storeLocationCompleted(true),
-      storeOpeningLocation(resolvedLocation),
+      storeLocationCompleted(baseCurrentUser, true),
+      storeOpeningLocation(baseCurrentUser, resolvedLocation),
     ]);
+
+    setOpeningFlow(currentValue => ({
+      ...currentValue,
+      selectedLocation: resolvedLocation,
+    }));
+    setHasCompletedLocationSetup(true);
   }
 
   async function signOut() {
-    const preservedLocation = openingFlow.selectedLocation;
-
-    setApiAuthToken('');
-
     try {
-      await Promise.all([clearStoredAuthToken(), clearStoredAuthUser()]);
+      await Promise.all([
+        clearStoredAuthToken(),
+        clearStoredAuthUser(),
+        clearLegacyUserData(),
+      ]);
     } finally {
-      setAuthToken('');
-      setBaseCurrentUser(null);
-      setOpeningFlow(getInitialOpeningFlow(preservedLocation));
+      clearInMemorySession();
     }
   }
 
@@ -301,9 +363,11 @@ export function AppProvider({ children }) {
     completeOnboarding,
     completeOpeningVerification,
     currentUser,
+    hasCompletedLocation: hasCompletedLocationSetup,
     hasCompletedLocationSetup,
     hasCompletedOnboarding,
     isAuthenticated,
+    isAuthLoading: isInitializing,
     isInitializing,
     isPreviewSession,
     openingFlow,
@@ -314,7 +378,9 @@ export function AppProvider({ children }) {
     signIn,
     signOut,
     signUp,
+    token: authToken,
     updateCurrentUser,
+    user: currentUser,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import {
   defaultProductImage,
   getProductImageSource,
@@ -99,18 +99,37 @@ function InfoCard({ description, title }) {
   );
 }
 
+function LoadingState({ navigation }) {
+  return (
+    <AccountScene
+      eyebrow="Account"
+      navigation={navigation}
+      subtitle="We are checking this account's order history."
+      title="Order detail"
+    >
+      <View style={styles.emptyCard}>
+        <ActivityIndicator color={UI_COLORS.accentGreen} size="small" />
+        <Text style={styles.emptyTitle}>Loading order</Text>
+        <Text style={styles.emptySubtitle}>
+          Please wait while we verify access to this order.
+        </Text>
+      </View>
+    </AccountScene>
+  );
+}
+
 function EmptyOrderState({ navigation }) {
   return (
     <AccountScene
       eyebrow="Account"
       navigation={navigation}
-      subtitle="The selected order could not be found in local history."
+      subtitle="Only orders that belong to the current account can be opened here."
       title="Order detail"
     >
       <View style={styles.emptyCard}>
         <Text style={styles.emptyTitle}>Order not available</Text>
         <Text style={styles.emptySubtitle}>
-          Try returning to the Orders list to open another record.
+          Return to your Orders list and pick an order from this account.
         </Text>
         <PrimaryButton
           onPress={() => navigation.replace(CUSTOMER_ROUTES.ACCOUNT_ORDERS)}
@@ -123,8 +142,12 @@ function EmptyOrderState({ navigation }) {
 }
 
 function OrderDetailScreen({ navigation, route }) {
-  const { getOrderById } = useAccountData();
+  const { getOrderById, ordersLoading } = useAccountData();
   const order = getOrderById(route.params?.orderId);
+
+  if (!order && ordersLoading) {
+    return <LoadingState navigation={navigation} />;
+  }
 
   if (!order) {
     return <EmptyOrderState navigation={navigation} />;

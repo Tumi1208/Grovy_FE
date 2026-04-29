@@ -23,8 +23,6 @@ function OrderSuccessScreen({ navigation, route }) {
   const { getOrderById } = useAccountData();
   const orderId = route.params?.orderId || '';
   const order = getOrderById(orderId);
-  const submitMode = route.params?.submitMode || 'api';
-  const fallbackReason = route.params?.fallbackReason || '';
   const itemCount = Array.isArray(order?.items)
     ? order.items.reduce((sum, item) => sum + item.quantity, 0)
     : 0;
@@ -83,12 +81,7 @@ function OrderSuccessScreen({ navigation, route }) {
             <Text style={styles.summaryText}>
               Placed: {formatOrderDate(order.createdAt)}
             </Text>
-            <Text style={styles.summaryText}>
-              Flow: {submitMode === 'api' ? 'Backend API' : 'Local demo fallback'}
-            </Text>
-            {submitMode === 'local' && fallbackReason ? (
-              <Text style={styles.summaryHint}>{fallbackReason}</Text>
-            ) : null}
+            <Text style={styles.summaryText}>Saved to: Current account</Text>
           </View>
         ) : null}
 

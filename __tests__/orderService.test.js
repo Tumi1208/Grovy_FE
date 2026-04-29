@@ -14,7 +14,6 @@ describe('orderService', () => {
 
   it('builds a create-order payload from cart items', () => {
     const payload = buildCreateOrderPayload({
-      customerId: 'demo-customer-1',
       customerName: ' Demo Customer ',
       phone: ' 0123456789 ',
       address: ' 123 Sample Street ',
@@ -28,11 +27,23 @@ describe('orderService', () => {
           quantity: 2,
         },
       ],
+      subtotal: 6.979,
       totalAmount: 6.979,
+      deliveryFee: 0,
+      addressSnapshot: {
+        id: 'address-1',
+        label: 'Home',
+        addressLine: '123 Sample Street',
+        area: 'District 1',
+      },
+      paymentMethodSnapshot: {
+        id: 'payment-cash',
+        type: 'cash',
+        label: 'Cash on Delivery',
+      },
     });
 
     expect(payload).toEqual({
-      customerId: 'demo-customer-1',
       customerName: 'Demo Customer',
       phone: '0123456789',
       address: '123 Sample Street',
@@ -44,7 +55,28 @@ describe('orderService', () => {
           price: 3.49,
         },
       ],
+      subtotal: 6.98,
+      deliveryFee: 0,
       totalAmount: 6.98,
+      deliveryAddressSnapshot: {
+        id: 'address-1',
+        label: 'Home',
+        recipientName: 'Demo Customer',
+        phoneNumber: '0123456789',
+        addressLine: '123 Sample Street',
+        area: 'District 1',
+        notes: '',
+        fullAddress: '123 Sample Street',
+      },
+      paymentMethodSnapshot: {
+        id: 'payment-cash',
+        type: 'cash',
+        title: 'Cash on Delivery',
+        meta: 'Pay when your groceries arrive.',
+        label: 'Cash on Delivery',
+        brand: '',
+        last4: '',
+      },
     });
   });
 
@@ -54,14 +86,14 @@ describe('orderService', () => {
       text: jest.fn().mockResolvedValue(
         JSON.stringify({
           id: 'order-001',
-          customerId: 'demo-customer-1',
+          userId: 'user-001',
           status: 'pending',
+          items: [],
         }),
       ),
     });
 
     const payload = {
-      customerId: 'demo-customer-1',
       customerName: 'Demo Customer',
       phone: '0123456789',
       address: '123 Sample Street',
@@ -73,7 +105,28 @@ describe('orderService', () => {
           price: 3.49,
         },
       ],
+      subtotal: 6.98,
+      deliveryFee: 0,
       totalAmount: 6.98,
+      deliveryAddressSnapshot: {
+        id: 'address-1',
+        label: 'Home',
+        recipientName: 'Demo Customer',
+        phoneNumber: '0123456789',
+        addressLine: '123 Sample Street',
+        area: 'District 1',
+        notes: '',
+        fullAddress: '123 Sample Street',
+      },
+      paymentMethodSnapshot: {
+        id: 'payment-cash',
+        type: 'cash',
+        title: 'Cash on Delivery',
+        meta: 'Pay when your groceries arrive.',
+        label: 'Cash on Delivery',
+        brand: '',
+        last4: '',
+      },
     };
 
     const order = await createOrder(payload);

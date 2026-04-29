@@ -1,5 +1,11 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import AccountScene from '../../../components/account/AccountScene';
 import ChevronIcon from '../../../components/icons/ChevronIcon';
 import { CUSTOMER_ROUTES } from '../../../constants/routes';
@@ -94,6 +100,60 @@ function OrderCard({ onPress, order }) {
   );
 }
 
+function LoadingState() {
+  return (
+    <View style={styles.feedbackCard}>
+      <ActivityIndicator color={UI_COLORS.accentGreen} size="small" />
+      <Text style={styles.feedbackTitle}>Loading your orders</Text>
+      <Text style={styles.feedbackSubtitle}>
+        We are pulling the latest purchases for this account.
+      </Text>
+    </View>
+  );
+}
+
+function ErrorState({ onRetry }) {
+  return (
+    <View style={styles.feedbackCard}>
+      <Text style={styles.feedbackTitle}>Could not load orders</Text>
+      <Text style={styles.feedbackSubtitle}>
+        Try again to refresh this account's order history.
+      </Text>
+      <Pressable
+        android_ripple={{ color: '#E4EEE1' }}
+        onPress={onRetry}
+        style={({ pressed }) => [
+          styles.ctaButton,
+          pressed && styles.ctaButtonPressed,
+        ]}
+      >
+        <Text style={styles.ctaButtonLabel}>Retry</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function EmptyState({ navigation }) {
+  return (
+    <View style={styles.feedbackCard}>
+      <Text style={styles.feedbackTitle}>No orders yet</Text>
+      <Text style={styles.feedbackSubtitle}>
+        Your recent purchases will appear here once you complete checkout.
+      </Text>
+      <Pressable
+        android_ripple={{ color: '#E4EEE1' }}
+        onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
+        style={({ pressed }) => [
+          styles.ctaButton,
+          pressed && styles.ctaButtonPressed,
+        ]}
+      >
+        <Text style={styles.ctaButtonLabel}>Browse products</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function SectionBlock({ navigation, orders, title }) {
   if (!orders.length) {
     return null;
@@ -118,7 +178,7 @@ function SectionBlock({ navigation, orders, title }) {
 }
 
 function OrdersScreen({ navigation }) {
-  const { orders } = useAccountData();
+  const { orders, ordersError, ordersLoading, refreshOrders } = useAccountData();
 
   const { activeCount, pastOrders, recentOrders } = useMemo(() => {
     const recent = [];
@@ -141,6 +201,12 @@ function OrdersScreen({ navigation }) {
     };
   }, [orders]);
 
+  async function handleRetry() {
+    try {
+      await refreshOrders();
+    } catch {}
+  }
+
   return (
     <AccountScene
       eyebrow="Account"
@@ -153,12 +219,27 @@ function OrdersScreen({ navigation }) {
         <MetricCard label="Active now" value={`${activeCount}`} />
       </View>
 
-      <SectionBlock
-        navigation={navigation}
-        orders={recentOrders}
-        title="Recent orders"
-      />
-      <SectionBlock navigation={navigation} orders={pastOrders} title="Past orders" />
+      {ordersLoading ? <LoadingState /> : null}
+      {!ordersLoading && ordersError ? (
+        <ErrorState onRetry={handleRetry} />
+      ) : null}
+      {!ordersLoading && !ordersError && !orders.length ? (
+        <EmptyState navigation={navigation} />
+      ) : null}
+      {!ordersLoading && !ordersError && orders.length ? (
+        <>
+          <SectionBlock
+            navigation={navigation}
+            orders={recentOrders}
+            title="Recent orders"
+          />
+          <SectionBlock
+            navigation={navigation}
+            orders={pastOrders}
+            title="Past orders"
+          />
+        </>
+      ) : null}
     </AccountScene>
   );
 }
@@ -189,6 +270,49 @@ const styles = StyleSheet.create({
   metricLabel: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.meta,
+  },
+  feedbackCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xxl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    paddingVertical: 28,
+    paddingHorizontal: 22,
+    alignItems: 'center',
+    marginBottom: 22,
+    ...UI_SHADOWS.card,
+  },
+  feedbackTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 26,
+    marginTop: 14,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  feedbackSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.body,
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  ctaButton: {
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderRadius: UI_RADIUS.round,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    minWidth: 180,
+    alignItems: 'center',
+  },
+  ctaButtonPressed: {
+    opacity: 0.9,
+  },
+  ctaButtonLabel: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 20,
   },
   sectionBlock: {
     marginBottom: 22,

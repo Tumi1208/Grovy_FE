@@ -156,26 +156,18 @@ function CheckoutScreen({ navigation }) {
 
     try {
       const orderPayload = buildCreateOrderPayload({
-        customerId: currentUser?.id || null,
         customerName,
         phone,
         address,
         cartItems: items,
+        subtotal,
         totalAmount: totalCost,
-      });
-      const result = await submitOrder(orderPayload);
-      const savedOrder = addCheckoutOrder({
-        apiOrder: result.order,
-        cartItems: items,
-        customerName: customerName.trim(),
-        phoneNumber: phone.trim(),
-        addressText: address,
-        addressRecord: defaultAddress,
-        paymentMethod: defaultPaymentMethod,
         deliveryFee: DELIVERY_FEE,
-        submitMode: result.mode,
-        fallbackReason: result.fallbackReason || '',
+        addressSnapshot: defaultAddress,
+        paymentMethodSnapshot: defaultPaymentMethod,
       });
+      const order = await submitOrder(orderPayload);
+      const savedOrder = addCheckoutOrder(order);
 
       clearCart();
       navigation.reset({
@@ -185,8 +177,6 @@ function CheckoutScreen({ navigation }) {
             name: CUSTOMER_ROUTES.ORDER_SUCCESS,
             params: {
               orderId: savedOrder.id,
-              submitMode: result.mode,
-              fallbackReason: result.fallbackReason || '',
             },
           },
         ],

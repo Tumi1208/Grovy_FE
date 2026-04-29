@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <title>Grovy app icon round</title>
+  <circle cx="512" cy="512" r="448" fill="#F7F3EC" />
+  <circle cx="512" cy="512" r="448" fill="none" stroke="#E4DACD" stroke-width="16" />
+  <circle cx="512" cy="512" r="248" fill="#EFE4D3" />
+  <g fill="#547A4E">
+    <g transform="translate(446 512) rotate(-28)">
+      <path d="M0 -168 C58 -162 104 -114 110 -50 C118 32 76 112 0 172 C-76 112 -118 32 -110 -50 C-104 -114 -58 -162 0 -168 Z" />
+    </g>
+    <g transform="translate(578 512) rotate(28)">
+      <path d="M0 -168 C58 -162 104 -114 110 -50 C118 32 76 112 0 172 C-76 112 -118 32 -110 -50 C-104 -114 -58 -162 0 -168 Z" />
+    </g>
+  </g>
+</svg>

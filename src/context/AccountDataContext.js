@@ -1,24 +1,20 @@
-import React, { createContext, useContext, useMemo, useReducer } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+} from 'react';
 import { useApp } from './AppContext';
 import {
   buildInitialAddresses,
-  buildInitialOrders,
   buildInitialPaymentMethods,
   DEFAULT_NOTIFICATION_SETTINGS,
 } from '../data/accountMockData';
-import {
-  buildAddressFullText,
-  detectCardBrand,
-  formatPaymentMethodMeta,
-  formatPaymentMethodTitle,
-  normalizeOrderStatus,
-} from '../utils/accountFormatting';
+import { listMyOrders } from '../services/orderService';
+import { detectCardBrand } from '../utils/accountFormatting';
 
 const AccountDataContext = createContext(null);
-
-function roundCurrencyAmount(value) {
-  return Number(Number(value || 0).toFixed(2));
-}
 
 function createLocalId(prefix) {
   return `${prefix}-${Date.now()}-${Math.round(Math.random() * 1000)}`;
@@ -58,104 +54,41 @@ function ensureCollectionDefault(items) {
   );
 }
 
-function buildAddressSnapshot(address, overrides = {}) {
-  const addressLine = overrides.addressLine || address?.addressLine || '';
-  const area = overrides.area || address?.area || '';
-
-  return {
-    id: address?.id || null,
-    label: overrides.label || address?.label || 'Delivery address',
-    recipientName:
-      overrides.recipientName || address?.recipientName || 'Grovy customer',
-    phoneNumber: overrides.phoneNumber || address?.phoneNumber || '',
-    addressLine,
-    area,
-    notes:
-      Object.prototype.hasOwnProperty.call(overrides, 'notes')
-        ? overrides.notes
-        : address?.notes || '',
-    fullAddress:
-      overrides.fullAddress ||
-      buildAddressFullText({
-        addressLine,
-        area,
-      }),
-  };
-}
-
-function buildPaymentSnapshot(method) {
-  return {
-    id: method?.id || null,
-    type: method?.type || 'cash',
-    title: formatPaymentMethodTitle(method),
-    meta: formatPaymentMethodMeta(method),
-    label: method?.label || 'Cash on Delivery',
-    brand: method?.brand || '',
-    last4: method?.last4 || '',
-  };
-}
-
-function buildOrderFromCheckout({
-  apiOrder,
-  cartItems,
-  customerName,
-  phoneNumber,
-  addressText,
-  addressRecord,
-  paymentMethod,
-  deliveryFee = 0,
-  submitMode = 'local',
-  fallbackReason = '',
-}) {
-  const items = cartItems.map(item => ({
-    id: `${apiOrder?.id || 'new-order'}-${item.product.id}`,
-    productId: item.product.id,
-    name: item.product.name,
-    quantity: item.quantity,
-    price: item.product.price,
-    product: item.product,
-  }));
-  const subtotal = roundCurrencyAmount(
-    items.reduce((sum, item) => sum + item.price * item.quantity, 0),
-  );
-  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const fullAddress = `${addressText || ''}`.trim();
-
-  return {
-    id: apiOrder?.id || createLocalId('GRV'),
-    createdAt: apiOrder?.createdAt || new Date().toISOString(),
-    status: normalizeOrderStatus(apiOrder?.status || 'processing'),
-    items,
-    itemCount,
-    subtotal,
-    deliveryFee: roundCurrencyAmount(deliveryFee),
-    totalAmount: roundCurrencyAmount(
-      apiOrder?.totalAmount ?? subtotal + deliveryFee,
-    ),
-    deliveryAddressSnapshot: buildAddressSnapshot(addressRecord, {
-      recipientName: customerName,
-      phoneNumber,
-      fullAddress,
-    }),
-    paymentMethodSnapshot: buildPaymentSnapshot(paymentMethod),
-    submitMode,
-    fallbackReason,
-    source: submitMode === 'api' ? 'checkout-api' : 'checkout-local',
-  };
-}
-
 function accountDataReducer(state, action) {
   switch (action.type) {
     case 'ADD_ORDER': {
-      const nextOrders = [action.payload, ...state.orders].sort(
+      const nextOrders = [
+        action.payload,
+        ...state.orders.filter(order => order.id !== action.payload.id),
+      ].sort(
         (left, right) => new Date(right.createdAt) - new Date(left.createdAt),
       );
 
       return {
         ...state,
         orders: nextOrders,
+        ordersError: '',
       };
     }
+    case 'LOAD_ORDERS_START':
+      return {
+        ...state,
+        ordersLoading: true,
+        ordersError: '',
+      };
+    case 'LOAD_ORDERS_SUCCESS':
+      return {
+        ...state,
+        orders: action.payload,
+        ordersLoading: false,
+        ordersError: '',
+      };
+    case 'LOAD_ORDERS_ERROR':
+      return {
+        ...state,
+        ordersLoading: false,
+        ordersError: action.payload,
+      };
     case 'UPSERT_ADDRESS': {
       const nextAddress = action.payload;
       const hasExistingAddress = state.addresses.some(
@@ -262,7 +195,9 @@ function buildInitialState({ currentUser, openingFlow }) {
       : buildInitialPaymentMethods({ currentUser });
 
   return {
-    orders: buildInitialOrders({ addresses, paymentMethods }),
+    orders: [],
+    ordersLoading: false,
+    ordersError: '',
     addresses: sortAddresses(addresses),
     paymentMethods: sortPaymentMethods(paymentMethods),
     notificationSettings: {
@@ -273,7 +208,7 @@ function buildInitialState({ currentUser, openingFlow }) {
 }
 
 export function AccountDataProvider({ children }) {
-  const { currentUser, openingFlow } = useApp();
+  const { currentUser, isPreviewSession, openingFlow } = useApp();
   const [state, dispatch] = useReducer(
     accountDataReducer,
     { currentUser, openingFlow },
@@ -290,13 +225,90 @@ export function AccountDataProvider({ children }) {
     [state.paymentMethods],
   );
 
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadOrders() {
+      if (!currentUser?.id || currentUser?.isPreviewUser || isPreviewSession) {
+        if (isActive) {
+          dispatch({
+            type: 'LOAD_ORDERS_SUCCESS',
+            payload: [],
+          });
+        }
+
+        return;
+      }
+
+      dispatch({ type: 'LOAD_ORDERS_START' });
+
+      try {
+        const nextOrders = await listMyOrders();
+
+        if (!isActive) {
+          return;
+        }
+
+        dispatch({
+          type: 'LOAD_ORDERS_SUCCESS',
+          payload: nextOrders,
+        });
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        dispatch({
+          type: 'LOAD_ORDERS_ERROR',
+          payload: error.message || 'Could not load your orders.',
+        });
+      }
+    }
+
+    loadOrders();
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentUser?.id, currentUser?.isPreviewUser, isPreviewSession]);
+
+  async function refreshOrders() {
+    if (!currentUser?.id || currentUser?.isPreviewUser || isPreviewSession) {
+      dispatch({
+        type: 'LOAD_ORDERS_SUCCESS',
+        payload: [],
+      });
+      return [];
+    }
+
+    dispatch({ type: 'LOAD_ORDERS_START' });
+
+    try {
+      const nextOrders = await listMyOrders();
+      dispatch({
+        type: 'LOAD_ORDERS_SUCCESS',
+        payload: nextOrders,
+      });
+      return nextOrders;
+    } catch (error) {
+      dispatch({
+        type: 'LOAD_ORDERS_ERROR',
+        payload: error.message || 'Could not load your orders.',
+      });
+      throw error;
+    }
+  }
+
   const value = {
     orders: state.orders,
+    ordersLoading: state.ordersLoading,
+    ordersError: state.ordersError,
     addresses: state.addresses,
     paymentMethods: state.paymentMethods,
     notificationSettings: state.notificationSettings,
     defaultAddress,
     defaultPaymentMethod,
+    refreshOrders,
     getOrderById: orderId =>
       state.orders.find(order => order.id === orderId) || null,
     saveAddress: addressInput => {
@@ -369,15 +381,13 @@ export function AccountDataProvider({ children }) {
         type: 'UPDATE_NOTIFICATION_SETTING',
         payload: { key, value: nextValue },
       }),
-    addCheckoutOrder: checkoutInput => {
-      const nextOrder = buildOrderFromCheckout(checkoutInput);
-
+    addCheckoutOrder: order => {
       dispatch({
         type: 'ADD_ORDER',
-        payload: nextOrder,
+        payload: order,
       });
 
-      return nextOrder;
+      return order;
     },
   };
 

@@ -46,41 +46,53 @@ export function AuthNotice({ message, tone = 'error' }) {
   );
 }
 
-export function AuthTextField({
-  autoCapitalize = 'none',
-  autoComplete,
-  autoFocus = false,
-  editable = true,
-  keyboardType = 'default',
-  label,
-  onChangeText,
-  placeholder,
-  secureTextEntry = false,
-  textContentType,
-  value,
-}) {
+export const AuthTextField = React.forwardRef(function AuthTextField(
+  {
+    autoCapitalize = 'none',
+    autoComplete,
+    autoFocus = false,
+    blurOnSubmit,
+    editable = true,
+    keyboardType = 'default',
+    label,
+    onChangeText,
+    onSubmitEditing,
+    placeholder,
+    returnKeyType,
+    secureTextEntry = false,
+    submitBehavior,
+    textContentType,
+    value,
+  },
+  ref,
+) {
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
+        ref={ref}
         autoCapitalize={autoCapitalize}
         autoComplete={autoComplete}
         autoCorrect={false}
         autoFocus={autoFocus}
+        blurOnSubmit={blurOnSubmit}
         editable={editable}
         keyboardType={keyboardType}
         onChangeText={onChangeText}
+        onSubmitEditing={onSubmitEditing}
         placeholder={placeholder}
         placeholderTextColor={UI_COLORS.muted}
+        returnKeyType={returnKeyType}
         secureTextEntry={secureTextEntry}
         selectionColor={UI_COLORS.accentGreen}
+        submitBehavior={submitBehavior}
         style={[styles.textField, !editable && styles.textFieldReadonly]}
         textContentType={textContentType}
         value={value}
       />
     </View>
   );
-}
+});
 
 export function AuthSwitchRow({ prompt, actionLabel, onPressAction }) {
   return (

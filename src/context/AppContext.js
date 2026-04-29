@@ -6,12 +6,15 @@ import React, {
   useState,
 } from 'react';
 import {
+  clearStoredAuthUser,
   clearStoredAuthToken,
   getStoredAuthToken,
+  getStoredAuthUser,
   getStoredLocationCompleted,
   getStoredOnboardingCompleted,
   getStoredOpeningLocation,
   storeAuthToken,
+  storeAuthUser,
   storeLocationCompleted,
   storeOnboardingCompleted,
   storeOpeningLocation,
@@ -87,11 +90,13 @@ export function AppProvider({ children }) {
       try {
         const [
           storedToken,
+          storedUser,
           storedOnboardingCompleted,
           storedLocationCompleted,
           storedOpeningLocation,
         ] = await Promise.all([
           getStoredAuthToken(),
+          getStoredAuthUser(),
           getStoredOnboardingCompleted(),
           getStoredLocationCompleted(),
           getStoredOpeningLocation(),
@@ -110,17 +115,25 @@ export function AppProvider({ children }) {
         }
 
         setApiAuthToken(storedToken);
+
+        if (storedUser) {
+          setAuthToken(storedToken);
+          setBaseCurrentUser(storedUser);
+          return;
+        }
+
         const user = await getCurrentUserProfile();
 
         if (!isMounted) {
           return;
         }
 
+        await storeAuthUser(user);
         setAuthToken(storedToken);
         setBaseCurrentUser(user);
       } catch (error) {
         setApiAuthToken('');
-        await clearStoredAuthToken();
+        await Promise.all([clearStoredAuthToken(), clearStoredAuthUser()]);
 
         if (isMounted) {
           setAuthToken('');
@@ -169,10 +182,26 @@ export function AppProvider({ children }) {
   }, [baseCurrentUser, openingFlow.selectedLocation, previewCurrentUser]);
 
   async function applySession(nextSession) {
+    if (!nextSession?.token || !nextSession?.user) {
+      throw new Error('The server returned an incomplete session.');
+    }
+
     setApiAuthToken(nextSession.token);
-    await storeAuthToken(nextSession.token);
     setAuthToken(nextSession.token);
     setBaseCurrentUser(nextSession.user);
+
+    try {
+      await Promise.all([
+        storeAuthToken(nextSession.token),
+        storeAuthUser(nextSession.user),
+      ]);
+    } catch (error) {
+      setApiAuthToken('');
+      setAuthToken('');
+      setBaseCurrentUser(null);
+      await Promise.all([clearStoredAuthToken(), clearStoredAuthUser()]);
+      throw error;
+    }
 
     return nextSession.user;
   }
@@ -190,12 +219,14 @@ export function AppProvider({ children }) {
   async function refreshCurrentUser() {
     const user = await getCurrentUserProfile();
     setBaseCurrentUser(user);
+    await storeAuthUser(user);
     return user;
   }
 
   async function updateCurrentUser(profileInput) {
     const result = await updateMyProfile(profileInput);
     setBaseCurrentUser(result.user);
+    await storeAuthUser(result.user);
     return result;
   }
 
@@ -251,10 +282,14 @@ export function AppProvider({ children }) {
     const preservedLocation = openingFlow.selectedLocation;
 
     setApiAuthToken('');
-    setAuthToken('');
-    setBaseCurrentUser(null);
-    setOpeningFlow(getInitialOpeningFlow(preservedLocation));
-    await clearStoredAuthToken();
+
+    try {
+      await Promise.all([clearStoredAuthToken(), clearStoredAuthUser()]);
+    } finally {
+      setAuthToken('');
+      setBaseCurrentUser(null);
+      setOpeningFlow(getInitialOpeningFlow(preservedLocation));
+    }
   }
 
   const isAuthenticated = Boolean(authToken && baseCurrentUser);

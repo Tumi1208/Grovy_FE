@@ -51,12 +51,12 @@ function AppNavigator() {
     return <AppLoadingScreen />;
   }
 
+  let navigationKey = ROOT_ROUTES.AUTH_FLOW;
+  let navigator = null;
+
   if (isAuthenticated && hasCompletedLocationSetup && role === ROLES.OWNER) {
-    return (
-      <NavigationContainer>
-        <OwnerNavigator key={ROOT_ROUTES.OWNER_FLOW} />
-      </NavigationContainer>
-    );
+    navigationKey = ROOT_ROUTES.OWNER_FLOW;
+    navigator = <OwnerNavigator key={ROOT_ROUTES.OWNER_FLOW} />;
   }
 
   const canShowCustomerApp = shouldShowCustomerApp({
@@ -66,29 +66,28 @@ function AppNavigator() {
     role,
   });
 
-  if (canShowCustomerApp) {
-    return (
-      <NavigationContainer>
-        <CustomerNavigator key={ROOT_ROUTES.CUSTOMER_FLOW} />
-      </NavigationContainer>
-    );
+  if (!navigator && canShowCustomerApp) {
+    navigationKey = ROOT_ROUTES.CUSTOMER_FLOW;
+    navigator = <CustomerNavigator key={ROOT_ROUTES.CUSTOMER_FLOW} />;
   }
 
-  const initialRouteName = getAuthInitialRouteName({
-    hasCompletedLocationSetup,
-    hasCompletedOnboarding,
-    isAuthenticated,
-  });
-  const flowKey = `${ROOT_ROUTES.AUTH_FLOW}-${initialRouteName}`;
-
-  return (
-    <NavigationContainer>
+  if (!navigator) {
+    const initialRouteName = getAuthInitialRouteName({
+      hasCompletedLocationSetup,
+      hasCompletedOnboarding,
+      isAuthenticated,
+    });
+    const flowKey = `${ROOT_ROUTES.AUTH_FLOW}-${initialRouteName}`;
+    navigationKey = flowKey;
+    navigator = (
       <AuthNavigator
         key={flowKey}
         initialRouteName={initialRouteName}
       />
-    </NavigationContainer>
-  );
+    );
+  }
+
+  return <NavigationContainer key={navigationKey}>{navigator}</NavigationContainer>;
 }
 
 export default AppNavigator;

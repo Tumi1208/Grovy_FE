@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AUTH_TOKEN_STORAGE_KEY = 'grovy.authToken';
+const AUTH_USER_STORAGE_KEY = 'grovy.authUser';
 const ONBOARDING_COMPLETED_STORAGE_KEY = 'grovy.hasCompletedOnboarding';
 const LOCATION_COMPLETED_STORAGE_KEY = 'grovy.hasCompletedLocationSetup';
 const OPENING_LOCATION_STORAGE_KEY = 'grovy.openingLocation';
@@ -19,6 +20,33 @@ export async function storeAuthToken(token) {
 
 export async function clearStoredAuthToken() {
   return AsyncStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+}
+
+export async function getStoredAuthUser() {
+  const rawValue = await AsyncStorage.getItem(AUTH_USER_STORAGE_KEY);
+
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawValue);
+  } catch {
+    await AsyncStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    return null;
+  }
+}
+
+export async function storeAuthUser(user) {
+  if (!user) {
+    return clearStoredAuthUser();
+  }
+
+  return AsyncStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
+}
+
+export async function clearStoredAuthUser() {
+  return AsyncStorage.removeItem(AUTH_USER_STORAGE_KEY);
 }
 
 async function getStoredBoolean(storageKey) {

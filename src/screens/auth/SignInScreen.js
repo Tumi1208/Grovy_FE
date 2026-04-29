@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import PrimaryButton from '../../components/PrimaryButton';
 import { AUTH_ROUTES } from '../../constants/routes';
@@ -15,6 +15,7 @@ function isValidEmail(email) {
 
 function SignInScreen({ navigation }) {
   const { signIn } = useApp();
+  const passwordInputRef = useRef(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -87,6 +88,8 @@ function SignInScreen({ navigation }) {
         autoCapitalize="none"
         autoComplete="email"
         autoFocus
+        blurOnSubmit={false}
+        editable={!isSubmitting}
         keyboardType="email-address"
         label="Email"
         onChangeText={value => {
@@ -95,13 +98,17 @@ function SignInScreen({ navigation }) {
             setErrorMessage('');
           }
         }}
+        onSubmitEditing={() => passwordInputRef.current?.focus()}
         placeholder="demo.a@grovy.app"
+        returnKeyType="next"
         textContentType="emailAddress"
         value={email}
       />
 
       <AuthTextField
         autoComplete="password"
+        blurOnSubmit={false}
+        editable={!isSubmitting}
         label="Password"
         onChangeText={value => {
           setPassword(value);
@@ -109,10 +116,14 @@ function SignInScreen({ navigation }) {
             setErrorMessage('');
           }
         }}
+        onSubmitEditing={handleSignIn}
         placeholder="Enter your password"
+        returnKeyType="done"
         secureTextEntry
+        submitBehavior="submit"
         textContentType="password"
         value={password}
+        ref={passwordInputRef}
       />
 
       <PrimaryButton

@@ -131,6 +131,38 @@ export const DEMO_PRODUCTS = Object.freeze(
       imageKey: 'shimlaPepper',
     },
 
+    // Dairy and Eggs
+    {
+      id: 'grovy-eggs-red-001',
+      name: 'Brown Eggs Tray',
+      slug: 'brown-eggs-tray',
+      price: 2.99,
+      category: 'Dairy and Eggs',
+      description:
+        'Farm brown eggs for breakfast, baking, and everyday fridge restocks.',
+      unit: '1 tray',
+      size: '12 pcs',
+      tags: ['dairy', 'eggs', 'breakfast'],
+      keywords: ['protein', 'baking', 'fridge'],
+      stock: 22,
+      imageKey: 'eggsRedChick',
+    },
+    {
+      id: 'grovy-eggs-white-001',
+      name: 'White Eggs Pack',
+      slug: 'white-eggs-pack',
+      price: 3.19,
+      category: 'Dairy and Eggs',
+      description:
+        'Fresh white eggs packed for omelets, baking, and daily home cooking.',
+      unit: '1 tray',
+      size: '12 pcs',
+      tags: ['dairy', 'eggs', 'breakfast'],
+      keywords: ['omelet', 'protein', 'fridge'],
+      stock: 18,
+      imageKey: 'eggsWhiteChick',
+    },
+
     // Beverages
     {
       id: 'grovy-orange-juice-001',

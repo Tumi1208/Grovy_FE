@@ -1,4 +1,5 @@
 import {
+  categoryMatchesSearch,
   normalizeSearchText,
   productMatchesSearch,
 } from '../src/utils/search';
@@ -41,5 +42,19 @@ describe('search utils', () => {
     expect(productMatchesSearch(product, 'coke')).toBe(true);
     expect(productMatchesSearch(product, 'cola')).toBe(true);
     expect(productMatchesSearch(product, 'beef')).toBe(false);
+  });
+
+  it('matches category cards across title, description, and aliases', () => {
+    const category = {
+      title: 'Dairy & eggs',
+      category: 'Dairy and Eggs',
+      description: 'Fridge basics for breakfast, baking and everyday cooking',
+      aliases: ['dairy', 'eggs', 'milk', 'cheese'],
+    };
+
+    expect(categoryMatchesSearch(category, 'dairy')).toBe(true);
+    expect(categoryMatchesSearch(category, 'breakfast')).toBe(true);
+    expect(categoryMatchesSearch(category, 'milk')).toBe(true);
+    expect(categoryMatchesSearch(category, 'meat')).toBe(false);
   });
 });

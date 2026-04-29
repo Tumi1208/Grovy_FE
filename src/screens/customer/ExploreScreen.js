@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryFallbackImage } from '../../assets/productImages';
 import CustomerBottomNav from '../../components/CustomerBottomNav';
 import DirectionalHint from '../../components/DirectionalHint';
+import ProductCard from '../../components/ProductCard';
 import ProductImage from '../../components/ProductImage';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -25,6 +26,45 @@ import {
   EXPLORE_CATEGORY_CARDS,
 } from '../../data/customerTabsData';
 import { useCart } from '../../context/CartContext';
+import { useFavourite } from '../../context/FavouriteContext';
+import { getProducts } from '../../services/productService';
+import {
+  categoryMatchesSearch,
+  productMatchesSearch,
+} from '../../utils/search';
+
+const FALLBACK_CATEGORY_COLORS = Object.freeze({
+  backgroundColor: '#F2EEE8',
+  borderColor: '#E2D8CC',
+});
+
+function normalizeLookupKey(value) {
+  return typeof value === 'string' && value.trim()
+    ? value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '')
+    : '';
+}
+
+function formatResultCount(count, singular, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function formatDerivedCategoryTitle(category = '') {
+  return category.replace(/\s+and\s+/gi, ' & ');
+}
+
+function createDerivedCategoryCard(category) {
+  return {
+    id: `derived-${normalizeLookupKey(category)}`,
+    title: formatDerivedCategoryTitle(category),
+    category,
+    description: `Browse ${category.toLowerCase()} items from the full grocery assortment.`,
+    aliases: [],
+    ...FALLBACK_CATEGORY_COLORS,
+  };
+}
 
 function SearchGlyph({ color = UI_COLORS.mutedStrong }) {
   return (
@@ -33,12 +73,6 @@ function SearchGlyph({ color = UI_COLORS.mutedStrong }) {
       <View style={[styles.searchGlyphHandle, { backgroundColor: color }]} />
     </View>
   );
-}
-
-function getCategoryCount(category) {
-  return CUSTOMER_DEMO_PRODUCTS.filter(
-    item => item.category.toLowerCase() === category.toLowerCase(),
-  ).length;
 }
 
 function ExploreCategoryCard({ card, itemCount, onPress }) {
@@ -58,7 +92,9 @@ function ExploreCategoryCard({ card, itemCount, onPress }) {
       <View style={styles.categoryCopy}>
         <View style={styles.categoryMetaRow}>
           <View style={styles.categoryCountPill}>
-            <Text style={styles.categoryCountLabel}>{itemCount} items</Text>
+            <Text style={styles.categoryCountLabel}>
+              {formatResultCount(itemCount, 'item')}
+            </Text>
           </View>
           <DirectionalHint
             chevronSize={8}
@@ -86,28 +122,131 @@ function ExploreCategoryCard({ card, itemCount, onPress }) {
 }
 
 function ExploreScreen({ navigation }) {
-  const { totalItems } = useCart();
+  const { addToCart, totalItems } = useCart();
+  const { isFavourite, toggleFavourite } = useFavourite();
+  const [products, setProducts] = useState(CUSTOMER_DEMO_PRODUCTS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProducts() {
+      if (isMounted) {
+        setIsLoading(true);
+        setErrorMessage('');
+      }
+
+      try {
+        const items = await getProducts();
+
+        if (isMounted) {
+          setProducts(items.length > 0 ? items : CUSTOMER_DEMO_PRODUCTS);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setProducts(CUSTOMER_DEMO_PRODUCTS);
+          setErrorMessage(error.message || 'Could not load this assortment.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const normalizedQuery = useMemo(
     () => searchQuery.trim().toLowerCase(),
     [searchQuery],
   );
+  const hasSearchQuery = Boolean(normalizedQuery);
 
-  const filteredCategories = useMemo(() => {
-    if (!normalizedQuery) {
+  const categoryCounts = useMemo(
+    () =>
+      products.reduce((counts, product) => {
+        const categoryKey = normalizeLookupKey(product.category);
+
+        if (categoryKey) {
+          counts[categoryKey] = (counts[categoryKey] || 0) + 1;
+        }
+
+        return counts;
+      }, {}),
+    [products],
+  );
+
+  const searchableCategories = useMemo(() => {
+    const cardsByCategory = new Map(
+      EXPLORE_CATEGORY_CARDS.map(card => [
+        normalizeLookupKey(card.category),
+        card,
+      ]),
+    );
+
+    products.forEach(product => {
+      const categoryKey = normalizeLookupKey(product.category);
+
+      if (!categoryKey || cardsByCategory.has(categoryKey)) {
+        return;
+      }
+
+      cardsByCategory.set(
+        categoryKey,
+        createDerivedCategoryCard(product.category),
+      );
+    });
+
+    return Array.from(cardsByCategory.values());
+  }, [products]);
+
+  const productMatches = useMemo(() => {
+    if (!hasSearchQuery) {
+      return [];
+    }
+
+    return products.filter(product =>
+      productMatchesSearch(product, normalizedQuery),
+    );
+  }, [hasSearchQuery, normalizedQuery, products]);
+
+  const categoryMatches = useMemo(() => {
+    if (!hasSearchQuery) {
       return EXPLORE_CATEGORY_CARDS;
     }
 
-    return EXPLORE_CATEGORY_CARDS.filter(card =>
-      `${card.title} ${card.category} ${card.description}`
-        .toLowerCase()
-        .includes(normalizedQuery),
+    return searchableCategories.filter(card =>
+      categoryMatchesSearch(card, normalizedQuery),
     );
-  }, [normalizedQuery]);
-  const hasNoCategoryResults = filteredCategories.length === 0;
+  }, [hasSearchQuery, normalizedQuery, searchableCategories]);
+
+  const visibleCategories = hasSearchQuery
+    ? categoryMatches
+    : EXPLORE_CATEGORY_CARDS;
+  const hasNoResults =
+    hasSearchQuery &&
+    productMatches.length === 0 &&
+    categoryMatches.length === 0;
+  const resultLabel = hasSearchQuery
+    ? `${formatResultCount(productMatches.length, 'product')}, ${formatResultCount(
+        categoryMatches.length,
+        'aisle',
+      )}`
+    : formatResultCount(visibleCategories.length, 'aisle');
 
   function handleClearSearch() {
     setSearchQuery('');
+  }
+
+  function getCategoryCount(category) {
+    return categoryCounts[normalizeLookupKey(category)] || 0;
   }
 
   function handleOpenCategory(card) {
@@ -117,11 +256,31 @@ function ExploreScreen({ navigation }) {
     });
   }
 
+  function handleOpenProduct(product) {
+    if (!product?.id) {
+      return;
+    }
+
+    navigation.navigate(CUSTOMER_ROUTES.PRODUCT_DETAIL, {
+      productId: product.id,
+      initialProduct: product,
+    });
+  }
+
+  function handleQuickAddToCart(product) {
+    if (!product?.id) {
+      return;
+    }
+
+    addToCart(product, 1);
+  }
+
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.title}>Explore the store</Text>
@@ -130,11 +289,31 @@ function ExploreScreen({ navigation }) {
             sections.
           </Text>
 
+          {isLoading || errorMessage ? (
+            <View
+              style={[
+                styles.statusBanner,
+                errorMessage ? styles.statusBannerWarning : null,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusBannerText,
+                  errorMessage ? styles.statusBannerTextWarning : null,
+                ]}
+              >
+                {isLoading
+                  ? 'Refreshing the latest grocery assortment.'
+                  : 'Showing the saved assortment while the catalog reconnects.'}
+              </Text>
+            </View>
+          ) : null}
+
           <View style={styles.searchBar}>
             <SearchGlyph />
             <TextInput
               onChangeText={setSearchQuery}
-              placeholder="Search aisles"
+              placeholder="Search groceries and aisles"
               placeholderTextColor={UI_COLORS.muted}
               style={styles.searchInput}
               value={searchQuery}
@@ -154,26 +333,65 @@ function ExploreScreen({ navigation }) {
           </View>
 
           <View style={styles.resultRow}>
-            <Text style={styles.resultLabel}>
-              {filteredCategories.length} aisle
-              {filteredCategories.length === 1 ? '' : 's'}
-            </Text>
+            <Text style={styles.resultLabel}>{resultLabel}</Text>
           </View>
 
-          {filteredCategories.map(card => (
-            <ExploreCategoryCard
-              card={card}
-              itemCount={getCategoryCount(card.category)}
-              key={card.id}
-              onPress={handleOpenCategory}
-            />
-          ))}
+          {hasSearchQuery && productMatches.length > 0 ? (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Products</Text>
+                <Text style={styles.sectionMeta}>
+                  {formatResultCount(productMatches.length, 'match', 'matches')}
+                </Text>
+              </View>
 
-          {hasNoCategoryResults ? (
+              <View style={styles.productGrid}>
+                {productMatches.map(product => (
+                  <ProductCard
+                    isFavourite={isFavourite(product.id)}
+                    key={product.id}
+                    onAddToCart={handleQuickAddToCart}
+                    onPress={handleOpenProduct}
+                    onToggleFavourite={toggleFavourite}
+                    product={product}
+                    style={styles.productCardCell}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {visibleCategories.length > 0 ? (
+            <>
+              {hasSearchQuery ? (
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Aisles</Text>
+                  <Text style={styles.sectionMeta}>
+                    {formatResultCount(
+                      visibleCategories.length,
+                      'match',
+                      'matches',
+                    )}
+                  </Text>
+                </View>
+              ) : null}
+
+              {visibleCategories.map(card => (
+                <ExploreCategoryCard
+                  card={card}
+                  itemCount={getCategoryCount(card.category)}
+                  key={card.id}
+                  onPress={handleOpenCategory}
+                />
+              ))}
+            </>
+          ) : null}
+
+          {hasNoResults ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateTitle}>No aisles found</Text>
+              <Text style={styles.emptyStateTitle}>No results found</Text>
               <Text style={styles.emptyStateSubtitle}>
-                Try another keyword to browse the grocery categories.
+                Try another keyword to browse groceries.
               </Text>
             </View>
           ) : null}
@@ -213,8 +431,30 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     marginTop: 8,
-    marginBottom: 24,
+    marginBottom: 18,
     maxWidth: '90%',
+  },
+  statusBanner: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 18,
+    ...UI_SHADOWS.card,
+  },
+  statusBannerWarning: {
+    backgroundColor: UI_COLORS.errorSoft,
+    borderColor: '#EBCFC8',
+  },
+  statusBannerText: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  statusBannerTextWarning: {
+    color: UI_COLORS.accentRed,
   },
   searchBar: {
     flexDirection: 'row',
@@ -285,6 +525,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 17,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  sectionMeta: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  productGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  productCardCell: {
+    width: '48%',
+    marginBottom: 16,
   },
   categoryCard: {
     borderRadius: 28,

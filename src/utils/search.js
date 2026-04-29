@@ -33,15 +33,36 @@ export function getProductSearchText(product = {}) {
     .join(' ');
 }
 
-export function productMatchesSearch(product = {}, query = '') {
+export function getCategorySearchText(category = {}) {
+  return [
+    category.title,
+    category.name,
+    category.category,
+    category.description,
+    ...normalizeSearchValues(category.aliases),
+    ...normalizeSearchValues(category.keywords),
+  ]
+    .map(normalizeSearchText)
+    .filter(Boolean)
+    .join(' ');
+}
+
+function searchTextMatchesQuery(searchableText, query = '') {
   const normalizedQuery = normalizeSearchText(query);
 
   if (!normalizedQuery) {
     return true;
   }
 
-  const searchableText = getProductSearchText(product);
   const queryTerms = normalizedQuery.split(/\s+/).filter(Boolean);
 
   return queryTerms.every(term => searchableText.includes(term));
+}
+
+export function productMatchesSearch(product = {}, query = '') {
+  return searchTextMatchesQuery(getProductSearchText(product), query);
+}
+
+export function categoryMatchesSearch(category = {}, query = '') {
+  return searchTextMatchesQuery(getCategorySearchText(category), query);
 }

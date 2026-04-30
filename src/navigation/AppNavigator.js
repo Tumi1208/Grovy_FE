@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import AppLoadingScreen from '../components/AppLoadingScreen';
 import { AUTH_ROUTES, ROOT_ROUTES } from '../constants/routes';
@@ -39,6 +39,7 @@ export function shouldShowCustomerApp({
 }
 
 function AppNavigator() {
+  const navigationContainerRef = useRef(null);
   const {
     currentUser,
     hasCompletedLocation,
@@ -71,7 +72,12 @@ function AppNavigator() {
 
   if (!navigator && canShowCustomerApp) {
     navigationKey = `${ROOT_ROUTES.CUSTOMER_FLOW}-${userScope}`;
-    navigator = <CustomerNavigator key={navigationKey} />;
+    navigator = (
+      <CustomerNavigator
+        key={navigationKey}
+        navigationRef={navigationContainerRef}
+      />
+    );
   }
 
   if (!navigator) {
@@ -90,7 +96,11 @@ function AppNavigator() {
     );
   }
 
-  return <NavigationContainer key={navigationKey}>{navigator}</NavigationContainer>;
+  return (
+    <NavigationContainer key={navigationKey} ref={navigationContainerRef}>
+      {navigator}
+    </NavigationContainer>
+  );
 }
 
 export default AppNavigator;

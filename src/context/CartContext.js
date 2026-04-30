@@ -11,6 +11,7 @@ import {
   getUserStorageScope,
   storeCart,
 } from '../services/authStorage';
+import { getCartSummary } from '../utils/cartSummary';
 
 const CartContext = createContext(null);
 
@@ -166,14 +167,11 @@ export function CartProvider({ children }) {
     storeCart(storageScope, state.items).catch(() => {});
   }, [isStorageHydrated, state.items, storageScope]);
 
-  const subtotal = state.items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0,
-  );
-  const totalItems = state.items.reduce((sum, item) => sum + item.quantity, 0);
+  const { totalItems, totalPrice: subtotal } = getCartSummary(state.items);
 
   const value = {
     items: state.items,
+    isStorageHydrated,
     subtotal,
     totalItems,
     addToCart: (product, quantity = 1) =>

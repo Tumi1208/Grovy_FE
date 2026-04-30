@@ -1,160 +1,226 @@
-import { PermissionsAndroid, Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
+import RNCalendarEvents from 'react-native-calendar-events';
 import { buildDeliveryCalendarEvent } from '../utils/buildDeliveryCalendarEvent';
 
 const CALENDAR_LIBRARY_NAME = 'react-native-calendar-events';
-const ANDROID_CALENDAR_PERMISSIONS = {
-  read: PermissionsAndroid.PERMISSIONS.READ_CALENDAR,
-  write: PermissionsAndroid.PERMISSIONS.WRITE_CALENDAR,
-};
+const SUPPORTED_PLATFORMS = new Set(['android', 'ios']);
+
+function getCalendarLibrary() {
+  if (!NativeModules?.RNCalendarEvents) {
+    return null;
+  }
+
+  if (
+    typeof RNCalendarEvents?.checkPermissions !== 'function' ||
+    typeof RNCalendarEvents?.requestPermissions !== 'function' ||
+    typeof RNCalendarEvents?.saveEvent !== 'function'
+  ) {
+    return null;
+  }
+
+  return RNCalendarEvents;
+}
+
+function normalizePermissionStatus(status) {
+  return `${status || ''}`.trim().toLowerCase();
+}
+
+function isPermissionAuthorized(status) {
+  return normalizePermissionStatus(status) === 'authorized';
+}
 
 function buildPermissionResult({
   granted,
-  readGranted,
+  message,
   reason = '',
+  status = '',
   success = true,
-  writeGranted,
 }) {
-  return {
+  const result = {
     success,
     reason,
     granted,
+    status,
     platform: Platform.OS,
-    permissions: {
-      read: readGranted,
-      write: writeGranted,
-    },
+  };
+
+  if (message) {
+    result.message = message;
+  }
+
+  return result;
+}
+
+function buildFailureResult({ eventPayload, message, reason }) {
+  const result = {
+    success: false,
+    reason,
+    eventPayload,
+  };
+
+  if (message) {
+    result.message = message;
+  }
+
+  if (reason === 'CALENDAR_LIBRARY_NOT_CONFIGURED') {
+    result.recommendedDependency = CALENDAR_LIBRARY_NAME;
+  }
+
+  return result;
+}
+
+function buildPermissionDeniedReason(status) {
+  return status === 'undetermined' ? 'PERMISSION_UNDETERMINED' : 'PERMISSION_DENIED';
+}
+
+function buildSaveEventDetails(eventPayload) {
+  return {
+    alarms: Array.isArray(eventPayload?.alarms) ? eventPayload.alarms : [],
+    description: eventPayload?.description || '',
+    endDate: eventPayload?.endDate,
+    location: eventPayload?.location || '',
+    notes: eventPayload?.notes || '',
+    startDate: eventPayload?.startDate,
   };
 }
 
-function buildPlatformUnsupportedResult() {
-  return buildPermissionResult({
-    granted: false,
-    readGranted: false,
-    reason: 'PLATFORM_NOT_SUPPORTED',
-    success: false,
-    writeGranted: false,
-  });
-}
-
-function isAndroidRuntimePermissionRequired() {
-  return Platform.OS === 'android' && Number(Platform.Version) >= 23;
-}
-
-function isPermissionGranted(status) {
-  return status === PermissionsAndroid.RESULTS.GRANTED;
-}
-
 export async function checkCalendarPermission() {
-  if (Platform.OS !== 'android') {
-    return buildPlatformUnsupportedResult();
+  if (!SUPPORTED_PLATFORMS.has(Platform.OS)) {
+    return buildPermissionResult({
+      granted: false,
+      reason: 'PLATFORM_NOT_SUPPORTED',
+      success: false,
+    });
   }
 
-  if (!isAndroidRuntimePermissionRequired()) {
+  const calendarLibrary = getCalendarLibrary();
+
+  if (!calendarLibrary) {
     return buildPermissionResult({
-      granted: true,
-      readGranted: true,
-      writeGranted: true,
+      granted: false,
+      reason: 'CALENDAR_LIBRARY_NOT_CONFIGURED',
+      success: false,
     });
   }
 
   try {
-    const [readGranted, writeGranted] = await Promise.all([
-      PermissionsAndroid.check(ANDROID_CALENDAR_PERMISSIONS.read),
-      PermissionsAndroid.check(ANDROID_CALENDAR_PERMISSIONS.write),
-    ]);
+    const status = normalizePermissionStatus(
+      await calendarLibrary.checkPermissions(false),
+    );
+    const granted = isPermissionAuthorized(status);
 
     return buildPermissionResult({
-      granted: readGranted && writeGranted,
-      readGranted,
-      writeGranted,
+      granted,
+      reason: granted ? '' : buildPermissionDeniedReason(status),
+      status,
     });
   } catch (error) {
-    return {
-      ...buildPermissionResult({
-        granted: false,
-        readGranted: false,
-        reason: 'CALENDAR_PERMISSION_CHECK_FAILED',
-        success: false,
-        writeGranted: false,
-      }),
-      errorMessage: error?.message || 'Could not check calendar permissions.',
-    };
+    return buildPermissionResult({
+      granted: false,
+      message: error?.message || 'Could not check calendar permissions.',
+      reason: 'UNKNOWN_ERROR',
+      success: false,
+    });
   }
 }
 
 export async function requestCalendarPermission() {
-  if (Platform.OS !== 'android') {
-    return buildPlatformUnsupportedResult();
+  if (!SUPPORTED_PLATFORMS.has(Platform.OS)) {
+    return buildPermissionResult({
+      granted: false,
+      reason: 'PLATFORM_NOT_SUPPORTED',
+      success: false,
+    });
   }
 
-  if (!isAndroidRuntimePermissionRequired()) {
+  const calendarLibrary = getCalendarLibrary();
+
+  if (!calendarLibrary) {
     return buildPermissionResult({
-      granted: true,
-      readGranted: true,
-      writeGranted: true,
+      granted: false,
+      reason: 'CALENDAR_LIBRARY_NOT_CONFIGURED',
+      success: false,
     });
   }
 
   try {
-    const statuses = await PermissionsAndroid.requestMultiple([
-      ANDROID_CALENDAR_PERMISSIONS.read,
-      ANDROID_CALENDAR_PERMISSIONS.write,
-    ]);
-    const readGranted = isPermissionGranted(
-      statuses[ANDROID_CALENDAR_PERMISSIONS.read],
+    const status = normalizePermissionStatus(
+      await calendarLibrary.requestPermissions(false),
     );
-    const writeGranted = isPermissionGranted(
-      statuses[ANDROID_CALENDAR_PERMISSIONS.write],
-    );
+    const granted = isPermissionAuthorized(status);
 
     return buildPermissionResult({
-      granted: readGranted && writeGranted,
-      readGranted,
-      reason: readGranted && writeGranted ? '' : 'CALENDAR_PERMISSION_DENIED',
-      writeGranted,
+      granted,
+      reason: granted ? '' : 'PERMISSION_DENIED',
+      status,
     });
   } catch (error) {
-    return {
-      ...buildPermissionResult({
-        granted: false,
-        readGranted: false,
-        reason: 'CALENDAR_PERMISSION_REQUEST_FAILED',
-        success: false,
-        writeGranted: false,
-      }),
-      errorMessage: error?.message || 'Could not request calendar permissions.',
-    };
+    return buildPermissionResult({
+      granted: false,
+      message: error?.message || 'Could not request calendar permissions.',
+      reason: 'UNKNOWN_ERROR',
+      success: false,
+    });
   }
 }
 
 export async function createDeliveryCalendarReminder(order) {
   const eventPayload = buildDeliveryCalendarEvent(order);
+  const calendarLibrary = getCalendarLibrary();
+
+  if (!calendarLibrary) {
+    return buildFailureResult({
+      eventPayload,
+      reason: 'CALENDAR_LIBRARY_NOT_CONFIGURED',
+    });
+  }
+
   const permissionResult = await checkCalendarPermission();
 
   if (!permissionResult.success) {
-    return {
-      success: false,
-      reason: permissionResult.reason || 'CALENDAR_PERMISSION_UNAVAILABLE',
-      permissionResult,
+    return buildFailureResult({
       eventPayload,
-    };
+      message: permissionResult.message,
+      reason: permissionResult.reason || 'UNKNOWN_ERROR',
+    });
   }
 
   if (!permissionResult.granted) {
-    return {
-      success: false,
-      reason: 'CALENDAR_PERMISSION_NOT_GRANTED',
-      permissionResult,
-      eventPayload,
-    };
+    const requestResult = await requestCalendarPermission();
+
+    if (!requestResult.success) {
+      return buildFailureResult({
+        eventPayload,
+        message: requestResult.message,
+        reason: requestResult.reason || 'UNKNOWN_ERROR',
+      });
+    }
+
+    if (!requestResult.granted) {
+      return buildFailureResult({
+        eventPayload,
+        reason: 'PERMISSION_DENIED',
+      });
+    }
   }
 
-  // Native calendar creation is deferred until the library is added.
-  return {
-    success: false,
-    reason: 'CALENDAR_LIBRARY_NOT_CONFIGURED',
-    recommendedDependency: CALENDAR_LIBRARY_NAME,
-    permissionResult,
-    eventPayload,
-  };
+  try {
+    const eventId = await calendarLibrary.saveEvent(
+      eventPayload.title,
+      buildSaveEventDetails(eventPayload),
+      Platform.OS === 'android' ? { sync: true } : undefined,
+    );
+
+    return {
+      success: true,
+      eventId,
+      eventPayload,
+    };
+  } catch (error) {
+    return buildFailureResult({
+      eventPayload,
+      message: error?.message || 'Could not create calendar reminder.',
+      reason: 'UNKNOWN_ERROR',
+    });
+  }
 }

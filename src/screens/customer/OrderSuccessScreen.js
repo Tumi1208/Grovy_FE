@@ -8,8 +8,9 @@ import { useAccountData } from '../../context/AccountDataContext';
 
 function OrderSuccessScreen({ navigation, route }) {
   const { getOrderById } = useAccountData();
+  const routeOrder = route.params?.order || null;
   const fallbackOrderId = route.params?.orderId || '';
-  const order = getOrderById(fallbackOrderId);
+  const order = routeOrder || getOrderById(fallbackOrderId);
   const orderId = order?.id || fallbackOrderId;
 
   function handleTrackOrder() {

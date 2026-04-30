@@ -139,10 +139,21 @@ function buildEventDescription({
   lines.push(`Status: ${statusLabel}`);
 
   if (deliveryLocation) {
-    lines.push(`Delivery: ${deliveryLocation}`);
+    lines.push(`Delivery address: ${deliveryLocation}`);
   }
 
   return lines.join('\n');
+}
+
+function buildReminderAlarms(startDate) {
+  return [
+    {
+      date: new Date(
+        startDate.getTime() -
+          DEFAULT_DELIVERY_REMINDER_OFFSET_MINUTES * MINUTE_IN_MS,
+      ).toISOString(),
+    },
+  ];
 }
 
 export function buildDeliveryCalendarEvent(order = {}) {
@@ -167,6 +178,7 @@ export function buildDeliveryCalendarEvent(order = {}) {
     location: deliveryLocation || '',
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
+    alarms: buildReminderAlarms(startDate),
     reminderOffsetMinutes: DEFAULT_DELIVERY_REMINDER_OFFSET_MINUTES,
     orderReference,
   };

@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, Image, Modal, StyleSheet, Text, View } from 'react-native';
-import { createDeliveryCalendarReminder } from '../../services/calendarService';
+import React from 'react';
+import { Image, Modal, StyleSheet, Text, View } from 'react-native';
 import {
   UI_COLORS,
   UI_RADIUS,
@@ -37,73 +36,9 @@ function SummaryRow({ isLast = false, label, value }) {
   );
 }
 
-function getReminderButtonTitle(status) {
-  if (status === 'loading') {
-    return 'Adding reminder...';
-  }
-
-  if (status === 'success') {
-    return 'Reminder added';
-  }
-
-  return 'Add delivery reminder';
-}
-
 function OrderSuccessCard({ onBackToHome, onTrackOrder, order }) {
   const itemCount = getOrderItemCount(order);
   const statusLabel = normalizeOrderStatus(order?.status || 'processing');
-  const [reminderStatus, setReminderStatus] = useState('idle');
-  const isReminderActionDisabled =
-    reminderStatus === 'loading' || reminderStatus === 'success';
-
-  useEffect(() => {
-    setReminderStatus('idle');
-  }, [order?.createdAt, order?.id]);
-
-  async function handleAddReminder() {
-    if (!order || isReminderActionDisabled) {
-      return;
-    }
-
-    setReminderStatus('loading');
-
-    const result = await createDeliveryCalendarReminder(order);
-
-    if (result.success) {
-      setReminderStatus('success');
-      Alert.alert(
-        'Reminder added',
-        'Delivery reminder added to your calendar.',
-      );
-      return;
-    }
-
-    setReminderStatus('idle');
-
-    if (result.reason === 'PERMISSION_DENIED') {
-      Alert.alert(
-        'Calendar permission needed',
-        'Calendar permission is needed to add a delivery reminder.',
-      );
-      return;
-    }
-
-    if (
-      result.reason === 'CALENDAR_LIBRARY_NOT_CONFIGURED' ||
-      result.reason === 'PLATFORM_NOT_SUPPORTED'
-    ) {
-      Alert.alert(
-        'Calendar unavailable',
-        'Calendar reminder is not configured yet.',
-      );
-      return;
-    }
-
-    Alert.alert(
-      'Could not add reminder',
-      'Could not add reminder. Please try again.',
-    );
-  }
 
   return (
     <View style={styles.card}>
@@ -137,15 +72,6 @@ function OrderSuccessCard({ onBackToHome, onTrackOrder, order }) {
         </View>
       ) : null}
 
-      {order ? (
-        <PrimaryButton
-          disabled={isReminderActionDisabled}
-          onPress={handleAddReminder}
-          style={styles.secondaryButton}
-          title={getReminderButtonTitle(reminderStatus)}
-          variant="secondary"
-        />
-      ) : null}
       <PrimaryButton
         onPress={onTrackOrder}
         style={styles.secondaryButton}

@@ -16,6 +16,7 @@ import DirectionalHint from '../../components/DirectionalHint';
 import HomeProductCard, {
   HomeCategoryCard,
 } from '../../components/home/HomeProductCard';
+import ProductQuickActionsSheet from '../../components/ProductQuickActionsSheet';
 import {
   HomeBudgetModePanel,
   HomeSmartCollectionRow,
@@ -34,6 +35,7 @@ import {
 } from '../../constants/ui';
 import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
+import { useFavourite } from '../../context/FavouriteContext';
 import { buildHomeScreenData } from '../../data/homeScreenData';
 import {
   BudgetPresets,
@@ -288,7 +290,13 @@ function HomeHero({ banner, onPress }) {
   );
 }
 
-function HomeSectionRow({ cardWidth, items, onAddToCart, onOpenProduct }) {
+function HomeSectionRow({
+  cardWidth,
+  items,
+  onAddToCart,
+  onLongPressProduct,
+  onOpenProduct,
+}) {
   if (!items.length) {
     return null;
   }
@@ -310,6 +318,7 @@ function HomeSectionRow({ cardWidth, items, onAddToCart, onOpenProduct }) {
         <HomeProductCard
           imageSource={item.imageSource}
           onAddToCart={onAddToCart}
+          onLongPress={onLongPressProduct}
           onPress={onOpenProduct}
           product={item}
           style={{ width: cardWidth }}
@@ -319,7 +328,12 @@ function HomeSectionRow({ cardWidth, items, onAddToCart, onOpenProduct }) {
   );
 }
 
-function HomeGroceriesGrid({ items, onAddToCart, onOpenProduct }) {
+function HomeGroceriesGrid({
+  items,
+  onAddToCart,
+  onLongPressProduct,
+  onOpenProduct,
+}) {
   if (!items.length) {
     return null;
   }
@@ -331,6 +345,7 @@ function HomeGroceriesGrid({ items, onAddToCart, onOpenProduct }) {
           key={item.id}
           imageSource={item.imageSource}
           onAddToCart={onAddToCart}
+          onLongPress={onLongPressProduct}
           onPress={onOpenProduct}
           product={item}
           style={styles.gridProductCard}
@@ -450,11 +465,14 @@ function HomeScreen({ navigation }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedQuickActionProduct, setSelectedQuickActionProduct] =
+    useState(null);
   const [selectedBudgetPresetId, setSelectedBudgetPresetId] = useState(
     DEFAULT_BUDGET_PRESET_ID,
   );
   const { currentUser } = useApp();
   const { addToCart } = useCart();
+  const { addToFavourites, isFavourite } = useFavourite();
   const deliveryLocation =
     currentUser?.location?.shortLabel ||
     currentUser?.location?.label ||
@@ -521,6 +539,26 @@ function HomeScreen({ navigation }) {
     }
 
     addToCart(product, 1);
+  }
+
+  function handleOpenQuickActions(product) {
+    if (!product?.id) {
+      return;
+    }
+
+    setSelectedQuickActionProduct(product);
+  }
+
+  function handleCloseQuickActions() {
+    setSelectedQuickActionProduct(null);
+  }
+
+  function handleAddToFavourite(product) {
+    if (!product?.id) {
+      return;
+    }
+
+    addToFavourites(product);
   }
 
   function handleAddProductCollection(
@@ -756,6 +794,7 @@ function HomeScreen({ navigation }) {
                   <HomeGroceriesGrid
                     items={searchResults}
                     onAddToCart={handleQuickAddToCart}
+                    onLongPressProduct={handleOpenQuickActions}
                     onOpenProduct={handleOpenProduct}
                   />
                 </View>
@@ -847,6 +886,7 @@ function HomeScreen({ navigation }) {
                           cardWidth={horizontalCardWidth}
                           items={homeData.exclusiveOffer}
                           onAddToCart={handleQuickAddToCart}
+                          onLongPressProduct={handleOpenQuickActions}
                           onOpenProduct={handleOpenProduct}
                         />
                       </View>
@@ -882,6 +922,7 @@ function HomeScreen({ navigation }) {
                           cardWidth={horizontalCardWidth}
                           items={homeData.bestSelling}
                           onAddToCart={handleQuickAddToCart}
+                          onLongPressProduct={handleOpenQuickActions}
                           onOpenProduct={handleOpenProduct}
                         />
                       </View>
@@ -898,6 +939,7 @@ function HomeScreen({ navigation }) {
                       <HomeGroceriesGrid
                         items={homeData.groceries}
                         onAddToCart={handleQuickAddToCart}
+                        onLongPressProduct={handleOpenQuickActions}
                         onOpenProduct={handleOpenProduct}
                       />
                     </View>
@@ -916,6 +958,18 @@ function HomeScreen({ navigation }) {
           )}
         </ScrollView>
       </View>
+      <ProductQuickActionsSheet
+        isFavourite={Boolean(
+          selectedQuickActionProduct?.id &&
+            isFavourite(selectedQuickActionProduct.id),
+        )}
+        onAddToCart={handleQuickAddToCart}
+        onAddToFavourite={handleAddToFavourite}
+        onClose={handleCloseQuickActions}
+        onViewDetails={handleOpenProduct}
+        product={selectedQuickActionProduct}
+        visible={Boolean(selectedQuickActionProduct)}
+      />
     </SafeAreaView>
   );
 }

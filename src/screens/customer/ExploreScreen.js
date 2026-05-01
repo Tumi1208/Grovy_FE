@@ -5,6 +5,7 @@ import { getCategoryFallbackImage } from '../../assets/productImages';
 import DirectionalHint from '../../components/DirectionalHint';
 import ProductCard from '../../components/ProductCard';
 import ProductImage from '../../components/ProductImage';
+import ProductQuickActionsSheet from '../../components/ProductQuickActionsSheet';
 import ScalePressable from '../../components/ScalePressable';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -117,11 +118,13 @@ function ExploreCategoryCard({ card, itemCount, onPress }) {
 
 function ExploreScreen({ navigation }) {
   const { addToCart } = useCart();
-  const { isFavourite, toggleFavourite } = useFavourite();
+  const { addToFavourites, isFavourite, toggleFavourite } = useFavourite();
   const [products, setProducts] = useState(CUSTOMER_DEMO_PRODUCTS);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedQuickActionProduct, setSelectedQuickActionProduct] =
+    useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -269,6 +272,26 @@ function ExploreScreen({ navigation }) {
     addToCart(product, 1);
   }
 
+  function handleOpenQuickActions(product) {
+    if (!product?.id) {
+      return;
+    }
+
+    setSelectedQuickActionProduct(product);
+  }
+
+  function handleCloseQuickActions() {
+    setSelectedQuickActionProduct(null);
+  }
+
+  function handleAddToFavourite(product) {
+    if (!product?.id) {
+      return;
+    }
+
+    addToFavourites(product);
+  }
+
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
@@ -345,6 +368,7 @@ function ExploreScreen({ navigation }) {
                     isFavourite={isFavourite(product.id)}
                     key={product.id}
                     onAddToCart={handleQuickAddToCart}
+                    onLongPress={handleOpenQuickActions}
                     onPress={handleOpenProduct}
                     onToggleFavourite={toggleFavourite}
                     product={product}
@@ -391,6 +415,18 @@ function ExploreScreen({ navigation }) {
           ) : null}
         </ScrollView>
       </View>
+      <ProductQuickActionsSheet
+        isFavourite={Boolean(
+          selectedQuickActionProduct?.id &&
+            isFavourite(selectedQuickActionProduct.id),
+        )}
+        onAddToCart={handleQuickAddToCart}
+        onAddToFavourite={handleAddToFavourite}
+        onClose={handleCloseQuickActions}
+        onViewDetails={handleOpenProduct}
+        product={selectedQuickActionProduct}
+        visible={Boolean(selectedQuickActionProduct)}
+      />
     </SafeAreaView>
   );
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import DirectionalHint from '../DirectionalHint';
 import ProductImage from '../ProductImage';
@@ -15,17 +15,35 @@ import ScalePressable from '../ScalePressable';
 function HomeProductCard({
   imageSource,
   onAddToCart,
+  onLongPress,
   onPress,
   product,
   style,
 }) {
+  const longPressTriggeredRef = useRef(false);
   const subtitle = getProductSubtitle(product);
   const isAvailable = product?.stock > 0;
+
+  function handleCardPress() {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
+
+    onPress?.(product);
+  }
+
+  function handleCardLongPress() {
+    longPressTriggeredRef.current = true;
+    onLongPress?.(product);
+  }
 
   return (
     <ScalePressable
       android_ripple={{ color: '#F2ECE4' }}
-      onPress={() => onPress?.(product)}
+      delayLongPress={260}
+      onLongPress={handleCardLongPress}
+      onPress={handleCardPress}
       pressScale={0.992}
       style={({ pressed }) => [
         styles.card,

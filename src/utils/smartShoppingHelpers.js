@@ -395,40 +395,54 @@ export function calculateCartHealth(cartItems) {
 
   const positives = [];
   const suggestions = [];
+  const presentGroups = [];
+  const missingGroups = [];
 
   if (hasFruit) {
+    presentGroups.push('fruit');
     positives.push('Includes fruit for easy snacks and breakfast.');
   } else {
+    missingGroups.push('fruit');
     suggestions.push('Add fruit for quick snacks.');
   }
 
   if (hasVegetables) {
+    presentGroups.push('vegetable');
     positives.push('Includes vegetables for cooking variety.');
   } else {
+    missingGroups.push('vegetable');
     suggestions.push('Add vegetables for color and meal balance.');
   }
 
   if (hasProtein) {
+    presentGroups.push('protein');
     positives.push('Includes protein for more filling meals.');
   } else {
+    missingGroups.push('protein');
     suggestions.push('Add eggs, chicken, or beef for protein.');
   }
 
   if (hasPantry) {
+    presentGroups.push('pantry');
     positives.push('Includes pantry basics for daily meals.');
   } else {
+    missingGroups.push('pantry');
     suggestions.push('Add rice, noodles, or pulses for daily meals.');
   }
 
   if (hasBeverageOrDairy) {
+    presentGroups.push('beverageOrDairy');
     positives.push('Includes beverage or dairy support items.');
   } else {
+    missingGroups.push('beverageOrDairy');
     suggestions.push('Add juice or dairy for breakfast pairings.');
   }
 
   return {
     score,
     label: score >= 80 ? 'Balanced basket' : score >= 50 ? 'Good start' : 'Needs variety',
+    presentGroups,
+    missingGroups,
     positives,
     suggestions,
   };

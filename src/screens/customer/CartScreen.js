@@ -7,6 +7,7 @@ import {
 } from '../../assets/productImages';
 import ProductImage from '../../components/ProductImage';
 import ScalePressable from '../../components/ScalePressable';
+import CartHealthCard from '../../components/cart/CartHealthCard';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -169,6 +170,8 @@ function CartScreen({ navigation }) {
               contentContainerStyle={styles.content}
               showsVerticalScrollIndicator={false}
             >
+              <CartHealthCard items={items} />
+
               {items.map(item => (
                 <CartItemRow
                   item={item}
@@ -218,6 +221,9 @@ function CartScreen({ navigation }) {
               <Text style={styles.emptyTitle}>Your cart is empty</Text>
               <Text style={styles.emptySubtitle}>
                 Add a few groceries to start building your order.
+              </Text>
+              <Text style={styles.emptyHint}>
+                Add items to see your basket score.
               </Text>
               <ScalePressable
                 android_ripple={{ color: '#3D5F39' }}
@@ -565,6 +571,12 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyHint: {
+    color: UI_COLORS.successText,
+    ...UI_TYPOGRAPHY.meta,
     marginBottom: 22,
     textAlign: 'center',
   },

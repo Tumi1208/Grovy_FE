@@ -79,6 +79,10 @@ describe('smartShoppingHelpers', () => {
 
     expect(cartHealth.score).toBe(70);
     expect(cartHealth.label).toBe('Good start');
+    expect(cartHealth.presentGroups).toEqual(
+      expect.arrayContaining(['fruit', 'pantry', 'protein', 'beverageOrDairy']),
+    );
+    expect(cartHealth.missingGroups).toContain('vegetable');
     expect(cartHealth.positives).toEqual(
       expect.arrayContaining([
         'Includes fruit for easy snacks and breakfast.',

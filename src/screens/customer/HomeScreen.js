@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,12 +11,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import CustomerBottomNav from '../../components/CustomerBottomNav';
 import DirectionalHint from '../../components/DirectionalHint';
 import HomeProductCard, {
   HomeCategoryCard,
 } from '../../components/home/HomeProductCard';
 import PrimaryButton from '../../components/PrimaryButton';
+import ScalePressable from '../../components/ScalePressable';
 import { getProductImage } from '../../constants/productImages';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -80,10 +79,11 @@ function SectionHeader({ onSeeAll, title }) {
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {onSeeAll ? (
-        <Pressable
+        <ScalePressable
           android_ripple={{ color: '#E6EEE3' }}
           hitSlop={6}
           onPress={onSeeAll}
+          pressScale={0.97}
           style={({ pressed }) => [
             styles.sectionLinkButton,
             pressed && styles.sectionLinkButtonPressed,
@@ -97,7 +97,7 @@ function SectionHeader({ onSeeAll, title }) {
               mode="plain"
             />
           </View>
-        </Pressable>
+        </ScalePressable>
       ) : null}
     </View>
   );
@@ -138,9 +138,10 @@ function HomeStatusBanner({ errorMessage, isLoading }) {
 
 function HomeHero({ banner, onPress }) {
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#E7DAC8' }}
       onPress={onPress}
+      pressScale={0.992}
       style={({ pressed }) => [styles.heroCard, pressed && styles.heroPressed]}
     >
       <View style={styles.heroCircleLarge} />
@@ -176,7 +177,7 @@ function HomeHero({ banner, onPress }) {
         source={banner.imageSource}
         style={styles.heroImage}
       />
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -343,7 +344,7 @@ function HomeScreen({ navigation }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const { currentUser } = useApp();
-  const { addToCart, totalItems } = useCart();
+  const { addToCart } = useCart();
   const deliveryLocation =
     currentUser?.location?.shortLabel ||
     currentUser?.location?.label ||
@@ -506,17 +507,18 @@ function HomeScreen({ navigation }) {
               value={searchQuery}
             />
             {searchQuery.trim() ? (
-              <Pressable
+              <ScalePressable
                 android_ripple={{ color: '#E7DED5' }}
                 hitSlop={6}
                 onPress={handleResetFilters}
+                pressScale={0.94}
                 style={({ pressed }) => [
                   styles.clearButton,
                   pressed && styles.clearButtonPressed,
                 ]}
               >
                 <Text style={styles.clearButtonLabel}>×</Text>
-              </Pressable>
+              </ScalePressable>
             ) : null}
           </View>
 
@@ -533,10 +535,11 @@ function HomeScreen({ navigation }) {
                         {`${searchResultsLabel} for "${trimmedSearchQuery}"`}
                       </Text>
                     </View>
-                    <Pressable
+                    <ScalePressable
                       android_ripple={{ color: '#E6EEE3' }}
                       hitSlop={6}
                       onPress={handleResetFilters}
+                      pressScale={0.97}
                       style={({ pressed }) => [
                         styles.searchResultsClearButton,
                         pressed && styles.searchResultsClearButtonPressed,
@@ -545,7 +548,7 @@ function HomeScreen({ navigation }) {
                       <Text style={styles.searchResultsClearLabel}>
                         Clear Search
                       </Text>
-                    </Pressable>
+                    </ScalePressable>
                   </View>
                   <HomeGroceriesGrid
                     items={searchResults}
@@ -647,13 +650,6 @@ function HomeScreen({ navigation }) {
           )}
         </ScrollView>
 
-        <View style={styles.bottomNavWrap}>
-          <CustomerBottomNav
-            activeRoute={CUSTOMER_ROUTES.HOME}
-            navigation={navigation}
-            totalItems={totalItems}
-          />
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -1060,12 +1056,6 @@ const styles = StyleSheet.create({
   },
   emptySpacer: {
     height: UI_SPACING.md,
-  },
-  bottomNavWrap: {
-    position: 'absolute',
-    left: UI_LAYOUT.homeScreenPadding,
-    right: UI_LAYOUT.homeScreenPadding,
-    bottom: UI_LAYOUT.bottomNavBottom,
   },
 });
 

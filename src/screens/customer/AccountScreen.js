@@ -1,8 +1,8 @@
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import CustomerBottomNav from '../../components/CustomerBottomNav';
 import DirectionalHint from '../../components/DirectionalHint';
+import ScalePressable from '../../components/ScalePressable';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -30,9 +30,10 @@ const ACCOUNT_MENU_ROUTES = Object.freeze({
 
 function MenuRow({ label, onPress }) {
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#EEE7DC' }}
       onPress={onPress}
+      pressScale={0.985}
       style={({ pressed }) => [
         styles.menuRow,
         pressed && styles.menuRowPressed,
@@ -45,7 +46,7 @@ function MenuRow({ label, onPress }) {
         mode="plain"
         style={styles.menuRowIndicator}
       />
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -157,25 +158,18 @@ function AccountScreen({ navigation }) {
             ))}
           </View>
 
-          <Pressable
+          <ScalePressable
             android_ripple={{ color: '#F0E1DC' }}
             onPress={signOut}
+            pressScale={0.985}
             style={({ pressed }) => [
               styles.logoutButton,
               pressed && styles.logoutButtonPressed,
             ]}
           >
             <Text style={styles.logoutButtonLabel}>Log out</Text>
-          </Pressable>
+          </ScalePressable>
         </ScrollView>
-
-        <View style={styles.bottomNavWrap}>
-          <CustomerBottomNav
-            activeRoute={CUSTOMER_ROUTES.ACCOUNT}
-            navigation={navigation}
-            totalItems={totalItems}
-          />
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -374,12 +368,6 @@ const styles = StyleSheet.create({
   logoutButtonLabel: {
     color: UI_COLORS.accentRed,
     ...UI_TYPOGRAPHY.buttonLarge,
-  },
-  bottomNavWrap: {
-    position: 'absolute',
-    left: UI_LAYOUT.bottomNavSide,
-    right: UI_LAYOUT.bottomNavSide,
-    bottom: UI_LAYOUT.bottomNavBottom,
   },
 });
 

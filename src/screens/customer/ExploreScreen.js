@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,10 +8,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryFallbackImage } from '../../assets/productImages';
-import CustomerBottomNav from '../../components/CustomerBottomNav';
 import DirectionalHint from '../../components/DirectionalHint';
 import ProductCard from '../../components/ProductCard';
 import ProductImage from '../../components/ProductImage';
+import ScalePressable from '../../components/ScalePressable';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -77,9 +76,10 @@ function SearchGlyph({ color = UI_COLORS.mutedStrong }) {
 
 function ExploreCategoryCard({ card, itemCount, onPress }) {
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#EDE4D8' }}
       onPress={() => onPress(card)}
+      pressScale={0.992}
       style={({ pressed }) => [
         styles.categoryCard,
         {
@@ -117,12 +117,12 @@ function ExploreCategoryCard({ card, itemCount, onPress }) {
           style={styles.categoryImage}
         />
       </View>
-    </Pressable>
+    </ScalePressable>
   );
 }
 
 function ExploreScreen({ navigation }) {
-  const { addToCart, totalItems } = useCart();
+  const { addToCart } = useCart();
   const { isFavourite, toggleFavourite } = useFavourite();
   const [products, setProducts] = useState(CUSTOMER_DEMO_PRODUCTS);
   const [isLoading, setIsLoading] = useState(true);
@@ -319,16 +319,17 @@ function ExploreScreen({ navigation }) {
               value={searchQuery}
             />
             {normalizedQuery ? (
-              <Pressable
+              <ScalePressable
                 android_ripple={{ color: '#ECE2D7' }}
                 onPress={handleClearSearch}
+                pressScale={0.94}
                 style={({ pressed }) => [
                   styles.clearSearchButton,
                   pressed && styles.clearSearchButtonPressed,
                 ]}
               >
                 <Text style={styles.clearSearchButtonLabel}>×</Text>
-              </Pressable>
+              </ScalePressable>
             ) : null}
           </View>
 
@@ -397,13 +398,6 @@ function ExploreScreen({ navigation }) {
           ) : null}
         </ScrollView>
 
-        <View style={styles.bottomNavWrap}>
-          <CustomerBottomNav
-            activeRoute={CUSTOMER_ROUTES.EXPLORE}
-            navigation={navigation}
-            totalItems={totalItems}
-          />
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -564,7 +558,7 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   categoryCardPressed: {
-    opacity: 0.96,
+    opacity: 0.98,
   },
   categoryCopy: {
     flex: 1,
@@ -640,12 +634,6 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     textAlign: 'center',
-  },
-  bottomNavWrap: {
-    position: 'absolute',
-    left: UI_LAYOUT.bottomNavSide,
-    right: UI_LAYOUT.bottomNavSide,
-    bottom: UI_LAYOUT.bottomNavBottom,
   },
 });
 

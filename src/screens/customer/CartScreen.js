@@ -1,12 +1,12 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   defaultProductImage,
   getProductImageSource,
 } from '../../assets/productImages';
-import CustomerBottomNav from '../../components/CustomerBottomNav';
 import ProductImage from '../../components/ProductImage';
+import ScalePressable from '../../components/ScalePressable';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -21,10 +21,11 @@ import { getProductSubtitle } from '../../utils/productPresentation';
 
 function QuantityButton({ disabled = false, label, onPress }) {
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#EEE6DC' }}
       disabled={disabled}
       onPress={onPress}
+      pressScale={0.94}
       style={({ pressed }) => [
         styles.quantityButton,
         disabled && styles.quantityButtonDisabled,
@@ -39,7 +40,7 @@ function QuantityButton({ disabled = false, label, onPress }) {
       >
         {label}
       </Text>
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -91,17 +92,18 @@ function CartItemRow({ item, onDecrease, onIncrease, onRemove }) {
           </View>
         </View>
 
-        <Pressable
+        <ScalePressable
           accessibilityLabel={`Remove ${item.product.name}`}
           android_ripple={{ color: '#EEE6DC' }}
           onPress={() => onRemove(item.product.id)}
+          pressScale={0.92}
           style={({ pressed }) => [
             styles.removeButton,
             pressed && styles.removeButtonPressed,
           ]}
         >
           <Text style={styles.removeButtonLabel}>×</Text>
-        </Pressable>
+        </ScalePressable>
       </View>
 
       <View style={styles.itemFooter}>
@@ -189,16 +191,17 @@ function CartScreen({ navigation }) {
                 </Text>
               </View>
 
-              <Pressable
+              <ScalePressable
                 android_ripple={{ color: '#3D5F39' }}
                 onPress={() => navigation.navigate(CUSTOMER_ROUTES.CHECKOUT)}
+                pressScale={0.985}
                 style={({ pressed }) => [
                   styles.checkoutButton,
                   pressed && styles.checkoutButtonPressed,
                 ]}
               >
                 <Text style={styles.checkoutButtonLabel}>Checkout</Text>
-              </Pressable>
+              </ScalePressable>
             </View>
           </>
         ) : (
@@ -216,9 +219,10 @@ function CartScreen({ navigation }) {
               <Text style={styles.emptySubtitle}>
                 Add a few groceries to start building your order.
               </Text>
-              <Pressable
+              <ScalePressable
                 android_ripple={{ color: '#3D5F39' }}
                 onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
+                pressScale={0.985}
                 style={({ pressed }) => [
                   styles.emptyStateButton,
                   pressed && styles.emptyStateButtonPressed,
@@ -227,18 +231,11 @@ function CartScreen({ navigation }) {
                 <Text style={styles.emptyStateButtonLabel}>
                   Continue shopping
                 </Text>
-              </Pressable>
+              </ScalePressable>
             </View>
           </View>
         )}
 
-        <View style={styles.bottomNavWrap}>
-          <CustomerBottomNav
-            activeRoute={CUSTOMER_ROUTES.CART}
-            navigation={navigation}
-            totalItems={totalItems}
-          />
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -404,7 +401,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   removeButtonPressed: {
-    opacity: 0.8,
+    opacity: 0.9,
   },
   removeButtonLabel: {
     color: UI_COLORS.mutedStrong,
@@ -438,7 +435,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quantityButtonPressed: {
-    opacity: 0.9,
+    opacity: 0.95,
   },
   quantityButtonDisabled: {
     opacity: 0.45,
@@ -588,12 +585,6 @@ const styles = StyleSheet.create({
     color: UI_COLORS.surface,
     ...UI_TYPOGRAPHY.buttonLarge,
     textAlign: 'center',
-  },
-  bottomNavWrap: {
-    position: 'absolute',
-    left: UI_LAYOUT.bottomNavSide,
-    right: UI_LAYOUT.bottomNavSide,
-    bottom: UI_LAYOUT.bottomNavBottom,
   },
 });
 

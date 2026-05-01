@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import {
 import OrderSuccessModal from '../../components/orders/OrderSuccessModal';
 import ChevronIcon from '../../components/icons/ChevronIcon';
 import ProductImage from '../../components/ProductImage';
+import ScalePressable from '../../components/ScalePressable';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -77,16 +77,17 @@ function SummaryRow({
 
 function HeaderButton({ children, onPress }) {
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#EEE6DC' }}
       onPress={onPress}
+      pressScale={0.94}
       style={({ pressed }) => [
         styles.headerButton,
         pressed && styles.headerButtonPressed,
       ]}
     >
       {children}
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -245,16 +246,17 @@ function CheckoutScreen({ navigation }) {
             <Text style={styles.emptySubtitle}>
               Return to your cart before placing an order.
             </Text>
-            <Pressable
+            <ScalePressable
               android_ripple={{ color: '#3D5F39' }}
               onPress={() => navigation.navigate(CUSTOMER_ROUTES.CART)}
+              pressScale={0.985}
               style={({ pressed }) => [
                 styles.placeOrderButton,
                 pressed && styles.placeOrderButtonPressed,
               ]}
             >
               <Text style={styles.placeOrderButtonLabel}>Back to cart</Text>
-            </Pressable>
+            </ScalePressable>
           </View>
         </View>
       </SafeAreaView>
@@ -403,10 +405,11 @@ function CheckoutScreen({ navigation }) {
             </Text>
           </View>
 
-          <Pressable
+          <ScalePressable
             android_ripple={{ color: '#3D5F39' }}
             disabled={isSubmitting}
             onPress={handlePlaceOrder}
+            pressScale={0.985}
             style={({ pressed }) => [
               styles.placeOrderButton,
               isSubmitting && styles.placeOrderButtonDisabled,
@@ -418,7 +421,7 @@ function CheckoutScreen({ navigation }) {
             ) : (
               <Text style={styles.placeOrderButtonLabel}>Place order</Text>
             )}
-          </Pressable>
+          </ScalePressable>
         </View>
 
         <OrderSuccessModal

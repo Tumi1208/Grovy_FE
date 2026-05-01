@@ -1,5 +1,13 @@
-import React from 'react';
-import { Image, Modal, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   UI_COLORS,
   UI_RADIUS,
@@ -14,6 +22,8 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import PrimaryButton from '../PrimaryButton';
 
 const ORDER_SUCCESS_ILLUSTRATION = require('../../assets/illustrations/order_success.png');
+const MODAL_ENTER_DURATION_MS = 220;
+const MODAL_EXIT_DURATION_MS = 170;
 
 function getOrderItemCount(order) {
   if (typeof order?.itemCount === 'number') {
@@ -36,12 +46,17 @@ function SummaryRow({ isLast = false, label, value }) {
   );
 }
 
-function OrderSuccessCard({ onBackToHome, onTrackOrder, order }) {
+function OrderSuccessCard({
+  isDisabled = false,
+  onBackToHome,
+  onTrackOrder,
+  order,
+}) {
   const itemCount = getOrderItemCount(order);
   const statusLabel = normalizeOrderStatus(order?.status || 'processing');
 
   return (
-    <View style={styles.card}>
+    <View>
       <View style={styles.illustrationWrap}>
         <Image
           resizeMode="contain"
@@ -73,12 +88,17 @@ function OrderSuccessCard({ onBackToHome, onTrackOrder, order }) {
       ) : null}
 
       <PrimaryButton
+        disabled={isDisabled}
         onPress={onTrackOrder}
         style={styles.secondaryButton}
         title="Track order"
         variant="secondary"
       />
-      <PrimaryButton onPress={onBackToHome} title="Back to Home" />
+      <PrimaryButton
+        disabled={isDisabled}
+        onPress={onBackToHome}
+        title="Back to Home"
+      />
     </View>
   );
 }
@@ -91,29 +111,175 @@ function OrderSuccessModal({
   presentation = 'modal',
   visible = false,
 }) {
+  const [isMounted, setIsMounted] = useState(
+    presentation === 'screen' ? true : visible,
+  );
+  const [isClosing, setIsClosing] = useState(false);
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const cardScale = useRef(new Animated.Value(0.94)).current;
+  const cardTranslateY = useRef(new Animated.Value(14)).current;
+
+  const animateCard = useCallback(
+    ({ isEntering, onComplete } = {}) => {
+      Animated.parallel([
+        Animated.timing(overlayOpacity, {
+          toValue: isEntering ? 1 : 0,
+          duration: isEntering
+            ? MODAL_ENTER_DURATION_MS
+            : MODAL_EXIT_DURATION_MS,
+          easing: isEntering
+            ? Easing.out(Easing.quad)
+            : Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardOpacity, {
+          toValue: isEntering ? 1 : 0,
+          duration: isEntering
+            ? MODAL_ENTER_DURATION_MS
+            : MODAL_EXIT_DURATION_MS,
+          easing: isEntering
+            ? Easing.out(Easing.cubic)
+            : Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardScale, {
+          toValue: isEntering ? 1 : 0.96,
+          duration: isEntering
+            ? MODAL_ENTER_DURATION_MS
+            : MODAL_EXIT_DURATION_MS,
+          easing: isEntering
+            ? Easing.out(Easing.back(1.1))
+            : Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardTranslateY, {
+          toValue: isEntering ? 0 : 10,
+          duration: isEntering
+            ? MODAL_ENTER_DURATION_MS
+            : MODAL_EXIT_DURATION_MS,
+          easing: isEntering
+            ? Easing.out(Easing.cubic)
+            : Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        onComplete?.();
+      });
+    },
+    [cardOpacity, cardScale, cardTranslateY, overlayOpacity],
+  );
+
+  useEffect(() => {
+    if (presentation === 'screen') {
+      animateCard({ isEntering: true });
+      return;
+    }
+
+    if (visible) {
+      setIsMounted(true);
+      setIsClosing(false);
+      requestAnimationFrame(() => {
+        animateCard({ isEntering: true });
+      });
+      return;
+    }
+
+    if (isMounted) {
+      animateCard({
+        isEntering: false,
+        onComplete: () => {
+          setIsMounted(false);
+          setIsClosing(false);
+        },
+      });
+    }
+  }, [animateCard, isMounted, presentation, visible]);
+
+  const handleAnimatedAction = useCallback(
+    callback => {
+      if (isClosing) {
+        return;
+      }
+
+      setIsClosing(true);
+      animateCard({
+        isEntering: false,
+        onComplete: () => {
+          if (presentation !== 'screen') {
+            setIsMounted(false);
+          }
+
+          setIsClosing(false);
+          callback?.();
+        },
+      });
+    },
+    [animateCard, isClosing, presentation],
+  );
+
+  const handleBackToHomePress = useCallback(() => {
+    handleAnimatedAction(onBackToHome);
+  }, [handleAnimatedAction, onBackToHome]);
+
+  const handleTrackOrderPress = useCallback(() => {
+    handleAnimatedAction(onTrackOrder);
+  }, [handleAnimatedAction, onTrackOrder]);
+
+  const handleRequestClose = useCallback(() => {
+    handleAnimatedAction(onRequestClose || onBackToHome || (() => null));
+  }, [handleAnimatedAction, onBackToHome, onRequestClose]);
+
+  const animatedCardStyle = useMemo(
+    () => ({
+      opacity: cardOpacity,
+      transform: [{ translateY: cardTranslateY }, { scale: cardScale }],
+    }),
+    [cardOpacity, cardScale, cardTranslateY],
+  );
+  const animatedOverlayStyle = useMemo(
+    () => ({
+      opacity: overlayOpacity,
+    }),
+    [overlayOpacity],
+  );
   const content = (
     <View style={styles.centeredContent}>
-      <OrderSuccessCard
-        onBackToHome={onBackToHome}
-        onTrackOrder={onTrackOrder}
-        order={order}
-      />
+      <Animated.View style={[styles.card, animatedCardStyle]}>
+        <OrderSuccessCard
+          isDisabled={isClosing}
+          onBackToHome={handleBackToHomePress}
+          onTrackOrder={handleTrackOrderPress}
+          order={order}
+        />
+      </Animated.View>
     </View>
   );
 
   if (presentation === 'screen') {
-    return content;
+    return (
+      <View style={styles.screenCanvas}>
+        <Animated.View style={[styles.screenGlow, animatedOverlayStyle]} />
+        {content}
+      </View>
+    );
+  }
+
+  if (!isMounted) {
+    return null;
   }
 
   return (
     <Modal
-      animationType="fade"
-      onRequestClose={onRequestClose || onBackToHome || (() => null)}
+      animationType="none"
+      onRequestClose={handleRequestClose}
       statusBarTranslucent
       transparent
-      visible={visible}
+      visible={isMounted}
     >
-      <View style={styles.overlay}>{content}</View>
+      <Animated.View style={[styles.overlay, animatedOverlayStyle]}>
+        {content}
+      </Animated.View>
     </Modal>
   );
 }
@@ -122,6 +288,13 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  screenCanvas: {
+    flex: 1,
+  },
+  screenGlow: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(84, 122, 78, 0.06)',
   },
   centeredContent: {
     flex: 1,

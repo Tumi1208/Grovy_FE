@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import DirectionalHint from '../DirectionalHint';
 import ProductImage from '../ProductImage';
 import {
@@ -10,6 +10,7 @@ import {
 } from '../../constants/ui';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getProductSubtitle } from '../../utils/productPresentation';
+import ScalePressable from '../ScalePressable';
 
 function HomeProductCard({
   imageSource,
@@ -22,9 +23,10 @@ function HomeProductCard({
   const isAvailable = product?.stock > 0;
 
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#F2ECE4' }}
       onPress={() => onPress?.(product)}
+      pressScale={0.992}
       style={({ pressed }) => [
         styles.card,
         style,
@@ -66,7 +68,7 @@ function HomeProductCard({
           </Text>
         </View>
 
-        <Pressable
+        <ScalePressable
           android_ripple={{ color: '#3E6540' }}
           disabled={!isAvailable}
           hitSlop={6}
@@ -74,6 +76,7 @@ function HomeProductCard({
             event.stopPropagation();
             onAddToCart?.(product);
           }}
+          pressScale={0.94}
           style={({ pressed }) => [
             styles.addButton,
             !isAvailable && styles.addButtonDisabled,
@@ -81,17 +84,18 @@ function HomeProductCard({
           ]}
         >
           <Text style={styles.addButtonLabel}>+</Text>
-        </Pressable>
+        </ScalePressable>
       </View>
-    </Pressable>
+    </ScalePressable>
   );
 }
 
 export function HomeCategoryCard({ category, onPress, style }) {
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#EDE5DB' }}
       onPress={() => onPress?.(category)}
+      pressScale={0.992}
       style={({ pressed }) => [
         styles.categoryCard,
         {
@@ -135,7 +139,7 @@ export function HomeCategoryCard({ category, onPress, style }) {
           style={styles.categoryImage}
         />
       </View>
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -151,7 +155,7 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   cardPressed: {
-    opacity: 0.96,
+    opacity: 0.98,
   },
   imageWrap: {
     height: 136,
@@ -231,6 +235,7 @@ const styles = StyleSheet.create({
   },
   addButtonPressed: {
     backgroundColor: UI_COLORS.accentGreenPressed,
+    opacity: 0.96,
   },
   addButtonLabel: {
     color: UI_COLORS.surface,
@@ -250,7 +255,7 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   categoryCardPressed: {
-    opacity: 0.95,
+    opacity: 0.98,
   },
   categoryCopy: {
     flex: 1,

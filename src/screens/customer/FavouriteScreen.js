@@ -1,10 +1,10 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProductImageSource } from '../../assets/productImages';
-import CustomerBottomNav from '../../components/CustomerBottomNav';
 import DirectionalHint from '../../components/DirectionalHint';
 import ProductImage from '../../components/ProductImage';
+import ScalePressable from '../../components/ScalePressable';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -21,7 +21,7 @@ import { getProductSubtitle } from '../../utils/productPresentation';
 const EMPTY_FAVOURITE_IMAGE = require('../../assets/images/products/fruit-and-veggie-heart-scaled.png');
 
 function FavouriteScreen({ navigation }) {
-  const { addToCart, totalItems } = useCart();
+  const { addToCart } = useCart();
   const { favourites, removeFromFavourites } = useFavourite();
 
   function handleOpenProduct(product) {
@@ -67,24 +67,26 @@ function FavouriteScreen({ navigation }) {
               <Text style={styles.emptySubtitle}>
                 Tap the heart on a product to keep it here for later.
               </Text>
-              <Pressable
+              <ScalePressable
                 android_ripple={{ color: '#3D5F39' }}
                 onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
+                pressScale={0.985}
                 style={({ pressed }) => [
                   styles.primaryButton,
                   pressed && styles.primaryButtonPressed,
                 ]}
               >
                 <Text style={styles.primaryButtonLabel}>Go to shop</Text>
-              </Pressable>
+              </ScalePressable>
             </View>
           ) : null}
 
           {favourites.map(product => (
-            <Pressable
+            <ScalePressable
               android_ripple={{ color: '#EEE7DC' }}
               key={product.id}
               onPress={() => handleOpenProduct(product)}
+              pressScale={0.992}
               style={({ pressed }) => [
                 styles.rowCard,
                 pressed && styles.rowPressed,
@@ -144,46 +146,40 @@ function FavouriteScreen({ navigation }) {
                 </View>
 
                 <View style={styles.actions}>
-                  <Pressable
+                  <ScalePressable
                     android_ripple={{ color: '#3D5F39' }}
                     onPress={event => {
                       event.stopPropagation();
                       addToCart(product, 1);
                     }}
+                    pressScale={0.96}
                     style={({ pressed }) => [
                       styles.addButton,
                       pressed && styles.addButtonPressed,
                     ]}
                   >
                     <Text style={styles.addButtonLabel}>Quick add</Text>
-                  </Pressable>
+                  </ScalePressable>
 
-                  <Pressable
+                  <ScalePressable
                     android_ripple={{ color: '#EEE7DC' }}
                     onPress={event => {
                       event.stopPropagation();
                       removeFromFavourites(product.id);
                     }}
+                    pressScale={0.94}
                     style={({ pressed }) => [
                       styles.removeButton,
                       pressed && styles.removeButtonPressed,
                     ]}
                   >
                     <Text style={styles.removeButtonIcon}>♥</Text>
-                  </Pressable>
+                  </ScalePressable>
                 </View>
               </View>
-            </Pressable>
+            </ScalePressable>
           ))}
         </ScrollView>
-
-        <View style={styles.bottomNavWrap}>
-          <CustomerBottomNav
-            activeRoute={CUSTOMER_ROUTES.FAVOURITE}
-            navigation={navigation}
-            totalItems={totalItems}
-          />
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -323,7 +319,7 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   rowPressed: {
-    opacity: 0.96,
+    opacity: 0.98,
   },
   rowTop: {
     flexDirection: 'row',
@@ -446,18 +442,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   removeButtonPressed: {
-    opacity: 0.84,
+    opacity: 0.9,
   },
   removeButtonIcon: {
     color: UI_COLORS.accentRed,
     fontSize: 16,
     lineHeight: 16,
-  },
-  bottomNavWrap: {
-    position: 'absolute',
-    left: UI_LAYOUT.bottomNavSide,
-    right: UI_LAYOUT.bottomNavSide,
-    bottom: UI_LAYOUT.bottomNavBottom,
   },
 });
 

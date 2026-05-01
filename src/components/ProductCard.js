@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import ProductImage from './ProductImage';
 import {
   UI_COLORS,
@@ -11,6 +11,7 @@ import {
 import { getProductImage } from '../constants/productImages';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getProductSubtitle } from '../utils/productPresentation';
+import ScalePressable from './ScalePressable';
 
 function ProductCard({
   isFavourite = false,
@@ -25,9 +26,10 @@ function ProductCard({
   const isAvailable = product?.stock > 0;
 
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#F2ECE4' }}
       onPress={() => onPress(product)}
+      pressScale={0.992}
       style={({ pressed }) => [
         styles.card,
         style,
@@ -41,13 +43,14 @@ function ProductCard({
           </Text>
         </View>
 
-        <Pressable
+        <ScalePressable
           android_ripple={{ color: '#F0E6DE' }}
           hitSlop={6}
           onPress={event => {
             event.stopPropagation();
             onToggleFavourite?.(product);
           }}
+          pressScale={0.94}
           style={({ pressed }) => [
             styles.favouriteButton,
             isFavourite && styles.favouriteButtonActive,
@@ -62,7 +65,7 @@ function ProductCard({
           >
             {isFavourite ? '♥' : '♡'}
           </Text>
-        </Pressable>
+        </ScalePressable>
 
         <ProductImage
           name={product.name}
@@ -93,7 +96,7 @@ function ProductCard({
         <View style={styles.footerRow}>
           <Text style={styles.price}>{formatCurrency(product.price)}</Text>
 
-          <Pressable
+          <ScalePressable
             android_ripple={{ color: '#3C6240' }}
             disabled={!isAvailable}
             hitSlop={6}
@@ -101,6 +104,7 @@ function ProductCard({
               event.stopPropagation();
               onAddToCart?.(product);
             }}
+            pressScale={0.94}
             style={({ pressed }) => [
               styles.actionBadge,
               !isAvailable && styles.actionBadgeDisabled,
@@ -108,10 +112,10 @@ function ProductCard({
             ]}
           >
             <Text style={styles.actionBadgeLabel}>+</Text>
-          </Pressable>
+          </ScalePressable>
         </View>
       </View>
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -126,7 +130,7 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   pressedCard: {
-    opacity: 0.96,
+    opacity: 0.98,
   },
   imagePanel: {
     backgroundColor: UI_COLORS.surfaceSoft,
@@ -173,7 +177,7 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.accentRedSoft,
   },
   favouriteButtonPressed: {
-    opacity: 0.88,
+    opacity: 0.92,
   },
   favouriteIcon: {
     color: UI_COLORS.muted,
@@ -238,6 +242,7 @@ const styles = StyleSheet.create({
   },
   actionBadgePressed: {
     backgroundColor: UI_COLORS.accentGreenPressed,
+    opacity: 0.96,
   },
   actionBadgeLabel: {
     color: UI_COLORS.surface,

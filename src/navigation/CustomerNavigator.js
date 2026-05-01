@@ -1,11 +1,14 @@
 import React, { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import CustomerBottomNav from '../components/CustomerBottomNav';
 import FloatingCartButton from '../components/cart/FloatingCartButton';
 import { COLORS } from '../constants/colors';
 import { CUSTOMER_ROUTES } from '../constants/routes';
+import { UI_LAYOUT } from '../constants/ui';
 import { AccountDataProvider } from '../context/AccountDataContext';
-import { CartProvider } from '../context/CartContext';
+import { CartProvider, useCart } from '../context/CartContext';
 import { FavouriteProvider } from '../context/FavouriteContext';
 import AccountScreen from '../screens/customer/AccountScreen';
 import AddCardScreen from '../screens/customer/account/AddCardScreen';
@@ -18,8 +21,8 @@ import OrderDetailScreen from '../screens/customer/account/OrderDetailScreen';
 import OrdersScreen from '../screens/customer/account/OrdersScreen';
 import PaymentMethodsScreen from '../screens/customer/account/PaymentMethodsScreen';
 import ProfileManagementScreen from '../screens/customer/account/ProfileManagementScreen';
-import CategoryProductsScreen from '../screens/customer/CategoryProductsScreen';
 import CartScreen from '../screens/customer/CartScreen';
+import CategoryProductsScreen from '../screens/customer/CategoryProductsScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
 import ExploreScreen from '../screens/customer/ExploreScreen';
 import FavouriteScreen from '../screens/customer/FavouriteScreen';
@@ -28,6 +31,34 @@ import OrderSuccessScreen from '../screens/customer/OrderSuccessScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
 
 const Stack = createNativeStackNavigator();
+const PRIMARY_NAV_ROUTES = new Set([
+  CUSTOMER_ROUTES.HOME,
+  CUSTOMER_ROUTES.EXPLORE,
+  CUSTOMER_ROUTES.CART,
+  CUSTOMER_ROUTES.FAVOURITE,
+  CUSTOMER_ROUTES.ACCOUNT,
+]);
+
+function getCustomerScreenTransitionOptions(routeName) {
+  if (PRIMARY_NAV_ROUTES.has(routeName)) {
+    return {
+      animation: 'fade',
+      animationDuration: 200,
+    };
+  }
+
+  if (routeName === CUSTOMER_ROUTES.ORDER_SUCCESS) {
+    return {
+      animation: 'fade_from_bottom',
+      animationDuration: 220,
+      gestureEnabled: false,
+    };
+  }
+
+  return {
+    animation: Platform.OS === 'android' ? 'slide_from_right' : 'default',
+  };
+}
 
 const screenOptions = {
   headerStyle: {
@@ -42,6 +73,56 @@ const screenOptions = {
     backgroundColor: COLORS.background,
   },
 };
+
+function CustomerNavigationChrome({ activeRouteName, navigationRef }) {
+  const insets = useSafeAreaInsets();
+  const { totalItems } = useCart();
+
+  const handleNavigatePrimaryRoute = useCallback(
+    targetRoute => {
+      if (!targetRoute || activeRouteName === targetRoute) {
+        return;
+      }
+
+      navigationRef?.current?.navigate(targetRoute);
+    },
+    [activeRouteName, navigationRef],
+  );
+
+  const handleOpenCart = useCallback(() => {
+    if (activeRouteName === CUSTOMER_ROUTES.CART) {
+      return;
+    }
+
+    navigationRef?.current?.navigate(CUSTOMER_ROUTES.CART);
+  }, [activeRouteName, navigationRef]);
+
+  const bottomOffset =
+    insets.bottom > 0 ? insets.bottom : UI_LAYOUT.bottomNavBottom;
+
+  return (
+    <>
+      {PRIMARY_NAV_ROUTES.has(activeRouteName) ? (
+        <View
+          pointerEvents="box-none"
+          style={[styles.bottomNavLayer, { bottom: bottomOffset }]}
+        >
+          <CustomerBottomNav
+            activeRoute={activeRouteName}
+            onNavigate={handleNavigatePrimaryRoute}
+            totalItems={totalItems}
+          />
+        </View>
+      ) : null}
+
+      <FloatingCartButton
+        cartRouteName={CUSTOMER_ROUTES.CART}
+        currentRouteName={activeRouteName}
+        onPress={handleOpenCart}
+      />
+    </>
+  );
+}
 
 function CustomerNavigator({ navigationRef }) {
   const [activeRouteName, setActiveRouteName] = useState(CUSTOMER_ROUTES.HOME);
@@ -59,14 +140,6 @@ function CustomerNavigator({ navigationRef }) {
     );
   }, []);
 
-  const handleOpenCart = useCallback(() => {
-    if (activeRouteName === CUSTOMER_ROUTES.CART) {
-      return;
-    }
-
-    navigationRef?.current?.navigate(CUSTOMER_ROUTES.CART);
-  }, [activeRouteName, navigationRef]);
-
   return (
     <FavouriteProvider>
       <CartProvider>
@@ -76,7 +149,10 @@ function CustomerNavigator({ navigationRef }) {
               screenListeners={{
                 state: handleNavigationStateChange,
               }}
-              screenOptions={screenOptions}
+              screenOptions={({ route }) => ({
+                ...screenOptions,
+                ...getCustomerScreenTransitionOptions(route.name),
+              })}
             >
               <Stack.Screen
                 name={CUSTOMER_ROUTES.HOME}
@@ -174,15 +250,13 @@ function CustomerNavigator({ navigationRef }) {
                 options={{
                   headerShown: false,
                   headerBackVisible: false,
-                  gestureEnabled: false,
                 }}
               />
             </Stack.Navigator>
 
-            <FloatingCartButton
-              cartRouteName={CUSTOMER_ROUTES.CART}
-              currentRouteName={activeRouteName}
-              onPress={handleOpenCart}
+            <CustomerNavigationChrome
+              activeRouteName={activeRouteName}
+              navigationRef={navigationRef}
             />
           </View>
         </AccountDataProvider>
@@ -194,6 +268,12 @@ function CustomerNavigator({ navigationRef }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  bottomNavLayer: {
+    position: 'absolute',
+    left: UI_LAYOUT.bottomNavSide,
+    right: UI_LAYOUT.bottomNavSide,
+    zIndex: 70,
   },
 });
 

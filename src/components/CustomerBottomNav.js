@@ -1,7 +1,14 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { CUSTOMER_ROUTES } from '../constants/routes';
 import { UI_COLORS, UI_SHADOWS } from '../constants/ui';
+import ScalePressable from './ScalePressable';
 
 const NAV_COLORS = Object.freeze({
   surface: UI_COLORS.surface,
@@ -12,6 +19,7 @@ const NAV_COLORS = Object.freeze({
   activeSoft: UI_COLORS.accentGreenSoft,
   badge: UI_COLORS.accentRed,
 });
+const NAV_PILL_TRANSITION_MS = 220;
 
 function SearchGlyph({ active = false }) {
   return (
@@ -80,6 +88,35 @@ function ProfileGlyph({ active = false }) {
   );
 }
 
+const NAV_ITEMS = Object.freeze([
+  {
+    route: CUSTOMER_ROUTES.HOME,
+    label: 'Shop',
+    renderIcon: isActive => <ShopGlyph active={isActive} />,
+  },
+  {
+    route: CUSTOMER_ROUTES.EXPLORE,
+    label: 'Explore',
+    renderIcon: isActive => <SearchGlyph active={isActive} />,
+  },
+  {
+    route: CUSTOMER_ROUTES.CART,
+    label: 'Cart',
+    renderIcon: isActive => <CartGlyph active={isActive} />,
+    showsBadge: true,
+  },
+  {
+    route: CUSTOMER_ROUTES.FAVOURITE,
+    label: 'Saved',
+    renderIcon: isActive => <FavouriteGlyph active={isActive} />,
+  },
+  {
+    route: CUSTOMER_ROUTES.ACCOUNT,
+    label: 'Account',
+    renderIcon: isActive => <ProfileGlyph active={isActive} />,
+  },
+]);
+
 function BottomNavigationItem({
   active = false,
   badgeCount = 0,
@@ -88,15 +125,16 @@ function BottomNavigationItem({
   onPress,
 }) {
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#E9F0E6' }}
       onPress={onPress}
+      pressScale={0.97}
       style={({ pressed }) => [
         styles.navItem,
         pressed && styles.navItemPressed,
       ]}
     >
-      <View style={[styles.navItemInner, active && styles.navItemInnerActive]}>
+      <View style={styles.navItemInner}>
         <View style={styles.iconWrap}>
           {icon}
           {badgeCount > 0 ? (
@@ -109,64 +147,95 @@ function BottomNavigationItem({
           {label}
         </Text>
       </View>
-    </Pressable>
+    </ScalePressable>
   );
 }
 
-function CustomerBottomNav({ activeRoute, navigation, totalItems = 0 }) {
-  const items = [
-    {
-      route: CUSTOMER_ROUTES.HOME,
-      label: 'Shop',
-      renderIcon: isActive => <ShopGlyph active={isActive} />,
-    },
-    {
-      route: CUSTOMER_ROUTES.EXPLORE,
-      label: 'Explore',
-      renderIcon: isActive => <SearchGlyph active={isActive} />,
-    },
-    {
-      route: CUSTOMER_ROUTES.CART,
-      label: 'Cart',
-      renderIcon: isActive => <CartGlyph active={isActive} />,
-      badgeCount: totalItems,
-    },
-    {
-      route: CUSTOMER_ROUTES.FAVOURITE,
-      label: 'Saved',
-      renderIcon: isActive => <FavouriteGlyph active={isActive} />,
-    },
-    {
-      route: CUSTOMER_ROUTES.ACCOUNT,
-      label: 'Account',
-      renderIcon: isActive => <ProfileGlyph active={isActive} />,
-    },
-  ];
+function CustomerBottomNav({
+  activeRoute,
+  navigation,
+  onNavigate,
+  totalItems = 0,
+}) {
+  const [itemsRowWidth, setItemsRowWidth] = useState(0);
+  const activeIndex = Math.max(
+    NAV_ITEMS.findIndex(item => item.route === activeRoute),
+    0,
+  );
+  const indicatorIndex = useRef(new Animated.Value(activeIndex)).current;
+  const itemWidth = itemsRowWidth > 0 ? itemsRowWidth / NAV_ITEMS.length : 0;
 
-  function handleNavigate(targetRoute) {
-    if (!targetRoute || activeRoute === targetRoute) {
-      return;
+  useEffect(() => {
+    Animated.timing(indicatorIndex, {
+      toValue: activeIndex,
+      duration: NAV_PILL_TRANSITION_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, indicatorIndex]);
+
+  const handleNavigate = useCallback(
+    targetRoute => {
+      if (!targetRoute || activeRoute === targetRoute) {
+        return;
+      }
+
+      if (typeof onNavigate === 'function') {
+        onNavigate(targetRoute);
+        return;
+      }
+
+      navigation?.navigate?.(targetRoute);
+    },
+    [activeRoute, navigation, onNavigate],
+  );
+
+  const handleItemsRowLayout = useCallback(event => {
+    const nextWidth = event.nativeEvent.layout.width;
+
+    setItemsRowWidth(currentWidth =>
+      currentWidth === nextWidth ? currentWidth : nextWidth,
+    );
+  }, []);
+
+  const animatedIndicatorStyle = useMemo(() => {
+    if (!itemWidth) {
+      return [styles.activePill, styles.activePillHidden];
     }
 
-    navigation.navigate(targetRoute);
-  }
+    return [
+      styles.activePill,
+      {
+        width: itemWidth,
+        transform: [
+          {
+            translateX: Animated.multiply(indicatorIndex, itemWidth),
+          },
+        ],
+      },
+    ];
+  }, [indicatorIndex, itemWidth]);
 
   return (
     <View style={styles.navBar}>
-      {items.map(item => {
-        const isActive = activeRoute === item.route;
+      <View onLayout={handleItemsRowLayout} style={styles.itemsRow}>
+        <Animated.View pointerEvents="none" style={animatedIndicatorStyle} />
 
-        return (
-          <BottomNavigationItem
-            key={item.route}
-            active={isActive}
-            badgeCount={item.badgeCount}
-            icon={item.renderIcon(isActive)}
-            label={item.label}
-            onPress={() => handleNavigate(item.route)}
-          />
-        );
-      })}
+        {NAV_ITEMS.map(item => {
+          const isActive = activeRoute === item.route;
+
+          return (
+            <BottomNavigationItem
+              key={item.route}
+              active={isActive}
+              badgeCount={item.showsBadge ? totalItems : 0}
+              icon={item.renderIcon(isActive)}
+              label={item.label}
+              onPress={() => handleNavigate(item.route)}
+            />
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -183,8 +252,28 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     ...UI_SHADOWS.floating,
   },
+  itemsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  activePill: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 18,
+    backgroundColor: NAV_COLORS.activeSoft,
+    borderWidth: 1,
+    borderColor: '#DEE9D9',
+  },
+  activePillHidden: {
+    opacity: 0,
+  },
   navItem: {
     flex: 1,
+    zIndex: 1,
   },
   navItemInner: {
     minHeight: 54,
@@ -192,13 +281,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  navItemInnerActive: {
-    backgroundColor: NAV_COLORS.activeSoft,
-    borderWidth: 1,
-    borderColor: '#DEE9D9',
-  },
   navItemPressed: {
-    opacity: 0.88,
+    opacity: 0.92,
   },
   iconWrap: {
     minWidth: 28,

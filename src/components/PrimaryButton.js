@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import {
   UI_COLORS,
   UI_LAYOUT,
@@ -7,6 +7,7 @@ import {
   UI_SHADOWS,
   UI_TYPOGRAPHY,
 } from '../constants/ui';
+import ScalePressable from './ScalePressable';
 
 function PrimaryButton({
   title,
@@ -19,9 +20,10 @@ function PrimaryButton({
   const isSecondary = variant === 'secondary';
 
   return (
-    <Pressable
+    <ScalePressable
       disabled={disabled}
       onPress={onPress}
+      pressScale={0.985}
       style={({ pressed }) => [
         styles.button,
         isSecondary ? styles.secondaryButton : styles.primaryButton,
@@ -39,7 +41,7 @@ function PrimaryButton({
       >
         {title}
       </Text>
-    </Pressable>
+    </ScalePressable>
   );
 }
 

@@ -1,5 +1,21 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import {
+  Animated,
+  Easing,
+  LayoutAnimation,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  UIManager,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -15,12 +31,37 @@ import { formatCurrency } from '../../utils/formatCurrency';
 
 const FLOATING_BOTTOM_OFFSET = 90;
 const AUTO_COLLAPSE_DELAY_MS = 3000;
+const EXPAND_ANIMATION_DURATION_MS = 220;
 const VISIBLE_ROUTES = new Set([
   CUSTOMER_ROUTES.HOME,
   CUSTOMER_ROUTES.EXPLORE,
   CUSTOMER_ROUTES.PRODUCT_DETAIL,
   CUSTOMER_ROUTES.FAVOURITE,
 ]);
+
+if (
+  Platform.OS === 'android' &&
+  typeof UIManager.setLayoutAnimationEnabledExperimental === 'function'
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+function configureFloatingCartLayout() {
+  LayoutAnimation.configureNext({
+    duration: EXPAND_ANIMATION_DURATION_MS,
+    create: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+    update: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+    },
+    delete: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+  });
+}
 
 function CartGlyph() {
   return (
@@ -46,6 +87,8 @@ function FloatingCartButton({
   const [isExpanded, setIsExpanded] = useState(false);
   const collapseTimeoutRef = useRef(null);
   const previousCartSignatureRef = useRef(null);
+  const expandProgress = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
   const cartSignature = items
     .map(item => `${item?.product?.id || 'unknown'}:${item?.quantity || 1}`)
     .join('|');
@@ -69,6 +112,7 @@ function FloatingCartButton({
   const restartCollapseTimer = useCallback(() => {
     clearCollapseTimer();
     collapseTimeoutRef.current = setTimeout(() => {
+      configureFloatingCartLayout();
       setIsExpanded(false);
       collapseTimeoutRef.current = null;
     }, AUTO_COLLAPSE_DELAY_MS);
@@ -96,6 +140,23 @@ function FloatingCartButton({
   }, [cartRouteName, currentRouteName, navigation, onPress]);
 
   useEffect(() => {
+    Animated.timing(expandProgress, {
+      toValue: isExpanded ? 1 : 0,
+      duration: isExpanded ? EXPAND_ANIMATION_DURATION_MS : 180,
+      easing: isExpanded
+        ? Easing.out(Easing.cubic)
+        : Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [expandProgress, isExpanded]);
+
+  useLayoutEffect(() => {
+    if (resolvedTotalItems > 0 && VISIBLE_ROUTES.has(currentRouteName)) {
+      configureFloatingCartLayout();
+    }
+  }, [currentRouteName, isExpanded, resolvedSubtotal, resolvedTotalItems]);
+
+  useEffect(() => {
     if (!isStorageHydrated) {
       clearCollapseTimer();
       setIsExpanded(false);
@@ -118,6 +179,7 @@ function FloatingCartButton({
     }
 
     if (previousCartSignature !== cartSignature) {
+      configureFloatingCartLayout();
       setIsExpanded(true);
       restartCollapseTimer();
     }
@@ -128,6 +190,26 @@ function FloatingCartButton({
     restartCollapseTimer,
     resolvedTotalItems,
   ]);
+
+  const animateButtonScale = useCallback((toValue, duration) => {
+    Animated.timing(buttonScale, {
+      toValue,
+      duration,
+      easing:
+        toValue < 1
+          ? Easing.out(Easing.quad)
+          : Easing.bezier(0.2, 0.85, 0.25, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [buttonScale]);
+
+  const handlePressIn = useCallback(() => {
+    animateButtonScale(0.97, 90);
+  }, [animateButtonScale]);
+
+  const handlePressOut = useCallback(() => {
+    animateButtonScale(1, 170);
+  }, [animateButtonScale]);
 
   if (
     resolvedTotalItems <= 0 ||
@@ -142,6 +224,34 @@ function FloatingCartButton({
   const accessibilityLabel = isExpanded
     ? `Open cart with ${itemLabel} totaling ${totalPriceLabel}`
     : `Open cart with ${itemLabel}`;
+  const animatedButtonStyle = {
+    transform: [{ scale: buttonScale }],
+  };
+  const animatedExpandedContentStyle = {
+    opacity: expandProgress,
+    transform: [
+      {
+        translateX: expandProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [10, 0],
+        }),
+      },
+    ],
+  };
+  const animatedCollapsedBadgeStyle = {
+    opacity: expandProgress.interpolate({
+      inputRange: [0, 0.4, 1],
+      outputRange: [1, 0.3, 0],
+    }),
+    transform: [
+      {
+        scale: expandProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1, 0.84],
+        }),
+      },
+    ],
+  };
 
   return (
     <View
@@ -159,34 +269,49 @@ function FloatingCartButton({
         android_ripple={{ color: 'rgba(255, 255, 255, 0.16)' }}
         hitSlop={8}
         onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         testID="floating-cart-button"
         style={({ pressed }) => [
-          styles.button,
-          isExpanded ? styles.buttonExpanded : styles.buttonCollapsed,
           pressed && styles.buttonPressed,
         ]}
       >
-        <View style={[styles.iconWrap, isExpanded && styles.iconWrapExpanded]}>
-          <CartGlyph />
-          {!isExpanded ? (
-            <View style={styles.countBadge} testID="floating-cart-collapsed">
-              <Text style={styles.countBadgeLabel}>{resolvedTotalItems}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {isExpanded ? (
-          <View style={styles.expandedContent} testID="floating-cart-expanded">
-            <Text style={styles.label}>Cart</Text>
-            <Text numberOfLines={1} style={styles.meta}>
-              {itemLabel}
-            </Text>
-
-            <View style={styles.pricePill}>
-              <Text style={styles.priceLabel}>{totalPriceLabel}</Text>
-            </View>
+        <Animated.View
+          style={[
+            styles.button,
+            isExpanded ? styles.buttonExpanded : styles.buttonCollapsed,
+            animatedButtonStyle,
+          ]}
+        >
+          <View style={[styles.iconWrap, isExpanded && styles.iconWrapExpanded]}>
+            <CartGlyph />
+            {!isExpanded ? (
+              <Animated.View style={[styles.countBadge, animatedCollapsedBadgeStyle]}>
+                <View testID="floating-cart-collapsed">
+                  <Text style={styles.countBadgeLabel}>{resolvedTotalItems}</Text>
+                </View>
+              </Animated.View>
+            ) : null}
           </View>
-        ) : null}
+
+          {isExpanded ? (
+            <Animated.View style={[styles.expandedContent, animatedExpandedContentStyle]}>
+              <View
+                style={styles.expandedContentInner}
+                testID="floating-cart-expanded"
+              >
+                <Text style={styles.label}>Cart</Text>
+                <Text numberOfLines={1} style={styles.meta}>
+                  {itemLabel}
+                </Text>
+
+                <View style={styles.pricePill}>
+                  <Text style={styles.priceLabel}>{totalPriceLabel}</Text>
+                </View>
+              </View>
+            </Animated.View>
+          ) : null}
+        </Animated.View>
       </Pressable>
     </View>
   );
@@ -207,6 +332,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 12,
+    overflow: 'hidden',
     ...UI_SHADOWS.floating,
   },
   buttonCollapsed: {
@@ -223,7 +349,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   buttonPressed: {
-    backgroundColor: UI_COLORS.accentGreenPressed,
+    opacity: 0.96,
   },
   iconWrap: {
     width: 54,
@@ -241,6 +367,9 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   expandedContent: {
+    overflow: 'hidden',
+  },
+  expandedContentInner: {
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 1,

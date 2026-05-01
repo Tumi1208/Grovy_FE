@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -13,6 +12,7 @@ import DirectionalHint from '../../components/DirectionalHint';
 import ChevronIcon from '../../components/icons/ChevronIcon';
 import PrimaryButton from '../../components/PrimaryButton';
 import ProductImage from '../../components/ProductImage';
+import ScalePressable from '../../components/ScalePressable';
 import { getProductImage } from '../../constants/productImages';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
@@ -37,9 +37,10 @@ function normalizeRouteProductId(value) {
 
 function HeaderButton({ children, onPress, style }) {
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#EDE5DB' }}
       onPress={onPress}
+      pressScale={0.94}
       style={({ pressed }) => [
         styles.headerButton,
         style,
@@ -47,16 +48,17 @@ function HeaderButton({ children, onPress, style }) {
       ]}
     >
       {children}
-    </Pressable>
+    </ScalePressable>
   );
 }
 
 function QuantityButton({ disabled = false, label, onPress }) {
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#EFE7DD' }}
       disabled={disabled}
       onPress={onPress}
+      pressScale={0.94}
       style={({ pressed }) => [
         styles.quantityButton,
         disabled && styles.quantityButtonDisabled,
@@ -71,7 +73,7 @@ function QuantityButton({ disabled = false, label, onPress }) {
       >
         {label}
       </Text>
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -84,9 +86,10 @@ function DetailRow({
   value,
 }) {
   return (
-    <Pressable
+    <ScalePressable
       android_ripple={{ color: '#EFE8DE' }}
       onPress={onPress}
+      pressScale={0.985}
       style={({ pressed }) => [
         styles.detailRow,
         isLast && styles.detailRowLast,
@@ -115,7 +118,7 @@ function DetailRow({
       {expanded && subtitle ? (
         <Text style={styles.detailRowSubtitle}>{subtitle}</Text>
       ) : null}
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -330,9 +333,10 @@ function ProductDetailScreen({ navigation, route }) {
                 <Text style={styles.categoryPillLabel}>{product.category}</Text>
               </View>
 
-              <Pressable
+              <ScalePressable
                 android_ripple={{ color: '#EDE5DB' }}
                 onPress={() => toggleFavourite(product)}
+                pressScale={0.94}
                 style={({ pressed }) => [
                   styles.favouriteButton,
                   favouriteActive && styles.favouriteButtonActive,
@@ -347,7 +351,7 @@ function ProductDetailScreen({ navigation, route }) {
                 >
                   {favouriteActive ? '♥' : '♡'}
                 </Text>
-              </Pressable>
+              </ScalePressable>
             </View>
 
             <ProductImage
@@ -450,10 +454,11 @@ function ProductDetailScreen({ navigation, route }) {
             <Text style={styles.footerSummaryValue}>{totalPriceLabel}</Text>
           </View>
 
-          <Pressable
+          <ScalePressable
             android_ripple={{ color: '#3B5B37' }}
             disabled={isOutOfStock}
             onPress={handleAddToCart}
+            pressScale={0.985}
             style={({ pressed }) => [
               styles.addToCartButton,
               isOutOfStock && styles.addToCartButtonDisabled,
@@ -463,7 +468,7 @@ function ProductDetailScreen({ navigation, route }) {
             <Text style={styles.addToCartTitle}>
               {isOutOfStock ? 'Unavailable' : `Add ${quantity} to cart`}
             </Text>
-          </Pressable>
+          </ScalePressable>
         </View>
       </View>
     </SafeAreaView>
@@ -529,7 +534,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   headerButtonPressed: {
-    opacity: 0.9,
+    opacity: 0.94,
   },
   backIcon: {
     color: UI_COLORS.textStrong,
@@ -657,7 +662,7 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.accentRedSoft,
   },
   favouriteButtonPressed: {
-    opacity: 0.88,
+    opacity: 0.92,
   },
   favouriteIcon: {
     color: UI_COLORS.mutedStrong,
@@ -783,7 +788,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quantityButtonPressed: {
-    opacity: 0.88,
+    opacity: 0.95,
   },
   quantityButtonDisabled: {
     opacity: 0.42,
@@ -832,7 +837,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   detailRowPressed: {
-    opacity: 0.95,
+    opacity: 0.98,
   },
   detailRowHeader: {
     flexDirection: 'row',

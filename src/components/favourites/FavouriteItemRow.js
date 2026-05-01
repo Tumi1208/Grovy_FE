@@ -1,18 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { getProductImageSource } from '../../assets/productImages';
+import DirectionalHint from '../DirectionalHint';
+import ProductImage from '../ProductImage';
+import ScalePressable from '../ScalePressable';
 import {
   UI_COLORS,
   UI_RADIUS,
   UI_SHADOWS,
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
-import ProductImage from '../ProductImage';
-import ScalePressable from '../ScalePressable';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getProductSubtitle } from '../../utils/productPresentation';
 
-const ACTION_BUTTON_WIDTH = 104;
+const ACTION_BUTTON_WIDTH = 102;
 const ACTION_RAIL_PADDING = 10;
 const ACTION_OPEN_WIDTH = ACTION_BUTTON_WIDTH + ACTION_RAIL_PADDING * 2;
 const ACTION_AUTO_TRIGGER_DISTANCE = 118;
@@ -25,47 +26,18 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function QuantityButton({ disabled = false, label, onPress, testID }) {
-  return (
-    <ScalePressable
-      android_ripple={{ color: '#EEE6DC' }}
-      disabled={disabled}
-      onPress={onPress}
-      pressScale={0.94}
-      style={({ pressed }) => [
-        styles.quantityButton,
-        disabled && styles.quantityButtonDisabled,
-        pressed && !disabled && styles.quantityButtonPressed,
-      ]}
-      testID={testID}
-    >
-      <Text
-        style={[
-          styles.quantityButtonText,
-          label === '+' ? styles.quantityButtonTextAccent : null,
-        ]}
-      >
-        {label}
-      </Text>
-    </ScalePressable>
-  );
-}
-
-function CartItemRow({
+function FavouriteItemRow({
   isOpen = false,
-  item,
-  onCheckout,
+  onAddToCart,
   onClose,
-  onDecrease,
-  onIncrease,
   onOpen,
+  onPress,
   onRemove,
+  product,
 }) {
-  const subtitle = getProductSubtitle(item.product);
-  const imageSource = getProductImageSource(item.product);
-  const isAvailable = item.product.stock > 0;
-  const isIncreaseDisabled =
-    !isAvailable || item.quantity >= item.product.stock;
+  const subtitle = getProductSubtitle(product);
+  const imageSource = getProductImageSource(product);
+  const isAvailable = product.stock > 0;
   const translateX = useRef(new Animated.Value(0)).current;
   const currentTranslateXRef = useRef(0);
   const dragStartXRef = useRef(0);
@@ -85,9 +57,9 @@ function CartItemRow({
     (toValue, onAnimationEnd) => {
       if (toValue === 0) {
         hasTriggeredSwipeActionRef.current = false;
-        onClose?.(item.product.id);
+        onClose?.(product.id);
       } else {
-        onOpen?.(item.product.id);
+        onOpen?.(product.id);
       }
 
       Animated.spring(translateX, {
@@ -104,7 +76,7 @@ function CartItemRow({
         }
       });
     },
-    [item.product.id, onClose, onOpen, translateX],
+    [onClose, onOpen, product.id, translateX],
   );
 
   const triggerAutoSwipeAction = useCallback(
@@ -133,38 +105,38 @@ function CartItemRow({
       if (currentTranslateX > 0) {
         if (currentTranslateX >= ACTION_AUTO_TRIGGER_DISTANCE) {
           triggerAutoSwipeAction('right', () => {
-            onRemove?.(item.product.id);
+            onRemove?.(product.id);
           });
           return;
         }
 
-        const shouldOpenDeleteAction =
+        const shouldOpenRemoveAction =
           currentTranslateX > SWIPE_OPEN_THRESHOLD ||
           velocityX > SWIPE_VELOCITY_THRESHOLD;
 
-        animateTo(shouldOpenDeleteAction ? ACTION_OPEN_WIDTH : 0);
+        animateTo(shouldOpenRemoveAction ? ACTION_OPEN_WIDTH : 0);
         return;
       }
 
       if (currentTranslateX < 0) {
         if (currentTranslateX <= -ACTION_AUTO_TRIGGER_DISTANCE) {
           triggerAutoSwipeAction('left', () => {
-            onCheckout?.();
+            onAddToCart?.(product);
           });
           return;
         }
 
-        const shouldOpenCheckoutAction =
+        const shouldOpenAddAction =
           currentTranslateX < -SWIPE_OPEN_THRESHOLD ||
           velocityX < -SWIPE_VELOCITY_THRESHOLD;
 
-        animateTo(shouldOpenCheckoutAction ? -ACTION_OPEN_WIDTH : 0);
+        animateTo(shouldOpenAddAction ? -ACTION_OPEN_WIDTH : 0);
         return;
       }
 
       animateTo(0);
     },
-    [animateTo, item.product.id, onCheckout, onRemove, triggerAutoSwipeAction],
+    [animateTo, onAddToCart, onRemove, product, triggerAutoSwipeAction],
   );
 
   useEffect(() => {
@@ -195,7 +167,7 @@ function CartItemRow({
             dragStartXRef.current = value;
           });
 
-          onOpen?.(item.product.id);
+          onOpen?.(product.id);
         },
         onPanResponderMove: (_, gestureState) => {
           const nextValue = clamp(
@@ -214,18 +186,27 @@ function CartItemRow({
         },
         onPanResponderTerminationRequest: () => true,
       }),
-    [item.product.id, onOpen, settleSwipe, translateX],
+    [onOpen, product.id, settleSwipe, translateX],
   );
 
-  const handleCheckoutPress = useCallback(() => {
+  const handleAddPress = useCallback(() => {
     animateTo(0, () => {
-      onCheckout?.();
+      onAddToCart?.(product);
     });
-  }, [animateTo, onCheckout]);
+  }, [animateTo, onAddToCart, product]);
 
   const handleRemovePress = useCallback(() => {
-    onRemove?.(item.product.id);
-  }, [item.product.id, onRemove]);
+    onRemove?.(product.id);
+  }, [onRemove, product.id]);
+
+  const handleRowPress = useCallback(() => {
+    if (Math.abs(currentTranslateXRef.current) > 8) {
+      animateTo(0);
+      return;
+    }
+
+    onPress?.(product);
+  }, [animateTo, onPress, product]);
 
   return (
     <View style={styles.rowWrap}>
@@ -236,18 +217,18 @@ function CartItemRow({
         style={[styles.actionRail, styles.leftActionRail]}
       >
         <ScalePressable
-          accessibilityLabel={`Delete ${item.product.name} from cart`}
+          accessibilityLabel={`Remove ${product.name} from saved items`}
           android_ripple={{ color: '#9D2B2B' }}
           onPress={handleRemovePress}
           pressScale={0.97}
           style={({ pressed }) => [
             styles.actionButton,
-            styles.deleteActionButton,
-            pressed && styles.deleteActionButtonPressed,
+            styles.removeActionButton,
+            pressed && styles.removeActionButtonPressed,
           ]}
-          testID={`cart-item-delete-action-${item.product.id}`}
+          testID={`favourite-item-remove-action-${product.id}`}
         >
-          <Text style={styles.actionButtonLabel}>Delete</Text>
+          <Text style={styles.actionButtonLabel}>Remove</Text>
         </ScalePressable>
       </View>
 
@@ -258,18 +239,18 @@ function CartItemRow({
         style={[styles.actionRail, styles.rightActionRail]}
       >
         <ScalePressable
-          accessibilityLabel={`Checkout with ${item.product.name} in cart`}
+          accessibilityLabel={`Add ${product.name} to cart`}
           android_ripple={{ color: '#3D5F39' }}
-          onPress={handleCheckoutPress}
+          onPress={handleAddPress}
           pressScale={0.97}
           style={({ pressed }) => [
             styles.actionButton,
-            styles.checkoutActionButton,
-            pressed && styles.checkoutActionButtonPressed,
+            styles.addActionButton,
+            pressed && styles.addActionButtonPressed,
           ]}
-          testID={`cart-item-checkout-action-${item.product.id}`}
+          testID={`favourite-item-add-action-${product.id}`}
         >
-          <Text style={styles.actionButtonLabel}>Checkout</Text>
+          <Text style={styles.actionButtonLabel}>Add</Text>
         </ScalePressable>
       </View>
 
@@ -281,75 +262,71 @@ function CartItemRow({
             transform: [{ translateX }],
           },
         ]}
-        testID={`cart-item-row-${item.product.id}`}
+        testID={`favourite-item-row-${product.id}`}
       >
-        <View style={styles.itemRow}>
-          <View style={styles.itemMain}>
+        <ScalePressable
+          android_ripple={{ color: '#EEE7DC' }}
+          onPress={handleRowPress}
+          pressScale={0.992}
+          style={({ pressed }) => [
+            styles.itemRow,
+            pressed && styles.itemRowPressed,
+          ]}
+        >
+          <View style={styles.rowTop}>
             <View style={styles.imageWrap}>
               <ProductImage
-                name={item.product.name}
+                name={product.name}
                 resizeMode="contain"
                 source={imageSource}
-                style={styles.itemImage}
+                style={styles.image}
               />
             </View>
 
-            <View style={styles.itemCopy}>
-              <View style={styles.itemMetaRow}>
-                <View style={styles.itemCategoryPill}>
-                  <Text style={styles.itemCategoryLabel}>
-                    {item.product.category}
+            <View style={styles.copy}>
+              <View style={styles.rowMetaRow}>
+                <View style={styles.categoryPill}>
+                  <Text style={styles.categoryPillLabel}>
+                    {product.category}
                   </Text>
                 </View>
+                <DirectionalHint
+                  chevronSize={8}
+                  color={UI_COLORS.mutedStrong}
+                  mode="plain"
+                  style={styles.rowIndicator}
+                />
               </View>
-              <Text numberOfLines={2} style={styles.itemName}>
-                {item.product.name}
+              <Text numberOfLines={2} style={styles.name}>
+                {product.name}
               </Text>
-              <Text numberOfLines={1} style={styles.itemSubtitle}>
+              <Text numberOfLines={1} style={styles.meta}>
                 {subtitle}
               </Text>
-              <View style={styles.itemInfoRow}>
-                <Text
-                  style={[
-                    styles.itemStock,
-                    !isAvailable && styles.itemStockUnavailable,
-                  ]}
-                >
-                  {isAvailable
-                    ? `${item.product.stock} available`
-                    : 'Unavailable'}
-                </Text>
-                <Text style={styles.itemEachPrice}>
-                  Each {formatCurrency(item.product.price)}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.itemFooter}>
-            <View style={styles.quantityGroup}>
-              <QuantityButton
-                label="-"
-                onPress={() => onDecrease(item.product.id)}
-                testID={`cart-item-decrease-${item.product.id}`}
-              />
-              <Text style={styles.quantityValue}>{item.quantity}</Text>
-              <QuantityButton
-                disabled={isIncreaseDisabled}
-                label="+"
-                onPress={() => onIncrease(item.product.id)}
-                testID={`cart-item-increase-${item.product.id}`}
-              />
-            </View>
-
-            <View style={styles.itemPriceBlock}>
-              <Text style={styles.itemPriceLabel}>Line total</Text>
-              <Text style={styles.itemPrice}>
-                {formatCurrency(item.product.price * item.quantity)}
+              <Text
+                style={[
+                  styles.availability,
+                  isAvailable
+                    ? styles.availabilityInStock
+                    : styles.availabilityOutOfStock,
+                ]}
+              >
+                {isAvailable ? `${product.stock} available` : 'Unavailable'}
               </Text>
             </View>
           </View>
-        </View>
+
+          <View style={styles.rowFooter}>
+            <View>
+              <Text style={styles.priceLabel}>Price</Text>
+              <Text style={styles.price}>{formatCurrency(product.price)}</Text>
+            </View>
+
+            <View style={styles.swipeHintPill}>
+              <Text style={styles.swipeHintLabel}>Swipe for actions</Text>
+            </View>
+          </View>
+        </ScalePressable>
       </Animated.View>
     </View>
   );
@@ -357,7 +334,7 @@ function CartItemRow({
 
 const styles = StyleSheet.create({
   rowWrap: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   actionRail: {
     position: 'absolute',
@@ -381,21 +358,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     ...UI_SHADOWS.card,
   },
-  deleteActionButton: {
-    backgroundColor: UI_COLORS.accentRed,
-  },
-  deleteActionButtonPressed: {
-    backgroundColor: UI_COLORS.accentRedPressed,
-  },
-  checkoutActionButton: {
+  addActionButton: {
     backgroundColor: UI_COLORS.accentGreen,
   },
-  checkoutActionButtonPressed: {
+  addActionButtonPressed: {
     backgroundColor: UI_COLORS.accentGreenPressed,
+  },
+  removeActionButton: {
+    backgroundColor: UI_COLORS.accentRed,
+  },
+  removeActionButtonPressed: {
+    backgroundColor: UI_COLORS.accentRedPressed,
   },
   actionButtonLabel: {
     color: UI_COLORS.surface,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     lineHeight: 18,
     textAlign: 'center',
@@ -405,35 +382,41 @@ const styles = StyleSheet.create({
   },
   itemRow: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 18,
+    padding: 17,
   },
-  itemMain: {
+  itemRowPressed: {
+    opacity: 0.98,
+  },
+  rowTop: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   imageWrap: {
-    width: 82,
-    height: 82,
+    width: 80,
+    height: 80,
     borderRadius: 22,
     backgroundColor: UI_COLORS.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
-  itemImage: {
-    width: 64,
-    height: 64,
+  image: {
+    width: 62,
+    height: 62,
   },
-  itemCopy: {
+  copy: {
     flex: 1,
   },
-  itemMetaRow: {
+  rowMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
   },
-  itemCategoryPill: {
+  categoryPill: {
     alignSelf: 'flex-start',
     borderRadius: UI_RADIUS.round,
     backgroundColor: UI_COLORS.surfaceSoft,
@@ -442,114 +425,70 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  itemCategoryLabel: {
+  categoryPillLabel: {
     color: UI_COLORS.mutedStrong,
     fontSize: 11,
     fontWeight: '700',
     lineHeight: 14,
   },
-  itemName: {
+  rowIndicator: {
+    marginLeft: 8,
+  },
+  name: {
     color: UI_COLORS.textStrong,
     fontSize: 18,
     fontWeight: '700',
-    lineHeight: 23,
-    marginBottom: 6,
+    lineHeight: 24,
+    marginBottom: 4,
   },
-  itemSubtitle: {
+  meta: {
     color: UI_COLORS.mutedStrong,
-    fontSize: 13,
-    lineHeight: 18,
+    ...UI_TYPOGRAPHY.meta,
     marginBottom: 6,
   },
-  itemInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  itemStock: {
-    color: UI_COLORS.accentGreen,
+  availability: {
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 16,
   },
-  itemStockUnavailable: {
+  availabilityInStock: {
+    color: UI_COLORS.accentGreen,
+  },
+  availabilityOutOfStock: {
     color: UI_COLORS.accentRed,
   },
-  itemEachPrice: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  itemFooter: {
+  rowFooter: {
+    marginTop: 16,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginTop: 16,
   },
-  quantityGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderRadius: UI_RADIUS.xl,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 5,
-    paddingVertical: 5,
-  },
-  quantityButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: UI_COLORS.surface,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quantityButtonPressed: {
-    opacity: 0.95,
-  },
-  quantityButtonDisabled: {
-    opacity: 0.45,
-  },
-  quantityButtonText: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 22,
-    fontWeight: '600',
-    lineHeight: 22,
-  },
-  quantityButtonTextAccent: {
-    color: UI_COLORS.accentGreen,
-  },
-  quantityValue: {
-    color: UI_COLORS.textStrong,
-    fontSize: 16,
-    fontWeight: '700',
-    minWidth: 24,
-    textAlign: 'center',
-    marginHorizontal: 12,
-  },
-  itemPriceBlock: {
-    alignItems: 'flex-end',
-    marginLeft: 16,
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  itemPriceLabel: {
+  priceLabel: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.label,
     marginBottom: 4,
   },
-  itemPrice: {
+  price: {
     color: UI_COLORS.textStrong,
     fontSize: 22,
     fontWeight: '800',
     lineHeight: 26,
   },
+  swipeHintPill: {
+    marginLeft: 16,
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  swipeHintLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
 });
 
-export default CartItemRow;
+export default FavouriteItemRow;

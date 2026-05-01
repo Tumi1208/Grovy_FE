@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
+  Animated,
   LayoutAnimation,
   Platform,
   ScrollView,
@@ -9,7 +9,10 @@ import {
   UIManager,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { defaultProductImage } from '../../assets/productImages';
 import ProductImage from '../../components/ProductImage';
 import ScalePressable from '../../components/ScalePressable';
@@ -24,8 +27,11 @@ import {
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
 import { useCart } from '../../context/CartContext';
-import { useFavourite } from '../../context/FavouriteContext';
 import { formatCurrency } from '../../utils/formatCurrency';
+
+const FEEDBACK_HIDE_DELAY_MS = 1500;
+const UNDO_HIDE_DELAY_MS = 4000;
+
 if (
   Platform.OS === 'android' &&
   typeof UIManager.setLayoutAnimationEnabledExperimental === 'function'
@@ -51,7 +57,9 @@ function configureCartRemovalLayout() {
 }
 
 function CartScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const {
+    addToCart,
     decreaseQuantity,
     increaseQuantity,
     items,
@@ -59,10 +67,116 @@ function CartScreen({ navigation }) {
     subtotal,
     totalItems,
   } = useCart();
-  const { addToFavourites, isFavourite } = useFavourite();
   const [openItemId, setOpenItemId] = useState(null);
+  const [feedbackState, setFeedbackState] = useState({
+    message: '',
+    actionLabel: '',
+    tone: 'success',
+  });
+  const feedbackOpacity = useRef(new Animated.Value(0)).current;
+  const feedbackTranslateY = useRef(new Animated.Value(10)).current;
+  const feedbackTimeoutRef = useRef(null);
+  const feedbackActionRef = useRef(null);
 
   const hasItems = items.length > 0;
+
+  const clearFeedbackTimer = useCallback(() => {
+    if (!feedbackTimeoutRef.current) {
+      return;
+    }
+
+    clearTimeout(feedbackTimeoutRef.current);
+    feedbackTimeoutRef.current = null;
+  }, []);
+
+  const hideFeedback = useCallback(() => {
+    clearFeedbackTimer();
+    feedbackActionRef.current = null;
+
+    feedbackOpacity.stopAnimation();
+    feedbackTranslateY.stopAnimation();
+
+    Animated.parallel([
+      Animated.timing(feedbackOpacity, {
+        toValue: 0,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+      Animated.timing(feedbackTranslateY, {
+        toValue: 10,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) {
+        setFeedbackState({
+          message: '',
+          actionLabel: '',
+          tone: 'success',
+        });
+      }
+    });
+  }, [clearFeedbackTimer, feedbackOpacity, feedbackTranslateY]);
+
+  const showFeedback = useCallback(
+    (
+      message,
+      {
+        actionLabel = '',
+        durationMs = FEEDBACK_HIDE_DELAY_MS,
+        onAction = null,
+        tone = 'success',
+      } = {},
+    ) => {
+      clearFeedbackTimer();
+      feedbackActionRef.current =
+        typeof onAction === 'function' ? onAction : null;
+      setFeedbackState({
+        message,
+        actionLabel,
+        tone,
+      });
+
+      feedbackOpacity.stopAnimation();
+      feedbackTranslateY.stopAnimation();
+
+      Animated.parallel([
+        Animated.timing(feedbackOpacity, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(feedbackTranslateY, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      feedbackTimeoutRef.current = setTimeout(() => {
+        feedbackTimeoutRef.current = null;
+        hideFeedback();
+      }, durationMs);
+    },
+    [clearFeedbackTimer, feedbackOpacity, feedbackTranslateY, hideFeedback],
+  );
+
+  const handleFeedbackAction = useCallback(() => {
+    const action = feedbackActionRef.current;
+
+    feedbackActionRef.current = null;
+    hideFeedback();
+    action?.();
+  }, [hideFeedback]);
+
+  useEffect(() => {
+    return () => {
+      clearFeedbackTimer();
+      feedbackActionRef.current = null;
+      feedbackOpacity.stopAnimation();
+      feedbackTranslateY.stopAnimation();
+    };
+  }, [clearFeedbackTimer, feedbackOpacity, feedbackTranslateY]);
 
   useEffect(() => {
     if (!openItemId) {
@@ -88,33 +202,47 @@ function CartScreen({ navigation }) {
 
   const handleRemoveItem = useCallback(
     productId => {
+      const removedItem = items.find(item => item.product.id === productId);
+
+      if (!removedItem) {
+        return;
+      }
+
       configureCartRemovalLayout();
       setOpenItemId(currentItemId =>
         currentItemId === productId ? null : currentItemId,
       );
       removeFromCart(productId);
+
+      showFeedback(`${removedItem.product.name} removed from cart`, {
+        actionLabel: 'Undo',
+        durationMs: UNDO_HIDE_DELAY_MS,
+        onAction: () => {
+          configureCartRemovalLayout();
+          addToCart(removedItem.product, removedItem.quantity);
+        },
+        tone: 'destructive',
+      });
     },
-    [removeFromCart],
+    [addToCart, items, removeFromCart, showFeedback],
   );
 
-  const handleSaveForLater = useCallback(
-    product => {
-      if (isFavourite(product.id)) {
-        Alert.alert(
-          'Already saved',
-          `${product.name} is already in your saved items.`,
-        );
-        return;
-      }
+  const handleCheckout = useCallback(() => {
+    if (!items.length) {
+      showFeedback('Your cart is empty.', {
+        tone: 'destructive',
+      });
+      return;
+    }
 
-      addToFavourites(product);
-      Alert.alert(
-        'Saved for later',
-        `${product.name} was added to your saved items.`,
-      );
-    },
-    [addToFavourites, isFavourite],
-  );
+    setOpenItemId(null);
+    navigation.navigate(CUSTOMER_ROUTES.CHECKOUT);
+  }, [items.length, navigation, showFeedback]);
+
+  const feedbackAnimatedStyle = {
+    opacity: feedbackOpacity,
+    transform: [{ translateY: feedbackTranslateY }],
+  };
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -150,12 +278,12 @@ function CartScreen({ navigation }) {
                   isOpen={openItemId === item.product.id}
                   item={item}
                   key={item.product.id}
+                  onCheckout={handleCheckout}
                   onClose={handleCloseItem}
                   onDecrease={decreaseQuantity}
                   onIncrease={increaseQuantity}
                   onOpen={handleOpenItem}
                   onRemove={handleRemoveItem}
-                  onSaveForLater={handleSaveForLater}
                 />
               ))}
             </ScrollView>
@@ -221,6 +349,60 @@ function CartScreen({ navigation }) {
             </View>
           </View>
         )}
+
+        {feedbackState.message ? (
+          <Animated.View
+            pointerEvents={
+              feedbackState.actionLabel ? 'box-none' : 'none'
+            }
+            style={[
+              styles.feedbackToastContainer,
+              { bottom: insets.bottom + 184 },
+              feedbackAnimatedStyle,
+            ]}
+            testID="cart-feedback-toast"
+          >
+            <View
+              style={[
+                styles.feedbackToast,
+                feedbackState.tone === 'destructive'
+                  ? styles.feedbackToastDestructive
+                  : styles.feedbackToastSuccess,
+                feedbackState.actionLabel
+                  ? styles.feedbackToastWithAction
+                  : null,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.feedbackToastLabel,
+                  feedbackState.tone === 'destructive'
+                    ? styles.feedbackToastLabelDefault
+                    : styles.feedbackToastLabelSuccess,
+                ]}
+              >
+                {feedbackState.message}
+              </Text>
+
+              {feedbackState.actionLabel ? (
+                <ScalePressable
+                  android_ripple={{ color: '#9D2B2B' }}
+                  onPress={handleFeedbackAction}
+                  pressScale={0.96}
+                  style={({ pressed }) => [
+                    styles.feedbackActionButton,
+                    pressed && styles.feedbackActionButtonPressed,
+                  ]}
+                  testID="cart-feedback-toast-action"
+                >
+                  <Text style={styles.feedbackActionButtonLabel}>
+                    {feedbackState.actionLabel}
+                  </Text>
+                </ScalePressable>
+              ) : null}
+            </View>
+          </Animated.View>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -414,6 +596,69 @@ const styles = StyleSheet.create({
     color: UI_COLORS.surface,
     ...UI_TYPOGRAPHY.buttonLarge,
     textAlign: 'center',
+  },
+  feedbackToastContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 40,
+    elevation: 10,
+  },
+  feedbackToast: {
+    maxWidth: '84%',
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    ...UI_SHADOWS.card,
+  },
+  feedbackToastSuccess: {
+    backgroundColor: UI_COLORS.successSoft,
+    borderColor: UI_COLORS.accentGreenSoft,
+  },
+  feedbackToastDestructive: {
+    backgroundColor: UI_COLORS.surface,
+    borderColor: UI_COLORS.accentRedSoft,
+  },
+  feedbackToastWithAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minWidth: 262,
+  },
+  feedbackToastLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  feedbackToastLabelSuccess: {
+    color: UI_COLORS.successText,
+  },
+  feedbackToastLabelDefault: {
+    color: UI_COLORS.textStrong,
+    flex: 1,
+    marginRight: 14,
+  },
+  feedbackActionButton: {
+    minWidth: 74,
+    backgroundColor: UI_COLORS.accentRed,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: UI_COLORS.accentRed,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  feedbackActionButtonPressed: {
+    backgroundColor: UI_COLORS.accentRedPressed,
+  },
+  feedbackActionButtonLabel: {
+    color: UI_COLORS.surface,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 16,
   },
 });
 

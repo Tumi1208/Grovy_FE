@@ -1,28 +1,233 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { getProductImageSource } from '../../assets/productImages';
-import DirectionalHint from '../../components/DirectionalHint';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  LayoutAnimation,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  UIManager,
+  View,
+} from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import FavouriteItemRow from '../../components/favourites/FavouriteItemRow';
 import ProductImage from '../../components/ProductImage';
 import ScalePressable from '../../components/ScalePressable';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
   UI_LAYOUT,
-  UI_RADIUS,
   UI_SHADOWS,
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
 import { useCart } from '../../context/CartContext';
 import { useFavourite } from '../../context/FavouriteContext';
-import { formatCurrency } from '../../utils/formatCurrency';
-import { getProductSubtitle } from '../../utils/productPresentation';
 
 const EMPTY_FAVOURITE_IMAGE = require('../../assets/images/products/fruit-and-veggie-heart-scaled.png');
+const FEEDBACK_HIDE_DELAY_MS = 1500;
+const UNDO_HIDE_DELAY_MS = 4000;
+
+if (
+  Platform.OS === 'android' &&
+  typeof UIManager.setLayoutAnimationEnabledExperimental === 'function'
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+function configureFavouriteRemovalLayout() {
+  LayoutAnimation.configureNext({
+    duration: 220,
+    create: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+    update: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+    },
+    delete: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+  });
+}
 
 function FavouriteScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { addToCart } = useCart();
-  const { favourites, removeFromFavourites } = useFavourite();
+  const { addToFavourites, favourites, removeFromFavourites } = useFavourite();
+  const [openItemId, setOpenItemId] = useState(null);
+  const [feedbackState, setFeedbackState] = useState({
+    message: '',
+    actionLabel: '',
+    tone: 'success',
+  });
+  const feedbackOpacity = useRef(new Animated.Value(0)).current;
+  const feedbackTranslateY = useRef(new Animated.Value(10)).current;
+  const feedbackTimeoutRef = useRef(null);
+  const feedbackActionRef = useRef(null);
+
+  const clearFeedbackTimer = useCallback(() => {
+    if (!feedbackTimeoutRef.current) {
+      return;
+    }
+
+    clearTimeout(feedbackTimeoutRef.current);
+    feedbackTimeoutRef.current = null;
+  }, []);
+
+  const hideFeedback = useCallback(() => {
+    clearFeedbackTimer();
+    feedbackActionRef.current = null;
+
+    feedbackOpacity.stopAnimation();
+    feedbackTranslateY.stopAnimation();
+
+    Animated.parallel([
+      Animated.timing(feedbackOpacity, {
+        toValue: 0,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+      Animated.timing(feedbackTranslateY, {
+        toValue: 10,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) {
+        setFeedbackState({
+          message: '',
+          actionLabel: '',
+          tone: 'success',
+        });
+      }
+    });
+  }, [clearFeedbackTimer, feedbackOpacity, feedbackTranslateY]);
+
+  const showFeedback = useCallback(
+    (
+      message,
+      {
+        actionLabel = '',
+        durationMs = FEEDBACK_HIDE_DELAY_MS,
+        onAction = null,
+        tone = 'success',
+      } = {},
+    ) => {
+      clearFeedbackTimer();
+      feedbackActionRef.current =
+        typeof onAction === 'function' ? onAction : null;
+      setFeedbackState({
+        message,
+        actionLabel,
+        tone,
+      });
+
+      feedbackOpacity.stopAnimation();
+      feedbackTranslateY.stopAnimation();
+
+      Animated.parallel([
+        Animated.timing(feedbackOpacity, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(feedbackTranslateY, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      feedbackTimeoutRef.current = setTimeout(() => {
+        feedbackTimeoutRef.current = null;
+        hideFeedback();
+      }, durationMs);
+    },
+    [clearFeedbackTimer, feedbackOpacity, feedbackTranslateY, hideFeedback],
+  );
+
+  const handleFeedbackAction = useCallback(() => {
+    const action = feedbackActionRef.current;
+
+    feedbackActionRef.current = null;
+    hideFeedback();
+    action?.();
+  }, [hideFeedback]);
+
+  useEffect(() => {
+    return () => {
+      clearFeedbackTimer();
+      feedbackActionRef.current = null;
+      feedbackOpacity.stopAnimation();
+      feedbackTranslateY.stopAnimation();
+    };
+  }, [clearFeedbackTimer, feedbackOpacity, feedbackTranslateY]);
+
+  useEffect(() => {
+    if (!openItemId) {
+      return;
+    }
+
+    const itemStillExists = favourites.some(item => item.id === openItemId);
+
+    if (!itemStillExists) {
+      setOpenItemId(null);
+    }
+  }, [favourites, openItemId]);
+
+  const handleOpenItem = useCallback(productId => {
+    setOpenItemId(productId);
+  }, []);
+
+  const handleCloseItem = useCallback(productId => {
+    setOpenItemId(currentItemId =>
+      currentItemId === productId ? null : currentItemId,
+    );
+  }, []);
+
+  const handleAddSavedItemToCart = useCallback(
+    product => {
+      addToCart(product, 1);
+      showFeedback('Added to cart');
+    },
+    [addToCart, showFeedback],
+  );
+
+  const handleRemoveSavedItem = useCallback(
+    productId => {
+      const removedProduct = favourites.find(item => item.id === productId);
+
+      if (!removedProduct) {
+        return;
+      }
+
+      configureFavouriteRemovalLayout();
+      setOpenItemId(currentItemId =>
+        currentItemId === productId ? null : currentItemId,
+      );
+      removeFromFavourites(productId);
+
+      showFeedback(`${removedProduct.name} removed from saved items`, {
+        actionLabel: 'Undo',
+        durationMs: UNDO_HIDE_DELAY_MS,
+        onAction: () => {
+          configureFavouriteRemovalLayout();
+          addToFavourites(removedProduct);
+        },
+        tone: 'destructive',
+      });
+    },
+    [addToFavourites, favourites, removeFromFavourites, showFeedback],
+  );
+
+  const feedbackAnimatedStyle = {
+    opacity: feedbackOpacity,
+    transform: [{ translateY: feedbackTranslateY }],
+  };
 
   function handleOpenProduct(product) {
     navigation.navigate(CUSTOMER_ROUTES.PRODUCT_DETAIL, {
@@ -36,6 +241,7 @@ function FavouriteScreen({ navigation }) {
       <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.content}
+          onScrollBeginDrag={() => setOpenItemId(null)}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
@@ -82,104 +288,70 @@ function FavouriteScreen({ navigation }) {
           ) : null}
 
           {favourites.map(product => (
-            <ScalePressable
-              android_ripple={{ color: '#EEE7DC' }}
+            <FavouriteItemRow
+              isOpen={openItemId === product.id}
               key={product.id}
-              onPress={() => handleOpenProduct(product)}
-              pressScale={0.992}
-              style={({ pressed }) => [
-                styles.rowCard,
-                pressed && styles.rowPressed,
-              ]}
-            >
-              <View style={styles.rowTop}>
-                <View style={styles.imageWrap}>
-                  <ProductImage
-                    name={product.name}
-                    resizeMode="contain"
-                    source={getProductImageSource(product)}
-                    style={styles.image}
-                  />
-                </View>
-
-                <View style={styles.copy}>
-                  <View style={styles.rowMetaRow}>
-                    <View style={styles.categoryPill}>
-                      <Text style={styles.categoryPillLabel}>
-                        {product.category}
-                      </Text>
-                    </View>
-                    <DirectionalHint
-                      chevronSize={8}
-                      color={UI_COLORS.mutedStrong}
-                      mode="plain"
-                      style={styles.rowIndicator}
-                    />
-                  </View>
-                  <Text numberOfLines={2} style={styles.name}>
-                    {product.name}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.meta}>
-                    {getProductSubtitle(product)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.availability,
-                      product.stock > 0
-                        ? styles.availabilityInStock
-                        : styles.availabilityOutOfStock,
-                    ]}
-                  >
-                    {product.stock > 0
-                      ? `${product.stock} available`
-                      : 'Unavailable'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.rowFooter}>
-                <View>
-                  <Text style={styles.priceLabel}>Price</Text>
-                  <Text style={styles.price}>
-                    {formatCurrency(product.price)}
-                  </Text>
-                </View>
-
-                <View style={styles.actions}>
-                  <ScalePressable
-                    android_ripple={{ color: '#3D5F39' }}
-                    onPress={event => {
-                      event.stopPropagation();
-                      addToCart(product, 1);
-                    }}
-                    pressScale={0.96}
-                    style={({ pressed }) => [
-                      styles.addButton,
-                      pressed && styles.addButtonPressed,
-                    ]}
-                  >
-                    <Text style={styles.addButtonLabel}>Add to cart</Text>
-                  </ScalePressable>
-
-                  <ScalePressable
-                    android_ripple={{ color: '#EEE7DC' }}
-                    onPress={event => {
-                      event.stopPropagation();
-                      removeFromFavourites(product.id);
-                    }}
-                    pressScale={0.94}
-                    style={({ pressed }) => [
-                      styles.removeButton,
-                      pressed && styles.removeButtonPressed,
-                    ]}
-                  >
-                    <Text style={styles.removeButtonIcon}>♥</Text>
-                  </ScalePressable>
-                </View>
-              </View>
-            </ScalePressable>
+              onAddToCart={handleAddSavedItemToCart}
+              onClose={handleCloseItem}
+              onOpen={handleOpenItem}
+              onPress={handleOpenProduct}
+              onRemove={handleRemoveSavedItem}
+              product={product}
+            />
           ))}
         </ScrollView>
+
+        {feedbackState.message ? (
+          <Animated.View
+            pointerEvents={feedbackState.actionLabel ? 'box-none' : 'none'}
+            style={[
+              styles.feedbackToastContainer,
+              { bottom: insets.bottom + 164 },
+              feedbackAnimatedStyle,
+            ]}
+            testID="favourite-feedback-toast"
+          >
+            <View
+              style={[
+                styles.feedbackToast,
+                feedbackState.tone === 'destructive'
+                  ? styles.feedbackToastDestructive
+                  : styles.feedbackToastSuccess,
+                feedbackState.actionLabel
+                  ? styles.feedbackToastWithAction
+                  : null,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.feedbackToastLabel,
+                  feedbackState.tone === 'destructive'
+                    ? styles.feedbackToastLabelDefault
+                    : styles.feedbackToastLabelSuccess,
+                ]}
+              >
+                {feedbackState.message}
+              </Text>
+
+              {feedbackState.actionLabel ? (
+                <ScalePressable
+                  android_ripple={{ color: '#9D2B2B' }}
+                  onPress={handleFeedbackAction}
+                  pressScale={0.96}
+                  style={({ pressed }) => [
+                    styles.feedbackActionButton,
+                    pressed && styles.feedbackActionButtonPressed,
+                  ]}
+                  testID="favourite-feedback-toast-action"
+                >
+                  <Text style={styles.feedbackActionButtonLabel}>
+                    {feedbackState.actionLabel}
+                  </Text>
+                </ScalePressable>
+              ) : null}
+            </View>
+          </Animated.View>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -309,144 +481,67 @@ const styles = StyleSheet.create({
     color: UI_COLORS.surface,
     ...UI_TYPOGRAPHY.buttonLarge,
   },
-  rowCard: {
-    backgroundColor: UI_COLORS.surface,
-    borderRadius: 26,
+  feedbackToastContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 40,
+    elevation: 10,
+  },
+  feedbackToast: {
+    maxWidth: '84%',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: UI_COLORS.border,
-    padding: 17,
-    marginBottom: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
     ...UI_SHADOWS.card,
   },
-  rowPressed: {
-    opacity: 0.98,
+  feedbackToastSuccess: {
+    backgroundColor: UI_COLORS.successSoft,
+    borderColor: UI_COLORS.accentGreenSoft,
   },
-  rowTop: {
+  feedbackToastDestructive: {
+    backgroundColor: UI_COLORS.surface,
+    borderColor: UI_COLORS.accentRedSoft,
+  },
+  feedbackToastWithAction: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    minWidth: 270,
   },
-  imageWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 22,
-    backgroundColor: UI_COLORS.surfaceSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+  feedbackToastLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  feedbackToastLabelSuccess: {
+    color: UI_COLORS.successText,
+  },
+  feedbackToastLabelDefault: {
+    color: UI_COLORS.textStrong,
+    flex: 1,
     marginRight: 14,
   },
-  image: {
-    width: 62,
-    height: 62,
-  },
-  copy: {
-    flex: 1,
-  },
-  rowMetaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  categoryPill: {
-    alignSelf: 'flex-start',
-    borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.surfaceSoft,
+  feedbackActionButton: {
+    minWidth: 74,
+    backgroundColor: UI_COLORS.accentRed,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  categoryPillLabel: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 14,
-  },
-  rowIndicator: {
-    marginLeft: 8,
-  },
-  name: {
-    color: UI_COLORS.textStrong,
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 24,
-    marginBottom: 4,
-  },
-  meta: {
-    color: UI_COLORS.mutedStrong,
-    ...UI_TYPOGRAPHY.meta,
-    marginBottom: 6,
-  },
-  availability: {
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 16,
-  },
-  availabilityInStock: {
-    color: UI_COLORS.accentGreen,
-  },
-  availabilityOutOfStock: {
-    color: UI_COLORS.accentRed,
-  },
-  rowFooter: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
-  priceLabel: {
-    color: UI_COLORS.mutedStrong,
-    ...UI_TYPOGRAPHY.label,
-    marginBottom: 4,
-  },
-  price: {
-    color: UI_COLORS.textStrong,
-    fontSize: 22,
-    fontWeight: '800',
-    lineHeight: 26,
-  },
-  actions: {
-    marginLeft: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  addButton: {
-    minWidth: 108,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: UI_COLORS.accentGreen,
-    borderWidth: 1,
-    borderColor: UI_COLORS.accentGreen,
+    borderColor: UI_COLORS.accentRed,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 14,
-    marginRight: 8,
+    paddingVertical: 10,
   },
-  addButtonPressed: {
-    backgroundColor: UI_COLORS.accentGreenPressed,
+  feedbackActionButtonPressed: {
+    backgroundColor: UI_COLORS.accentRedPressed,
   },
-  addButtonLabel: {
+  feedbackActionButtonLabel: {
     color: UI_COLORS.surface,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 18,
-  },
-  removeButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeButtonPressed: {
-    opacity: 0.9,
-  },
-  removeButtonIcon: {
-    color: UI_COLORS.accentRed,
-    fontSize: 16,
+    fontSize: 13,
+    fontWeight: '800',
     lineHeight: 16,
   },
 });

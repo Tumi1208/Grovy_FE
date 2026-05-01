@@ -2,10 +2,11 @@
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { LayoutAnimation } from 'react-native';
-import CartScreen from '../src/screens/customer/CartScreen';
+import FavouriteScreen from '../src/screens/customer/FavouriteScreen';
 import { CUSTOMER_ROUTES } from '../src/constants/routes';
 
 const mockUseCart = jest.fn();
+const mockUseFavourite = jest.fn();
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }) => {
@@ -21,6 +22,10 @@ jest.mock('../src/context/CartContext', () => ({
   useCart: () => mockUseCart(),
 }));
 
+jest.mock('../src/context/FavouriteContext', () => ({
+  useFavourite: () => mockUseFavourite(),
+}));
+
 jest.mock('../src/components/ProductImage', () => {
   return function MockProductImage() {
     const React = require('react');
@@ -29,8 +34,6 @@ jest.mock('../src/components/ProductImage', () => {
     return <View />;
   };
 });
-
-jest.mock('../src/components/cart/CartHealthCard', () => () => null);
 
 jest.mock('../src/components/ScalePressable', () => {
   return function MockScalePressable({ children, style, ...props }) {
@@ -50,59 +53,48 @@ jest.mock('../src/components/ScalePressable', () => {
   };
 });
 
-jest.mock('../src/components/cart/CartItemRow', () => {
-  return function MockCartItemRow({
-    onCheckout,
-    item,
-    onDecrease,
-    onIncrease,
+jest.mock('../src/components/favourites/FavouriteItemRow', () => {
+  return function MockFavouriteItemRow({
+    onAddToCart,
+    onPress,
     onRemove,
+    product,
   }) {
     const React = require('react');
     const { Pressable, Text, View } = require('react-native');
 
     return (
-      <View testID={`mock-cart-row-${item.product.id}`}>
+      <View testID={`mock-favourite-row-${product.id}`}>
         <Pressable
-          onPress={() => onCheckout()}
-          testID={`mock-checkout-${item.product.id}`}
+          onPress={() => onPress(product)}
+          testID={`mock-open-${product.id}`}
         >
-          <Text>Checkout</Text>
+          <Text>Open</Text>
         </Pressable>
         <Pressable
-          onPress={() => onRemove(item.product.id)}
-          testID={`mock-delete-${item.product.id}`}
+          onPress={() => onAddToCart(product)}
+          testID={`mock-add-${product.id}`}
         >
-          <Text>Delete</Text>
+          <Text>Add</Text>
         </Pressable>
         <Pressable
-          onPress={() => onDecrease(item.product.id)}
-          testID={`mock-decrease-${item.product.id}`}
+          onPress={() => onRemove(product.id)}
+          testID={`mock-remove-${product.id}`}
         >
-          <Text>Decrease</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onIncrease(item.product.id)}
-          testID={`mock-increase-${item.product.id}`}
-        >
-          <Text>Increase</Text>
+          <Text>Remove</Text>
         </Pressable>
       </View>
     );
   };
 });
 
-function createCartItem(overrides = {}) {
+function createProduct(overrides = {}) {
   return {
-    product: {
-      id: 'apple',
-      name: 'Apple',
-      price: 2.5,
-      stock: 8,
-      category: 'Fruit',
-      ...overrides.product,
-    },
-    quantity: 2,
+    id: 'apple',
+    name: 'Apple',
+    price: 2.5,
+    stock: 8,
+    category: 'Fruit',
     ...overrides,
   };
 }
@@ -110,17 +102,20 @@ function createCartItem(overrides = {}) {
 function createCartState(overrides = {}) {
   return {
     addToCart: jest.fn(),
-    decreaseQuantity: jest.fn(),
-    increaseQuantity: jest.fn(),
-    items: [createCartItem()],
-    removeFromCart: jest.fn(),
-    subtotal: 5,
-    totalItems: 2,
     ...overrides,
   };
 }
 
-describe('CartScreen swipe action wiring', () => {
+function createFavouriteState(overrides = {}) {
+  return {
+    addToFavourites: jest.fn(),
+    favourites: [createProduct()],
+    removeFromFavourites: jest.fn(),
+    ...overrides,
+  };
+}
+
+describe('FavouriteScreen swipe action wiring', () => {
   const navigation = {
     navigate: jest.fn(),
   };
@@ -148,78 +143,96 @@ describe('CartScreen swipe action wiring', () => {
     jest.clearAllTimers();
     jest.useRealTimers();
     mockUseCart.mockReset();
+    mockUseFavourite.mockReset();
   });
 
   function renderScreen() {
     let renderer;
 
     act(() => {
-      renderer = TestRenderer.create(<CartScreen navigation={navigation} />);
+      renderer = TestRenderer.create(
+        <FavouriteScreen navigation={navigation} />,
+      );
     });
 
     activeRenderer = renderer;
     return renderer;
   }
 
-  it('reuses the existing checkout navigation when Checkout is pressed', () => {
+  it('adds the saved item to cart and keeps it in favourites', () => {
     const cartState = createCartState();
+    const favouriteState = createFavouriteState();
 
     mockUseCart.mockImplementation(() => cartState);
+    mockUseFavourite.mockImplementation(() => favouriteState);
 
     const renderer = renderScreen();
 
     act(() => {
-      renderer.root
-        .findByProps({ testID: 'mock-checkout-apple' })
-        .props.onPress();
+      renderer.root.findByProps({ testID: 'mock-add-apple' }).props.onPress();
     });
 
-    expect(navigation.navigate).toHaveBeenCalledWith(CUSTOMER_ROUTES.CHECKOUT);
+    expect(cartState.addToCart).toHaveBeenCalledWith(
+      favouriteState.favourites[0],
+      1,
+    );
+    expect(favouriteState.removeFromFavourites).not.toHaveBeenCalled();
+    expect(
+      renderer.root.findByProps({ testID: 'favourite-feedback-toast' }),
+    ).toBeTruthy();
   });
 
-  it('removes the item, shows undo, and restores it when Undo is pressed', () => {
+  it('reuses the existing remove handler with row removal animation', () => {
     const cartState = createCartState();
+    const favouriteState = createFavouriteState();
 
     mockUseCart.mockImplementation(() => cartState);
+    mockUseFavourite.mockImplementation(() => favouriteState);
 
     const renderer = renderScreen();
 
     act(() => {
       renderer.root
-        .findByProps({ testID: 'mock-delete-apple' })
+        .findByProps({ testID: 'mock-remove-apple' })
         .props.onPress();
     });
 
     expect(LayoutAnimation.configureNext).toHaveBeenCalled();
-    expect(cartState.removeFromCart).toHaveBeenCalledWith('apple');
-    expect(renderer.root.findByProps({ testID: 'cart-feedback-toast' })).toBeTruthy();
+    expect(favouriteState.removeFromFavourites).toHaveBeenCalledWith('apple');
+    expect(
+      renderer.root.findByProps({ testID: 'favourite-feedback-toast' }),
+    ).toBeTruthy();
 
     act(() => {
       renderer.root
-        .findByProps({ testID: 'cart-feedback-toast-action' })
+        .findByProps({ testID: 'favourite-feedback-toast-action' })
         .props.onPress();
     });
 
-    expect(cartState.addToCart).toHaveBeenCalledWith(cartState.items[0].product, 2);
+    expect(favouriteState.addToFavourites).toHaveBeenCalledWith(
+      favouriteState.favourites[0],
+    );
   });
 
-  it('reuses existing quantity handlers', () => {
+  it('keeps product detail navigation on row press', () => {
     const cartState = createCartState();
+    const favouriteState = createFavouriteState();
 
     mockUseCart.mockImplementation(() => cartState);
+    mockUseFavourite.mockImplementation(() => favouriteState);
 
     const renderer = renderScreen();
 
     act(() => {
-      renderer.root
-        .findByProps({ testID: 'mock-decrease-apple' })
-        .props.onPress();
-      renderer.root
-        .findByProps({ testID: 'mock-increase-apple' })
-        .props.onPress();
+      renderer.root.findByProps({ testID: 'mock-open-apple' }).props.onPress();
     });
 
-    expect(cartState.decreaseQuantity).toHaveBeenCalledWith('apple');
-    expect(cartState.increaseQuantity).toHaveBeenCalledWith('apple');
+    expect(navigation.navigate).toHaveBeenCalledWith(
+      CUSTOMER_ROUTES.PRODUCT_DETAIL,
+      {
+        productId: 'apple',
+        initialProduct: favouriteState.favourites[0],
+      },
+    );
   });
 });

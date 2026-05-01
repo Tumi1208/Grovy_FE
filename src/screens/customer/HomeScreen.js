@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   ScrollView,
@@ -15,6 +16,10 @@ import DirectionalHint from '../../components/DirectionalHint';
 import HomeProductCard, {
   HomeCategoryCard,
 } from '../../components/home/HomeProductCard';
+import {
+  HomeBudgetModePanel,
+  HomeSmartCollectionRow,
+} from '../../components/home/HomeSmartShoppingSections';
 import PrimaryButton from '../../components/PrimaryButton';
 import ScalePressable from '../../components/ScalePressable';
 import { getProductImage } from '../../constants/productImages';
@@ -30,13 +35,27 @@ import {
 import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
 import { buildHomeScreenData } from '../../data/homeScreenData';
+import {
+  BudgetPresets,
+  RecipeBaskets,
+  SmartBaskets,
+} from '../../data/smartShoppingData';
 import { getProducts } from '../../services/productService';
 import {
   normalizeSearchText,
   productMatchesSearch,
 } from '../../utils/search';
+import {
+  buildBudgetBasket,
+  resolveSmartBasketProducts,
+} from '../../utils/smartShoppingHelpers';
 
 const HOME_HORIZONTAL_GAP = 14;
+const SMART_BASKET_LIST = Object.values(SmartBaskets);
+const BUDGET_PRESET_LIST = Object.values(BudgetPresets);
+const RECIPE_BASKET_LIST = Object.values(RecipeBaskets);
+const DEFAULT_BUDGET_PRESET_ID =
+  BudgetPresets.under20?.id || BUDGET_PRESET_LIST[0]?.id || '';
 
 function getHomeProductCardWidth(viewportWidth) {
   const availableWidth = Math.max(
@@ -54,6 +73,69 @@ function getHomeCategoryCardWidth(viewportWidth) {
   );
 
   return Math.max(228, Math.min(248, Math.round(availableWidth * 0.74)));
+}
+
+function getHomeSmartCollectionCardWidth(viewportWidth) {
+  const availableWidth = Math.max(
+    280,
+    viewportWidth - UI_LAYOUT.homeScreenPadding * 2,
+  );
+
+  return Math.max(234, Math.min(258, Math.round(availableWidth * 0.72)));
+}
+
+function getEstimatedTotal(products = []) {
+  const total = products.reduce((sum, product) => {
+    const price = Number(product?.price);
+
+    return Number.isFinite(price) && price > 0 ? sum + price : sum;
+  }, 0);
+
+  return Number(total.toFixed(2));
+}
+
+function getAddableProducts(products = []) {
+  return products.filter(product => product?.id && product.stock > 0);
+}
+
+function buildSmartCollections(products = [], definitions = []) {
+  return definitions.map(definition => {
+    const { missingKeys, products: resolvedProducts } =
+      resolveSmartBasketProducts(products, definition);
+    const addableProducts = getAddableProducts(resolvedProducts);
+
+    return {
+      ...definition,
+      products: addableProducts,
+      previewProducts: resolvedProducts,
+      estimatedTotal: getEstimatedTotal(addableProducts),
+      itemCount: resolvedProducts.length,
+      addableCount: addableProducts.length,
+      missingCount: missingKeys.length,
+      unavailableCount: resolvedProducts.filter(product => product?.stock <= 0)
+        .length,
+    };
+  });
+}
+
+function buildBatchAddSummary({ addedCount, missingCount, unavailableCount }) {
+  const summary = [
+    `Added ${addedCount} item${addedCount === 1 ? '' : 's'} to cart.`,
+  ];
+
+  if (missingCount > 0) {
+    summary.push(
+      `${missingCount} missing item${missingCount === 1 ? '' : 's'} skipped.`,
+    );
+  }
+
+  if (unavailableCount > 0) {
+    summary.push(
+      `${unavailableCount} out of stock item${unavailableCount === 1 ? '' : 's'} skipped.`,
+    );
+  }
+
+  return summary.join(' ');
 }
 
 function SearchGlyph({ color = UI_COLORS.mutedStrong }) {
@@ -343,6 +425,9 @@ function HomeScreen({ navigation }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedBudgetPresetId, setSelectedBudgetPresetId] = useState(
+    DEFAULT_BUDGET_PRESET_ID,
+  );
   const { currentUser } = useApp();
   const { addToCart } = useCart();
   const deliveryLocation =
@@ -413,6 +498,38 @@ function HomeScreen({ navigation }) {
     addToCart(product, 1);
   }
 
+  function handleAddProductCollection(
+    collection,
+    {
+      emptyMessage = 'No matching products are available right now.',
+      title = 'Basket',
+    } = {},
+  ) {
+    const addableProducts = Array.isArray(collection?.products)
+      ? collection.products.filter(product => product?.id && product.stock > 0)
+      : [];
+    const missingCount = Number(collection?.missingCount) || 0;
+    const unavailableCount = Number(collection?.unavailableCount) || 0;
+
+    if (!addableProducts.length) {
+      Alert.alert(title, emptyMessage);
+      return;
+    }
+
+    addableProducts.forEach(product => {
+      addToCart(product, 1);
+    });
+
+    Alert.alert(
+      title,
+      buildBatchAddSummary({
+        addedCount: addableProducts.length,
+        missingCount,
+        unavailableCount,
+      }),
+    );
+  }
+
   function handleResetFilters() {
     setSearchQuery('');
   }
@@ -432,7 +549,22 @@ function HomeScreen({ navigation }) {
     });
   }
 
+  function handleOpenSmartCollection(collection) {
+    const previewProduct =
+      collection?.previewProducts?.[0] || collection?.products?.[0];
+
+    if (!previewProduct?.id) {
+      return;
+    }
+
+    handleOpenProduct(previewProduct);
+  }
+
   const homeData = useMemo(() => buildHomeScreenData(products), [products]);
+  const smartCollectionCardWidth = useMemo(
+    () => getHomeSmartCollectionCardWidth(width),
+    [width],
+  );
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
   const hasSearchQuery = Boolean(normalizedSearchQuery);
   const searchResults = hasSearchQuery
@@ -451,16 +583,62 @@ function HomeScreen({ navigation }) {
     () => getHomeCategoryCardWidth(width),
     [width],
   );
+  const availableProducts = useMemo(
+    () => getAddableProducts(products),
+    [products],
+  );
+  const smartBaskets = useMemo(
+    () => buildSmartCollections(products, SMART_BASKET_LIST),
+    [products],
+  );
+  const recipeBaskets = useMemo(
+    () => buildSmartCollections(products, RECIPE_BASKET_LIST),
+    [products],
+  );
+  const selectedBudgetPreset =
+    BUDGET_PRESET_LIST.find(preset => preset.id === selectedBudgetPresetId) ||
+    BUDGET_PRESET_LIST[0] ||
+    null;
+  const budgetSuggestion = useMemo(
+    () =>
+      buildBudgetBasket(availableProducts, selectedBudgetPreset?.budget || 0),
+    [availableProducts, selectedBudgetPreset],
+  );
   const hasCatalogItems = products.length > 0;
-  const hasHomeContent =
-    homeData.exclusiveOffer.length > 0 ||
-    homeData.bestSelling.length > 0 ||
-    homeData.groceries.length > 0;
   const searchResultsLabel =
     searchResults.length === 1
       ? '1 product'
       : `${searchResults.length} products`;
   const trimmedSearchQuery = searchQuery.trim();
+  const shouldShowSmartSections = hasCatalogItems && !hasSearchQuery;
+
+  function handleAddSmartBasket(collection) {
+    handleAddProductCollection(collection, {
+      title: collection?.title || 'Smart basket',
+      emptyMessage: 'No products from this basket are available right now.',
+    });
+  }
+
+  function handleAddRecipeBasket(collection) {
+    handleAddProductCollection(collection, {
+      title: collection?.title || 'Recipe to Cart',
+      emptyMessage:
+        'No ingredients from this recipe are available right now.',
+    });
+  }
+
+  function handleAddBudgetBasket() {
+    handleAddProductCollection(
+      {
+        ...budgetSuggestion,
+        title: selectedBudgetPreset?.label || 'Budget basket',
+      },
+      {
+        title: selectedBudgetPreset?.label || 'Budget basket',
+        emptyMessage: 'No products fit this budget right now.',
+      },
+    );
+  }
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -522,8 +700,6 @@ function HomeScreen({ navigation }) {
             ) : null}
           </View>
 
-          <HomeStatusBanner errorMessage={errorMessage} isLoading={isLoading} />
-
           {hasSearchQuery ? (
             <>
               {searchResults.length > 0 ? (
@@ -567,9 +743,19 @@ function HomeScreen({ navigation }) {
               ) : (
                 <HomeSearchEmptyState onResetFilters={handleResetFilters} />
               )}
+
+              <HomeStatusBanner
+                errorMessage={errorMessage}
+                isLoading={isLoading}
+              />
             </>
           ) : (
             <>
+              <HomeStatusBanner
+                errorMessage={errorMessage}
+                isLoading={isLoading}
+              />
+
               <HomeHero
                 banner={homeData.banner}
                 onPress={() =>
@@ -579,33 +765,17 @@ function HomeScreen({ navigation }) {
                 }
               />
 
-              <View style={styles.sectionBlock}>
-                <SectionHeader
-                  onSeeAll={handleOpenExplore}
-                  title="Shop by aisle"
-                />
-                <View style={styles.horizontalRail}>
-                  <HomeCategoryRow
-                    cardWidth={categoryCardWidth}
-                    items={homeData.groceryCategories}
-                    onPressCategory={handleOpenCategory}
-                  />
-                </View>
-              </View>
-
-              {hasHomeContent ? (
+              {shouldShowSmartSections ? (
                 <>
                   <View style={styles.sectionBlock}>
-                    <SectionHeader
-                      onSeeAll={handleOpenExplore}
-                      title="Fresh picks"
-                    />
+                    <SectionHeader title="Smart Baskets" />
                     <View style={styles.horizontalRail}>
-                      <HomeSectionRow
-                        cardWidth={horizontalCardWidth}
-                        items={homeData.exclusiveOffer}
-                        onAddToCart={handleQuickAddToCart}
-                        onOpenProduct={handleOpenProduct}
+                      <HomeSmartCollectionRow
+                        actionLabel="Add basket"
+                        cardWidth={smartCollectionCardWidth}
+                        items={smartBaskets}
+                        onActionPress={handleAddSmartBasket}
+                        onPress={handleOpenSmartCollection}
                       />
                     </View>
                   </View>
@@ -613,29 +783,92 @@ function HomeScreen({ navigation }) {
                   <View style={styles.sectionBlock}>
                     <SectionHeader
                       onSeeAll={handleOpenExplore}
-                      title="Popular in store"
+                      title="Shop by aisle"
                     />
                     <View style={styles.horizontalRail}>
-                      <HomeSectionRow
-                        cardWidth={horizontalCardWidth}
-                        items={homeData.bestSelling}
-                        onAddToCart={handleQuickAddToCart}
-                        onOpenProduct={handleOpenProduct}
+                      <HomeCategoryRow
+                        cardWidth={categoryCardWidth}
+                        items={homeData.groceryCategories}
+                        onPressCategory={handleOpenCategory}
                       />
                     </View>
                   </View>
 
                   <View style={styles.sectionBlock}>
-                    <SectionHeader
-                      onSeeAll={handleOpenExplore}
-                      title="Pantry and protein"
-                    />
-                    <HomeGroceriesGrid
-                      items={homeData.groceries}
-                      onAddToCart={handleQuickAddToCart}
+                    <SectionHeader title="Shop by budget" />
+                    <HomeBudgetModePanel
+                      budgetPresets={BUDGET_PRESET_LIST}
+                      onAddSuggestion={handleAddBudgetBasket}
                       onOpenProduct={handleOpenProduct}
+                      onSelectPreset={preset =>
+                        setSelectedBudgetPresetId(preset.id)
+                      }
+                      selectedPreset={selectedBudgetPreset}
+                      suggestion={budgetSuggestion}
                     />
                   </View>
+
+                  {homeData.exclusiveOffer.length > 0 ? (
+                    <View style={styles.sectionBlock}>
+                      <SectionHeader
+                        onSeeAll={handleOpenExplore}
+                        title="Fresh picks"
+                      />
+                      <View style={styles.horizontalRail}>
+                        <HomeSectionRow
+                          cardWidth={horizontalCardWidth}
+                          items={homeData.exclusiveOffer}
+                          onAddToCart={handleQuickAddToCart}
+                          onOpenProduct={handleOpenProduct}
+                        />
+                      </View>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.sectionBlock}>
+                    <SectionHeader title="Recipe to Cart" />
+                    <View style={styles.horizontalRail}>
+                      <HomeSmartCollectionRow
+                        actionLabel="Add ingredients"
+                        cardWidth={smartCollectionCardWidth}
+                        items={recipeBaskets}
+                        onActionPress={handleAddRecipeBasket}
+                        onPress={handleOpenSmartCollection}
+                        variant="recipe"
+                      />
+                    </View>
+                  </View>
+
+                  {homeData.bestSelling.length > 0 ? (
+                    <View style={styles.sectionBlock}>
+                      <SectionHeader
+                        onSeeAll={handleOpenExplore}
+                        title="Popular in store"
+                      />
+                      <View style={styles.horizontalRail}>
+                        <HomeSectionRow
+                          cardWidth={horizontalCardWidth}
+                          items={homeData.bestSelling}
+                          onAddToCart={handleQuickAddToCart}
+                          onOpenProduct={handleOpenProduct}
+                        />
+                      </View>
+                    </View>
+                  ) : null}
+
+                  {homeData.groceries.length > 0 ? (
+                    <View style={styles.sectionBlock}>
+                      <SectionHeader
+                        onSeeAll={handleOpenExplore}
+                        title="Pantry and protein"
+                      />
+                      <HomeGroceriesGrid
+                        items={homeData.groceries}
+                        onAddToCart={handleQuickAddToCart}
+                        onOpenProduct={handleOpenProduct}
+                      />
+                    </View>
+                  ) : null}
                 </>
               ) : (
                 <HomeScreenEmptyState

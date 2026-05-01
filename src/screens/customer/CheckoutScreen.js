@@ -289,9 +289,30 @@ function CheckoutScreen({ navigation }) {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.assistantCard}>
+            <Text style={styles.assistantEyebrow}>Final review</Text>
+            <Text style={styles.assistantTitle}>
+              Your basket is almost ready.
+            </Text>
+            <Text style={styles.assistantSubtitle}>
+              Confirm delivery, payment, and receiver details before placing the
+              order.
+            </Text>
+            <View style={styles.assistantTagRow}>
+              <View style={styles.assistantTag}>
+                <Text style={styles.assistantTagLabel}>Free delivery</Text>
+              </View>
+              <View style={styles.assistantTag}>
+                <Text style={styles.assistantTagLabel}>
+                  Saved preferences loaded
+                </Text>
+              </View>
+            </View>
+          </View>
+
           <View style={styles.previewCard}>
             <View style={styles.cardHeadingRow}>
-              <Text style={styles.cardTitle}>In your order</Text>
+              <Text style={styles.cardTitle}>Order summary</Text>
               <Text style={styles.cardMeta}>{displayItems.length} items</Text>
             </View>
 
@@ -385,7 +406,8 @@ function CheckoutScreen({ navigation }) {
                 Default address and payment come from your Account settings.
               </Text>
               <Text style={styles.paymentHelpText}>
-                Editing the receiver fields here updates this order only and keeps your saved address book intact.
+                Editing these receiver fields updates this order only and keeps
+                your saved profile unchanged.
               </Text>
             </View>
           </View>
@@ -402,6 +424,9 @@ function CheckoutScreen({ navigation }) {
             <Text style={styles.footerTotalLabel}>Order total</Text>
             <Text style={styles.footerTotalValue}>
               {formatCurrency(displayTotalCost)}
+            </Text>
+            <Text style={styles.footerSupportText}>
+              Need to double-check anything? Review the cards above first.
             </Text>
           </View>
 
@@ -492,9 +517,56 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: 168,
   },
+  assistantCard: {
+    backgroundColor: UI_COLORS.banner,
+    borderRadius: UI_RADIUS.xxl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 20,
+    marginBottom: 16,
+    ...UI_SHADOWS.card,
+  },
+  assistantEyebrow: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.42,
+    marginBottom: 6,
+  },
+  assistantTitle: {
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.title,
+  },
+  assistantSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 4,
+  },
+  assistantTagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 14,
+  },
+  assistantTag: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: 'rgba(255, 253, 252, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 253, 252, 0.72)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  assistantTagLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 13,
+  },
   previewCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 26,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 20,
@@ -558,7 +630,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 26,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 20,
@@ -614,7 +686,7 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 26,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 20,
@@ -727,7 +799,7 @@ const styles = StyleSheet.create({
     right: UI_LAYOUT.footerSide,
     bottom: UI_LAYOUT.footerBottom,
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 9,
@@ -750,6 +822,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     lineHeight: 24,
+  },
+  footerSupportText: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11.5,
+    lineHeight: 15,
+    marginTop: 4,
+    maxWidth: 170,
   },
   placeOrderButton: {
     minHeight: UI_LAYOUT.ctaHeight,

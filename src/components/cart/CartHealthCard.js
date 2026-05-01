@@ -9,11 +9,11 @@ import {
 import { CalculateCartHealth } from '../../utils/smartShoppingHelpers';
 
 const GROUP_LABELS = Object.freeze({
-  fruit: 'fruit',
-  vegetable: 'vegetables',
-  protein: 'protein',
-  pantry: 'pantry basics',
-  beverageOrDairy: 'drinks or dairy',
+  fruit: 'Fruit',
+  vegetable: 'Vegetables',
+  protein: 'Protein',
+  pantry: 'Pantry basics',
+  beverageOrDairy: 'Drinks or dairy',
 });
 
 const GROUP_SUGGESTIONS = Object.freeze({
@@ -62,6 +62,22 @@ function getVisibleSuggestions(missingGroups = [], score = 0) {
     .slice(0, maxSuggestions);
 }
 
+function getAssistantMessage(health) {
+  if (health.score >= 80) {
+    return 'Balanced basket. Grovy likes the mix you already have.';
+  }
+
+  if (health.score >= 50) {
+    return 'Good start. One or two more categories will make this basket more complete.';
+  }
+
+  return 'Needs variety. Add a couple of essentials and Grovy can help round this out.';
+}
+
+function getVisiblePositives(positives = []) {
+  return positives.filter(Boolean).slice(0, 2);
+}
+
 function CartHealthCard({ items }) {
   const cartItems = Array.isArray(items) ? items.filter(Boolean) : [];
 
@@ -71,22 +87,20 @@ function CartHealthCard({ items }) {
 
   const health = CalculateCartHealth(cartItems);
   const positiveMessage = getPositiveMessage(health.presentGroups);
-  const suggestions = getVisibleSuggestions(
-    health.missingGroups,
-    health.score,
-  );
+  const suggestions = getVisibleSuggestions(health.missingGroups, health.score);
+  const visiblePositives = getVisiblePositives(health.positives);
 
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>Grovy assistant</Text>
           <Text style={styles.title}>Cart Health Check</Text>
-          <View style={styles.labelPill}>
-            <Text style={styles.labelText}>{health.label}</Text>
-          </View>
+          <Text style={styles.summaryText}>{getAssistantMessage(health)}</Text>
         </View>
 
         <View style={styles.scoreBadge}>
+          <Text style={styles.scoreCaption}>Score</Text>
           <Text style={styles.scoreValue}>
             {health.score}
             <Text style={styles.scoreSuffix}>/100</Text>
@@ -94,10 +108,37 @@ function CartHealthCard({ items }) {
         </View>
       </View>
 
-      <Text style={styles.positiveText}>{positiveMessage}</Text>
+      <View style={styles.progressTrack}>
+        <View
+          style={[
+            styles.progressFill,
+            { width: `${Math.max(8, health.score)}%` },
+          ]}
+        />
+      </View>
+
+      <View style={styles.labelRow}>
+        <View style={styles.labelPill}>
+          <Text style={styles.labelText}>{health.label}</Text>
+        </View>
+        <Text style={styles.positiveText}>{positiveMessage}</Text>
+      </View>
+
+      {visiblePositives.length ? (
+        <View style={styles.positiveSection}>
+          <Text style={styles.sectionLabel}>Looking good</Text>
+          {visiblePositives.map(positive => (
+            <View key={positive} style={styles.positiveRow}>
+              <View style={styles.positiveDot} />
+              <Text style={styles.positiveRowText}>{positive}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {suggestions.length ? (
         <View style={styles.suggestionSection}>
+          <Text style={styles.sectionLabel}>Try next</Text>
           {suggestions.map(suggestion => (
             <View key={suggestion} style={styles.suggestionRow}>
               <View style={styles.suggestionDot} />
@@ -113,11 +154,11 @@ function CartHealthCard({ items }) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: UI_COLORS.successSoft,
-    borderRadius: UI_RADIUS.xl,
+    borderRadius: UI_RADIUS.xxl,
     borderWidth: 1,
     borderColor: '#D5E1D0',
-    padding: 16,
-    marginBottom: 16,
+    padding: 18,
+    marginBottom: 18,
     ...UI_SHADOWS.card,
   },
   headerRow: {
@@ -130,13 +171,41 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 12,
   },
+  eyebrow: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.42,
+    marginBottom: 6,
+  },
   title: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.cardTitle,
   },
+  summaryText: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 4,
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: 'rgba(79, 122, 74, 0.12)',
+    overflow: 'hidden',
+    marginBottom: 14,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.accentGreen,
+  },
+  labelRow: {
+    marginBottom: 12,
+  },
   labelPill: {
     alignSelf: 'flex-start',
-    marginTop: 8,
     borderRadius: UI_RADIUS.round,
     backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
@@ -151,14 +220,23 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   scoreBadge: {
-    minWidth: 86,
-    borderRadius: 18,
+    minWidth: 92,
+    borderRadius: 20,
     backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
     borderColor: '#D5E1D0',
     paddingHorizontal: 12,
     paddingVertical: 10,
     alignItems: 'center',
+  },
+  scoreCaption: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 4,
   },
   scoreValue: {
     color: UI_COLORS.textStrong,
@@ -173,8 +251,39 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   positiveText: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 8,
+  },
+  sectionLabel: {
     color: UI_COLORS.textStrong,
-    ...UI_TYPOGRAPHY.bodyStrong,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 8,
+  },
+  positiveSection: {
+    marginBottom: 10,
+  },
+  positiveRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  positiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.accentGreen,
+    marginTop: 8,
+    marginRight: 8,
+  },
+  positiveRowText: {
+    flex: 1,
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.meta,
   },
   suggestionSection: {
     marginTop: 10,

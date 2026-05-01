@@ -61,8 +61,8 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   secondaryButton: {
-    backgroundColor: UI_COLORS.surface,
-    borderColor: UI_COLORS.border,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderColor: UI_COLORS.borderSoft,
   },
   pressedButton: {
     opacity: 0.88,

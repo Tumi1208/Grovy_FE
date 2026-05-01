@@ -1,11 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryFallbackImage } from '../../assets/productImages';
 import DirectionalHint from '../../components/DirectionalHint';
@@ -235,10 +229,10 @@ function ExploreScreen({ navigation }) {
     productMatches.length === 0 &&
     categoryMatches.length === 0;
   const resultLabel = hasSearchQuery
-    ? `${formatResultCount(productMatches.length, 'product')}, ${formatResultCount(
-        categoryMatches.length,
-        'aisle',
-      )}`
+    ? `${formatResultCount(
+        productMatches.length,
+        'product',
+      )}, ${formatResultCount(categoryMatches.length, 'aisle')}`
     : formatResultCount(visibleCategories.length, 'aisle');
 
   function handleClearSearch() {
@@ -285,8 +279,7 @@ function ExploreScreen({ navigation }) {
         >
           <Text style={styles.title}>Explore the store</Text>
           <Text style={styles.subtitle}>
-            Browse aisles built around real grocery shopping, not decorative
-            sections.
+            Browse aisles or search for any grocery item.
           </Text>
 
           {isLoading || errorMessage ? (
@@ -390,14 +383,13 @@ function ExploreScreen({ navigation }) {
 
           {hasNoResults ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateTitle}>No results found</Text>
+              <Text style={styles.emptyStateTitle}>No products found</Text>
               <Text style={styles.emptyStateSubtitle}>
-                Try another keyword to browse groceries.
+                Try another keyword or clear the search.
               </Text>
             </View>
           ) : null}
         </ScrollView>
-
       </View>
     </SafeAreaView>
   );

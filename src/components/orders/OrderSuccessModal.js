@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Animated,
   Easing,
@@ -34,7 +40,10 @@ function getOrderItemCount(order) {
     return 0;
   }
 
-  return order.items.reduce((sum, item) => sum + Number(item?.quantity || 0), 0);
+  return order.items.reduce(
+    (sum, item) => sum + Number(item?.quantity || 0),
+    0,
+  );
 }
 
 function SummaryRow({ isLast = false, label, value }) {
@@ -65,9 +74,13 @@ function OrderSuccessCard({
         />
       </View>
 
-      <Text style={styles.title}>Your Order has been accepted</Text>
+      <View style={styles.statusPill}>
+        <Text style={styles.statusPillLabel}>Order confirmed</Text>
+      </View>
+
+      <Text style={styles.title}>Your basket is on the way</Text>
       <Text style={styles.subtitle}>
-        Your items have been placed and are getting ready for delivery.
+        Grovy has your items and is preparing them for delivery.
       </Text>
 
       {order?.id ? (
@@ -128,9 +141,7 @@ function OrderSuccessModal({
           duration: isEntering
             ? MODAL_ENTER_DURATION_MS
             : MODAL_EXIT_DURATION_MS,
-          easing: isEntering
-            ? Easing.out(Easing.quad)
-            : Easing.in(Easing.quad),
+          easing: isEntering ? Easing.out(Easing.quad) : Easing.in(Easing.quad),
           useNativeDriver: true,
         }),
         Animated.timing(cardOpacity, {
@@ -287,7 +298,7 @@ function OrderSuccessModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(23, 18, 15, 0.42)',
   },
   screenCanvas: {
     flex: 1,
@@ -307,7 +318,7 @@ const styles = StyleSheet.create({
     width: '88%',
     maxWidth: 380,
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 24,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 24,
@@ -322,11 +333,29 @@ const styles = StyleSheet.create({
     width: 168,
     height: 168,
   },
+  statusPill: {
+    alignSelf: 'center',
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderWidth: 1,
+    borderColor: '#D6E4D2',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 10,
+  },
+  statusPillLabel: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+  },
   title: {
     color: UI_COLORS.textStrong,
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
-    lineHeight: 34,
+    lineHeight: 36,
     textAlign: 'center',
     marginBottom: 10,
   },

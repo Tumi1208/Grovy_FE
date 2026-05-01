@@ -244,12 +244,12 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: NAV_COLORS.surface,
-    borderRadius: 24,
+    backgroundColor: 'rgba(255, 253, 250, 0.98)',
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: NAV_COLORS.border,
     paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingVertical: 7,
     ...UI_SHADOWS.floating,
   },
   itemsRow: {
@@ -263,10 +263,10 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    borderRadius: 18,
+    borderRadius: 20,
     backgroundColor: NAV_COLORS.activeSoft,
     borderWidth: 1,
-    borderColor: '#DEE9D9',
+    borderColor: '#D7E5D2',
   },
   activePillHidden: {
     opacity: 0,
@@ -276,8 +276,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   navItemInner: {
-    minHeight: 54,
-    borderRadius: 18,
+    minHeight: 56,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -289,11 +289,11 @@ const styles = StyleSheet.create({
     minHeight: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 5,
   },
   label: {
     color: NAV_COLORS.text,
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '600',
   },
   labelActive: {

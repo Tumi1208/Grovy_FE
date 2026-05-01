@@ -48,16 +48,20 @@ function getItemCountLabel(count) {
     return 'No match';
   }
 
-  return `${count} found`;
+  return `${count} item${count === 1 ? '' : 's'}`;
 }
 
 function getCollectionHint(collection) {
   if (collection.missingCount > 0) {
-    return `${collection.missingCount} missing item${collection.missingCount === 1 ? '' : 's'} skipped safely`;
+    return `${collection.missingCount} missing item${
+      collection.missingCount === 1 ? '' : 's'
+    } skipped safely`;
   }
 
   if (collection.unavailableCount > 0) {
-    return `${collection.unavailableCount} out of stock item${collection.unavailableCount === 1 ? '' : 's'} skipped at add time`;
+    return `${collection.unavailableCount} out of stock item${
+      collection.unavailableCount === 1 ? '' : 's'
+    } skipped at add time`;
   }
 
   if (collection.addableCount > 0) {
@@ -86,6 +90,12 @@ function getBudgetHint(budget, estimatedTotal) {
   }
 
   return `${formatCurrency(remainingBudget)} left in the budget.`;
+}
+
+function getCollectionTags(collection = {}) {
+  return Array.isArray(collection.tags)
+    ? collection.tags.filter(Boolean).slice(0, 3)
+    : [];
 }
 
 function PreviewStack({ products = [], variant = 'basket' }) {
@@ -209,15 +219,25 @@ function SmartCollectionCard({
         {collection.subtitle}
       </Text>
 
+      {getCollectionTags(collection).length ? (
+        <View style={styles.collectionTagRow}>
+          {getCollectionTags(collection).map(tag => (
+            <View key={tag} style={styles.collectionTag}>
+              <Text style={styles.collectionTagLabel}>{tag}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <View style={styles.collectionMetricsRow}>
         <View style={styles.collectionMetricCard}>
-          <Text style={styles.collectionMetricLabel}>Estimated total</Text>
+          <Text style={styles.collectionMetricLabel}>Est. total</Text>
           <Text style={styles.collectionMetricValue}>
             {formatCurrency(collection.estimatedTotal)}
           </Text>
         </View>
         <View style={styles.collectionMetricCard}>
-          <Text style={styles.collectionMetricLabel}>Ready to add</Text>
+          <Text style={styles.collectionMetricLabel}>Ready</Text>
           <Text style={styles.collectionMetricValue}>
             {collection.addableCount}
           </Text>
@@ -295,6 +315,14 @@ export function HomeBudgetModePanel({
 
   return (
     <View style={styles.budgetPanel}>
+      <View style={styles.budgetIntro}>
+        <Text style={styles.budgetIntroEyebrow}>Grovy assistant</Text>
+        <Text style={styles.budgetIntroTitle}>Build around your budget</Text>
+        <Text style={styles.budgetIntroSubtitle}>
+          Choose a limit and Grovy will assemble a practical grocery mix.
+        </Text>
+      </View>
+
       <View style={styles.budgetPresetRow}>
         {budgetPresets.map(preset => {
           const isActive = preset.id === selectedPreset?.id;
@@ -332,12 +360,17 @@ export function HomeBudgetModePanel({
             </Text>
             <Text style={styles.budgetResultSubtitle}>
               {hasSuggestion
-                ? `${suggestion.products.length} grocery item${suggestion.products.length === 1 ? '' : 's'} chosen for a practical mix`
+                ? `${selectedPreset?.description || 'Practical essentials'} ${
+                    suggestion.products.length
+                  } item${
+                    suggestion.products.length === 1 ? '' : 's'
+                  } selected.`
                 : 'No matching basket is available right now.'}
             </Text>
           </View>
 
           <View style={styles.budgetTotalPill}>
+            <Text style={styles.budgetTotalCaption}>Estimated</Text>
             <Text style={styles.budgetTotalLabel}>
               {formatCurrency(suggestion.estimatedTotal)}
             </Text>
@@ -473,10 +506,32 @@ const styles = StyleSheet.create({
     marginTop: 6,
     minHeight: 40,
   },
+  collectionTagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 14,
+    marginBottom: 2,
+    gap: 8,
+  },
+  collectionTag: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: 'rgba(255, 255, 255, 0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.72)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  collectionTagLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 13,
+  },
   collectionMetricsRow: {
     flexDirection: 'row',
     marginTop: 18,
     marginBottom: 12,
+    gap: 10,
   },
   collectionMetricCard: {
     flex: 1,
@@ -538,6 +593,27 @@ const styles = StyleSheet.create({
     borderColor: UI_COLORS.border,
     padding: 18,
     ...UI_SHADOWS.card,
+  },
+  budgetIntro: {
+    marginBottom: 16,
+  },
+  budgetIntroEyebrow: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.45,
+    marginBottom: 6,
+  },
+  budgetIntroTitle: {
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.title,
+  },
+  budgetIntroSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 4,
   },
   budgetPresetRow: {
     flexDirection: 'row',
@@ -601,6 +677,17 @@ const styles = StyleSheet.create({
     borderColor: UI_COLORS.border,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    minWidth: 88,
+    alignItems: 'center',
+  },
+  budgetTotalCaption: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 4,
   },
   budgetTotalLabel: {
     color: UI_COLORS.textStrong,

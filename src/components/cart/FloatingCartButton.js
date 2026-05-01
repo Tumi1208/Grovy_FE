@@ -29,7 +29,7 @@ import { useCart } from '../../context/CartContext';
 import { getCartSummary } from '../../utils/cartSummary';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-const FLOATING_BOTTOM_OFFSET = 90;
+const FLOATING_BOTTOM_OFFSET = 94;
 const AUTO_COLLAPSE_DELAY_MS = 3000;
 const EXPAND_ANIMATION_DURATION_MS = 220;
 const VISIBLE_ROUTES = new Set([
@@ -143,9 +143,7 @@ function FloatingCartButton({
     Animated.timing(expandProgress, {
       toValue: isExpanded ? 1 : 0,
       duration: isExpanded ? EXPAND_ANIMATION_DURATION_MS : 180,
-      easing: isExpanded
-        ? Easing.out(Easing.cubic)
-        : Easing.out(Easing.quad),
+      easing: isExpanded ? Easing.out(Easing.cubic) : Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
   }, [expandProgress, isExpanded]);
@@ -191,17 +189,20 @@ function FloatingCartButton({
     resolvedTotalItems,
   ]);
 
-  const animateButtonScale = useCallback((toValue, duration) => {
-    Animated.timing(buttonScale, {
-      toValue,
-      duration,
-      easing:
-        toValue < 1
-          ? Easing.out(Easing.quad)
-          : Easing.bezier(0.2, 0.85, 0.25, 1),
-      useNativeDriver: true,
-    }).start();
-  }, [buttonScale]);
+  const animateButtonScale = useCallback(
+    (toValue, duration) => {
+      Animated.timing(buttonScale, {
+        toValue,
+        duration,
+        easing:
+          toValue < 1
+            ? Easing.out(Easing.quad)
+            : Easing.bezier(0.2, 0.85, 0.25, 1),
+        useNativeDriver: true,
+      }).start();
+    },
+    [buttonScale],
+  );
 
   const handlePressIn = useCallback(() => {
     animateButtonScale(0.97, 90);
@@ -219,7 +220,9 @@ function FloatingCartButton({
     return null;
   }
 
-  const itemLabel = `${resolvedTotalItems} item${resolvedTotalItems === 1 ? '' : 's'}`;
+  const itemLabel = `${resolvedTotalItems} item${
+    resolvedTotalItems === 1 ? '' : 's'
+  }`;
   const totalPriceLabel = formatCurrency(resolvedSubtotal);
   const accessibilityLabel = isExpanded
     ? `Open cart with ${itemLabel} totaling ${totalPriceLabel}`
@@ -272,9 +275,7 @@ function FloatingCartButton({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         testID="floating-cart-button"
-        style={({ pressed }) => [
-          pressed && styles.buttonPressed,
-        ]}
+        style={({ pressed }) => [pressed && styles.buttonPressed]}
       >
         <Animated.View
           style={[
@@ -283,26 +284,34 @@ function FloatingCartButton({
             animatedButtonStyle,
           ]}
         >
-          <View style={[styles.iconWrap, isExpanded && styles.iconWrapExpanded]}>
+          <View
+            style={[styles.iconWrap, isExpanded && styles.iconWrapExpanded]}
+          >
             <CartGlyph />
             {!isExpanded ? (
-              <Animated.View style={[styles.countBadge, animatedCollapsedBadgeStyle]}>
+              <Animated.View
+                style={[styles.countBadge, animatedCollapsedBadgeStyle]}
+              >
                 <View testID="floating-cart-collapsed">
-                  <Text style={styles.countBadgeLabel}>{resolvedTotalItems}</Text>
+                  <Text style={styles.countBadgeLabel}>
+                    {resolvedTotalItems}
+                  </Text>
                 </View>
               </Animated.View>
             ) : null}
           </View>
 
           {isExpanded ? (
-            <Animated.View style={[styles.expandedContent, animatedExpandedContentStyle]}>
+            <Animated.View
+              style={[styles.expandedContent, animatedExpandedContentStyle]}
+            >
               <View
                 style={styles.expandedContentInner}
                 testID="floating-cart-expanded"
               >
                 <Text style={styles.label}>Cart</Text>
                 <Text numberOfLines={1} style={styles.meta}>
-                  {itemLabel}
+                  {`${itemLabel} ready`}
                 </Text>
 
                 <View style={styles.pricePill}>
@@ -336,14 +345,14 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.floating,
   },
   buttonCollapsed: {
-    width: 54,
-    height: 54,
+    width: 56,
+    height: 56,
     justifyContent: 'center',
     padding: 0,
   },
   buttonExpanded: {
-    minHeight: 50,
-    maxWidth: 310,
+    minHeight: 52,
+    maxWidth: 280,
     paddingLeft: 8,
     paddingRight: 12,
     paddingVertical: 8,
@@ -352,8 +361,8 @@ const styles = StyleSheet.create({
     opacity: 0.96,
   },
   iconWrap: {
-    width: 54,
-    height: 54,
+    width: 56,
+    height: 56,
     borderRadius: UI_RADIUS.round,
     alignItems: 'center',
     justifyContent: 'center',
@@ -380,7 +389,7 @@ const styles = StyleSheet.create({
   },
   meta: {
     color: 'rgba(255, 255, 255, 0.88)',
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
     lineHeight: 18,
     marginLeft: 8,

@@ -15,7 +15,11 @@ import { useAccountData } from '../../context/AccountDataContext';
 import { CUSTOMER_ACCOUNT_MENU } from '../../data/customerTabsData';
 import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
-import { formatPaymentMethodShortLabel } from '../../utils/accountFormatting';
+import {
+  buildAddressFullText,
+  formatPaymentMethodMeta,
+  formatPaymentMethodShortLabel,
+} from '../../utils/accountFormatting';
 import { getUserInitials } from '../../utils/userProfile';
 
 const ACCOUNT_MENU_ROUTES = Object.freeze({
@@ -67,14 +71,33 @@ function StatCard({ label, style, value }) {
   );
 }
 
+function PreferenceCard({ detail, label, value }) {
+  return (
+    <View style={styles.preferenceCard}>
+      <Text style={styles.preferenceLabel}>{label}</Text>
+      <Text numberOfLines={2} style={styles.preferenceValue}>
+        {value}
+      </Text>
+      {detail ? (
+        <Text numberOfLines={2} style={styles.preferenceDetail}>
+          {detail}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 function AccountScreen({ navigation }) {
   const { currentUser, signOut } = useApp();
   const { totalItems } = useCart();
   const { defaultAddress, defaultPaymentMethod, orders } = useAccountData();
-  const userName = currentUser?.displayName || currentUser?.name || 'Grovy Member';
+  const userName =
+    currentUser?.displayName || currentUser?.name || 'Grovy Member';
   const userEmail = currentUser?.email || 'youraccount@grovy.app';
   const userPhone = currentUser?.phone || '';
   const avatarUrl = currentUser?.avatarUrl || '';
+  const defaultAddressText =
+    buildAddressFullText(defaultAddress) || 'Add a delivery address';
   const profileTags = [
     'Grovy member',
     formatPaymentMethodShortLabel(defaultPaymentMethod),
@@ -98,10 +121,11 @@ function AccountScreen({ navigation }) {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.titleEyebrow}>Profile</Text>
+          <Text style={styles.titleEyebrow}>Shopping profile</Text>
           <Text style={styles.title}>Account</Text>
           <Text style={styles.titleSubtitle}>
-            Manage your groceries, saved items and delivery preferences.
+            Manage your profile, delivery details, and smart shopping
+            preferences.
           </Text>
 
           <View style={styles.profileCard}>
@@ -110,7 +134,9 @@ function AccountScreen({ navigation }) {
                 <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
               ) : (
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarLabel}>{getUserInitials(userName)}</Text>
+                  <Text style={styles.avatarLabel}>
+                    {getUserInitials(userName)}
+                  </Text>
                 </View>
               )}
 
@@ -143,14 +169,28 @@ function AccountScreen({ navigation }) {
             </View>
           </View>
 
-          <Text style={styles.sectionLabel}>Preferences</Text>
+          <Text style={styles.sectionLabel}>Quick preferences</Text>
+          <View style={styles.preferencesRow}>
+            <PreferenceCard
+              detail={
+                defaultAddress?.label ||
+                'Set a default address in Account settings.'
+              }
+              label="Default address"
+              value={defaultAddressText}
+            />
+            <PreferenceCard
+              detail={formatPaymentMethodMeta(defaultPaymentMethod)}
+              label="Payment"
+              value={formatPaymentMethodShortLabel(defaultPaymentMethod)}
+            />
+          </View>
+
+          <Text style={styles.sectionLabel}>Settings</Text>
           <View style={styles.menuCard}>
             {CUSTOMER_ACCOUNT_MENU.map((label, index) => (
               <View key={label}>
-                <MenuRow
-                  label={label}
-                  onPress={() => handleMenuPress(label)}
-                />
+                <MenuRow label={label} onPress={() => handleMenuPress(label)} />
                 {index < CUSTOMER_ACCOUNT_MENU.length - 1 ? (
                   <View style={styles.divider} />
                 ) : null}
@@ -307,6 +347,34 @@ const styles = StyleSheet.create({
   },
   profileStatCard: {
     width: '48%',
+  },
+  preferencesRow: {
+    marginBottom: 18,
+    gap: 12,
+  },
+  preferenceCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 18,
+    ...UI_SHADOWS.card,
+  },
+  preferenceLabel: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.label,
+    marginBottom: 8,
+  },
+  preferenceValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  preferenceDetail: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 6,
   },
   statValue: {
     color: UI_COLORS.textStrong,

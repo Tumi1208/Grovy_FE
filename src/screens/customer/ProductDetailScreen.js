@@ -31,8 +31,80 @@ import { getProductSubtitle } from '../../utils/productPresentation';
 
 const MIN_QUANTITY = 1;
 
+const PRODUCT_ASSISTANT_SUGGESTIONS = Object.freeze({
+  fruits: {
+    title: 'Complete this basket',
+    description:
+      'Pair fruit with breakfast staples or juice for a faster morning shop.',
+    ctaCategory: 'Dairy and Eggs',
+    ctaTitle: 'Dairy & eggs',
+    ctaLabel: 'Browse breakfast basics',
+    tags: ['Breakfast', 'Fresh start'],
+  },
+  vegetables: {
+    title: 'Pairs well with',
+    description:
+      'Add pantry basics and protein to turn this into a quick meal basket.',
+    ctaCategory: 'Pantry',
+    ctaTitle: 'Pantry',
+    ctaLabel: 'Browse pantry staples',
+    tags: ['Meal prep', 'Dinner'],
+  },
+  pantry: {
+    title: 'Complete this basket',
+    description:
+      'Pantry items work best with produce and protein for a more balanced cart.',
+    ctaCategory: 'Vegetables',
+    ctaTitle: 'Vegetables',
+    ctaLabel: 'Add fresh vegetables',
+    tags: ['Balanced', 'Essentials'],
+  },
+  beverages: {
+    title: 'Pairs well with',
+    description:
+      'Match drinks with fruit or breakfast staples for an easy top-up basket.',
+    ctaCategory: 'Fruits',
+    ctaTitle: 'Fresh fruits',
+    ctaLabel: 'Browse fresh fruits',
+    tags: ['Breakfast', 'Refresh'],
+  },
+  meat: {
+    title: 'Complete this basket',
+    description:
+      'Add vegetables or pantry staples to build a simple lunch or dinner plan.',
+    ctaCategory: 'Vegetables',
+    ctaTitle: 'Vegetables',
+    ctaLabel: 'Add vegetables',
+    tags: ['Dinner', 'Protein'],
+  },
+  dairyandeggs: {
+    title: 'Pairs well with',
+    description:
+      'Round this out with fruit or pantry staples for quick breakfasts and snacks.',
+    ctaCategory: 'Fruits',
+    ctaTitle: 'Fresh fruits',
+    ctaLabel: 'Browse fresh fruits',
+    tags: ['Morning', 'Easy'],
+  },
+});
+
 function normalizeRouteProductId(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function normalizeLookupKey(value) {
+  return typeof value === 'string' && value.trim()
+    ? value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '')
+    : '';
+}
+
+function getProductAssistantSuggestion(product = {}) {
+  return (
+    PRODUCT_ASSISTANT_SUGGESTIONS[normalizeLookupKey(product.category)] || null
+  );
 }
 
 function HeaderButton({ children, onPress, style }) {
@@ -273,6 +345,18 @@ function ProductDetailScreen({ navigation, route }) {
     product.category?.toLowerCase() === 'beverages' ? '100 ml' : '100 g';
   const nutritionDescription =
     'Nutrition details will appear here when available.';
+  const assistantSuggestion = getProductAssistantSuggestion(product);
+
+  function handleOpenAssistantSuggestion() {
+    if (!assistantSuggestion?.ctaCategory) {
+      return;
+    }
+
+    navigation.navigate(CUSTOMER_ROUTES.CATEGORY_PRODUCTS, {
+      category: assistantSuggestion.ctaCategory,
+      title: assistantSuggestion.ctaTitle || assistantSuggestion.ctaCategory,
+    });
+  }
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -420,6 +504,51 @@ function ProductDetailScreen({ navigation, route }) {
               </View>
             </View>
           </View>
+
+          {assistantSuggestion ? (
+            <ScalePressable
+              android_ripple={{ color: '#EEE5D8' }}
+              onPress={handleOpenAssistantSuggestion}
+              pressScale={0.99}
+              style={({ pressed }) => [
+                styles.assistantCard,
+                pressed && styles.assistantCardPressed,
+              ]}
+            >
+              <View style={styles.assistantCardHeader}>
+                <View>
+                  <Text style={styles.assistantCardEyebrow}>
+                    Smart suggestion
+                  </Text>
+                  <Text style={styles.assistantCardTitle}>
+                    {assistantSuggestion.title}
+                  </Text>
+                </View>
+                <DirectionalHint
+                  chevronSize={8}
+                  color={UI_COLORS.mutedStrong}
+                  mode="plain"
+                  size={22}
+                />
+              </View>
+
+              <Text style={styles.assistantCardDescription}>
+                {assistantSuggestion.description}
+              </Text>
+
+              <View style={styles.assistantTagRow}>
+                {assistantSuggestion.tags?.map(tag => (
+                  <View key={tag} style={styles.assistantTag}>
+                    <Text style={styles.assistantTagLabel}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <Text style={styles.assistantCardAction}>
+                {assistantSuggestion.ctaLabel}
+              </Text>
+            </ScalePressable>
+          ) : null}
 
           <View style={styles.detailsCard}>
             <Text style={styles.detailsTitle}>Product information</Text>
@@ -674,12 +803,12 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    height: 232,
+    height: 248,
     zIndex: 1,
   },
   summaryCard: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 26,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 24,
@@ -739,6 +868,70 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     marginBottom: 24,
+  },
+  assistantCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 18,
+    marginBottom: 14,
+    ...UI_SHADOWS.card,
+  },
+  assistantCardPressed: {
+    opacity: 0.97,
+  },
+  assistantCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  assistantCardEyebrow: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.42,
+    marginBottom: 6,
+  },
+  assistantCardTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  assistantCardDescription: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 10,
+  },
+  assistantTagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 14,
+  },
+  assistantTag: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  assistantTagLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 13,
+  },
+  assistantCardAction: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 14,
   },
   priceRow: {
     flexDirection: 'row',

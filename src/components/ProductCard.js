@@ -84,17 +84,18 @@ function ProductCard({
           {subtitle}
         </Text>
 
-        <Text
-          style={[
-            styles.availability,
-            isAvailable ? styles.availabilityInStock : styles.availabilityOut,
-          ]}
-        >
-          {isAvailable ? `${product.stock} available` : 'Out of stock'}
-        </Text>
-
         <View style={styles.footerRow}>
-          <Text style={styles.price}>{formatCurrency(product.price)}</Text>
+          <View style={styles.priceBlock}>
+            <Text style={styles.price}>{formatCurrency(product.price)}</Text>
+            <Text
+              style={[
+                styles.stockText,
+                isAvailable ? styles.stockTextActive : styles.stockTextMuted,
+              ]}
+            >
+              {isAvailable ? `${product.stock} in stock` : 'Out of stock'}
+            </Text>
+          </View>
 
           <ScalePressable
             android_ripple={{ color: '#3C6240' }}
@@ -111,7 +112,7 @@ function ProductCard({
               pressed && isAvailable && styles.actionBadgePressed,
             ]}
           >
-            <Text style={styles.actionBadgeLabel}>+</Text>
+            <Text style={styles.actionBadgeLabel}>Add</Text>
           </ScalePressable>
         </View>
       </View>
@@ -122,11 +123,11 @@ function ProductCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 26,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 15,
-    minHeight: 252,
+    padding: 16,
+    minHeight: 268,
     ...UI_SHADOWS.card,
   },
   pressedCard: {
@@ -134,13 +135,13 @@ const styles = StyleSheet.create({
   },
   imagePanel: {
     backgroundColor: UI_COLORS.surfaceSoft,
-    borderRadius: 22,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 14,
     paddingTop: 36,
     paddingBottom: 18,
-    minHeight: 142,
+    minHeight: 148,
     position: 'relative',
   },
   categoryPill: {
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 104,
+    height: 108,
   },
   body: {
     flex: 1,
@@ -206,36 +207,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginTop: 6,
-  },
-  availability: {
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 16,
-    marginTop: 10,
-  },
-  availabilityInStock: {
-    color: UI_COLORS.accentGreen,
-  },
-  availabilityOut: {
-    color: UI_COLORS.accentRed,
+    marginBottom: 12,
   },
   footerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     marginTop: 16,
+  },
+  priceBlock: {
+    flex: 1,
+    paddingRight: 10,
   },
   price: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.price,
   },
+  stockText: {
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  stockTextActive: {
+    color: UI_COLORS.accentGreen,
+  },
+  stockTextMuted: {
+    color: UI_COLORS.accentRed,
+  },
   actionBadge: {
-    width: 38,
+    minWidth: 54,
     height: 38,
-    borderRadius: 13,
+    borderRadius: 14,
     backgroundColor: UI_COLORS.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 12,
   },
   actionBadgeDisabled: {
     backgroundColor: UI_COLORS.surfaceTint,
@@ -246,10 +253,9 @@ const styles = StyleSheet.create({
   },
   actionBadgeLabel: {
     color: UI_COLORS.surface,
-    fontSize: 20,
+    fontSize: 13,
     fontWeight: '700',
-    lineHeight: 20,
-    marginTop: -1,
+    lineHeight: 16,
   },
 });
 

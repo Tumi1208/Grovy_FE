@@ -41,7 +41,7 @@ function FavouriteScreen({ navigation }) {
           <View style={styles.header}>
             <View style={styles.headerCopy}>
               <Text style={styles.headerEyebrow}>Buy again</Text>
-              <Text style={styles.title}>Saved items</Text>
+              <Text style={styles.title}>Saved for later</Text>
               <Text style={styles.subtitle}>
                 Keep your regular groceries close at hand.
               </Text>
@@ -49,7 +49,7 @@ function FavouriteScreen({ navigation }) {
 
             <View style={styles.countPill}>
               <Text style={styles.countPillValue}>{favourites.length}</Text>
-              <Text style={styles.countPillLabel}>saved</Text>
+              <Text style={styles.countPillLabel}>items</Text>
             </View>
           </View>
 
@@ -158,7 +158,7 @@ function FavouriteScreen({ navigation }) {
                       pressed && styles.addButtonPressed,
                     ]}
                   >
-                    <Text style={styles.addButtonLabel}>Quick add</Text>
+                    <Text style={styles.addButtonLabel}>Add to cart</Text>
                   </ScalePressable>
 
                   <ScalePressable
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addButton: {
-    minWidth: 84,
+    minWidth: 108,
     height: 38,
     borderRadius: 14,
     backgroundColor: UI_COLORS.accentGreen,

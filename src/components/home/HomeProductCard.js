@@ -56,7 +56,7 @@ function HomeProductCard({
       </Text>
 
       <View style={styles.footerRow}>
-        <View>
+        <View style={styles.priceBlock}>
           <Text style={styles.price}>{formatCurrency(product.price)}</Text>
           <Text
             style={[
@@ -83,7 +83,7 @@ function HomeProductCard({
             pressed && isAvailable && styles.addButtonPressed,
           ]}
         >
-          <Text style={styles.addButtonLabel}>+</Text>
+          <Text style={styles.addButtonLabel}>Add</Text>
         </ScalePressable>
       </View>
     </ScalePressable>
@@ -147,23 +147,23 @@ const styles = StyleSheet.create({
   card: {
     width: 190,
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 26,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 15,
-    minHeight: 248,
+    padding: 16,
+    minHeight: 262,
     ...UI_SHADOWS.card,
   },
   cardPressed: {
     opacity: 0.98,
   },
   imageWrap: {
-    height: 136,
-    borderRadius: 22,
+    height: 144,
+    borderRadius: 24,
     backgroundColor: UI_COLORS.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 17,
+    marginBottom: 16,
     position: 'relative',
     paddingTop: 26,
     paddingHorizontal: 12,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 96,
+    height: 100,
   },
   name: {
     color: UI_COLORS.textStrong,
@@ -205,6 +205,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
+    marginTop: 'auto',
+  },
+  priceBlock: {
+    flex: 1,
+    paddingRight: 10,
   },
   price: {
     color: UI_COLORS.textStrong,
@@ -223,12 +228,13 @@ const styles = StyleSheet.create({
     color: UI_COLORS.accentRed,
   },
   addButton: {
-    width: 38,
+    minWidth: 54,
     height: 38,
-    borderRadius: 13,
+    borderRadius: 14,
     backgroundColor: UI_COLORS.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 12,
   },
   addButtonDisabled: {
     backgroundColor: UI_COLORS.surfaceTint,
@@ -239,10 +245,9 @@ const styles = StyleSheet.create({
   },
   addButtonLabel: {
     color: UI_COLORS.surface,
-    fontSize: 20,
+    fontSize: 13,
     fontWeight: '700',
-    lineHeight: 20,
-    marginTop: -1,
+    lineHeight: 16,
   },
   categoryCard: {
     borderRadius: 26,

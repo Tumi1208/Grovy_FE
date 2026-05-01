@@ -1,13 +1,20 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  defaultProductImage,
-  getProductImageSource,
-} from '../../assets/productImages';
+  Alert,
+  LayoutAnimation,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  UIManager,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { defaultProductImage } from '../../assets/productImages';
 import ProductImage from '../../components/ProductImage';
 import ScalePressable from '../../components/ScalePressable';
 import CartHealthCard from '../../components/cart/CartHealthCard';
+import CartItemRow from '../../components/cart/CartItemRow';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -17,119 +24,30 @@ import {
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
 import { useCart } from '../../context/CartContext';
+import { useFavourite } from '../../context/FavouriteContext';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { getProductSubtitle } from '../../utils/productPresentation';
-
-function QuantityButton({ disabled = false, label, onPress }) {
-  return (
-    <ScalePressable
-      android_ripple={{ color: '#EEE6DC' }}
-      disabled={disabled}
-      onPress={onPress}
-      pressScale={0.94}
-      style={({ pressed }) => [
-        styles.quantityButton,
-        disabled && styles.quantityButtonDisabled,
-        pressed && !disabled && styles.quantityButtonPressed,
-      ]}
-    >
-      <Text
-        style={[
-          styles.quantityButtonText,
-          label === '+' ? styles.quantityButtonTextAccent : null,
-        ]}
-      >
-        {label}
-      </Text>
-    </ScalePressable>
-  );
+if (
+  Platform.OS === 'android' &&
+  typeof UIManager.setLayoutAnimationEnabledExperimental === 'function'
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-function CartItemRow({ item, onDecrease, onIncrease, onRemove }) {
-  const subtitle = getProductSubtitle(item.product);
-  const imageSource = getProductImageSource(item.product);
-  const isAvailable = item.product.stock > 0;
-  const isIncreaseDisabled =
-    !isAvailable || item.quantity >= item.product.stock;
-
-  return (
-    <View style={styles.itemRow}>
-      <View style={styles.itemMain}>
-        <View style={styles.imageWrap}>
-          <ProductImage
-            name={item.product.name}
-            resizeMode="contain"
-            source={imageSource}
-            style={styles.itemImage}
-          />
-        </View>
-
-        <View style={styles.itemCopy}>
-          <View style={styles.itemMetaRow}>
-            <View style={styles.itemCategoryPill}>
-              <Text style={styles.itemCategoryLabel}>
-                {item.product.category}
-              </Text>
-            </View>
-          </View>
-          <Text numberOfLines={2} style={styles.itemName}>
-            {item.product.name}
-          </Text>
-          <Text numberOfLines={1} style={styles.itemSubtitle}>
-            {subtitle}
-          </Text>
-          <View style={styles.itemInfoRow}>
-            <Text
-              style={[
-                styles.itemStock,
-                !isAvailable && styles.itemStockUnavailable,
-              ]}
-            >
-              {isAvailable ? `${item.product.stock} available` : 'Unavailable'}
-            </Text>
-            <Text style={styles.itemEachPrice}>
-              Each {formatCurrency(item.product.price)}
-            </Text>
-          </View>
-        </View>
-
-        <ScalePressable
-          accessibilityLabel={`Remove ${item.product.name}`}
-          android_ripple={{ color: '#EEE6DC' }}
-          onPress={() => onRemove(item.product.id)}
-          pressScale={0.92}
-          style={({ pressed }) => [
-            styles.removeButton,
-            pressed && styles.removeButtonPressed,
-          ]}
-        >
-          <Text style={styles.removeButtonLabel}>×</Text>
-        </ScalePressable>
-      </View>
-
-      <View style={styles.itemFooter}>
-        <View style={styles.quantityGroup}>
-          <QuantityButton
-            label="-"
-            onPress={() => onDecrease(item.product.id)}
-          />
-          <Text style={styles.quantityValue}>{item.quantity}</Text>
-          <QuantityButton
-            disabled={isIncreaseDisabled}
-            label="+"
-            onPress={() => onIncrease(item.product.id)}
-          />
-        </View>
-
-        <View style={styles.itemPriceBlock}>
-          <Text style={styles.itemPriceLabel}>Line total</Text>
-          <Text style={styles.itemPrice}>
-            {formatCurrency(item.product.price * item.quantity)}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
+function configureCartRemovalLayout() {
+  LayoutAnimation.configureNext({
+    duration: 220,
+    create: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+    update: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+    },
+    delete: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+  });
 }
 
 function CartScreen({ navigation }) {
@@ -141,16 +59,70 @@ function CartScreen({ navigation }) {
     subtotal,
     totalItems,
   } = useCart();
+  const { addToFavourites, isFavourite } = useFavourite();
+  const [openItemId, setOpenItemId] = useState(null);
 
   const hasItems = items.length > 0;
+
+  useEffect(() => {
+    if (!openItemId) {
+      return;
+    }
+
+    const itemStillExists = items.some(item => item.product.id === openItemId);
+
+    if (!itemStillExists) {
+      setOpenItemId(null);
+    }
+  }, [items, openItemId]);
+
+  const handleOpenItem = useCallback(productId => {
+    setOpenItemId(productId);
+  }, []);
+
+  const handleCloseItem = useCallback(productId => {
+    setOpenItemId(currentItemId =>
+      currentItemId === productId ? null : currentItemId,
+    );
+  }, []);
+
+  const handleRemoveItem = useCallback(
+    productId => {
+      configureCartRemovalLayout();
+      setOpenItemId(currentItemId =>
+        currentItemId === productId ? null : currentItemId,
+      );
+      removeFromCart(productId);
+    },
+    [removeFromCart],
+  );
+
+  const handleSaveForLater = useCallback(
+    product => {
+      if (isFavourite(product.id)) {
+        Alert.alert(
+          'Already saved',
+          `${product.name} is already in your saved items.`,
+        );
+        return;
+      }
+
+      addToFavourites(product);
+      Alert.alert(
+        'Saved for later',
+        `${product.name} was added to your saved items.`,
+      );
+    },
+    [addToFavourites, isFavourite],
+  );
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
-            <Text style={styles.headerEyebrow}>Ready to order</Text>
-            <Text style={styles.headerTitle}>Cart</Text>
+            <Text style={styles.headerEyebrow}>Grovy assistant</Text>
+            <Text style={styles.headerTitle}>Ready to checkout</Text>
             <Text style={styles.headerSubtitle}>
               Review your basket before checkout.
             </Text>
@@ -168,17 +140,22 @@ function CartScreen({ navigation }) {
           <>
             <ScrollView
               contentContainerStyle={styles.content}
+              onScrollBeginDrag={() => setOpenItemId(null)}
               showsVerticalScrollIndicator={false}
             >
               <CartHealthCard items={items} />
 
               {items.map(item => (
                 <CartItemRow
+                  isOpen={openItemId === item.product.id}
                   item={item}
                   key={item.product.id}
+                  onClose={handleCloseItem}
                   onDecrease={decreaseQuantity}
                   onIncrease={increaseQuantity}
-                  onRemove={removeFromCart}
+                  onOpen={handleOpenItem}
+                  onRemove={handleRemoveItem}
+                  onSaveForLater={handleSaveForLater}
                 />
               ))}
             </ScrollView>
@@ -190,7 +167,7 @@ function CartScreen({ navigation }) {
                   {formatCurrency(subtotal)}
                 </Text>
                 <Text style={styles.footerSummaryNote}>
-                  Delivery and payment on the next step
+                  Delivery, payment, and final order review on the next step
                 </Text>
               </View>
 
@@ -203,7 +180,9 @@ function CartScreen({ navigation }) {
                   pressed && styles.checkoutButtonPressed,
                 ]}
               >
-                <Text style={styles.checkoutButtonLabel}>Checkout</Text>
+                <Text style={styles.checkoutButtonLabel}>
+                  Continue to checkout
+                </Text>
               </ScalePressable>
             </View>
           </>
@@ -223,7 +202,8 @@ function CartScreen({ navigation }) {
                 Add a few groceries to start building your order.
               </Text>
               <Text style={styles.emptyHint}>
-                Add items to see your basket score.
+                Smart baskets, budget picks, and recipe bundles will show up
+                here once you add them.
               </Text>
               <ScalePressable
                 android_ripple={{ color: '#3D5F39' }}
@@ -241,7 +221,6 @@ function CartScreen({ navigation }) {
             </View>
           </View>
         )}
-
       </View>
     </SafeAreaView>
   );
@@ -269,12 +248,12 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   headerEyebrow: {
-    color: UI_COLORS.mutedStrong,
+    color: UI_COLORS.accentGreen,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     lineHeight: 16,
     textTransform: 'uppercase',
-    letterSpacing: 0.35,
+    letterSpacing: 0.42,
     marginBottom: 4,
   },
   headerTitle: {
@@ -289,9 +268,9 @@ const styles = StyleSheet.create({
   headerPill: {
     minWidth: 72,
     borderRadius: 24,
-    backgroundColor: UI_COLORS.surface,
+    backgroundColor: UI_COLORS.accentGreenSoft,
     borderWidth: 1,
-    borderColor: UI_COLORS.border,
+    borderColor: '#D6E4D2',
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginTop: 6,
@@ -299,7 +278,7 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   headerPillValue: {
-    color: UI_COLORS.textStrong,
+    color: UI_COLORS.accentGreen,
     fontSize: 20,
     fontWeight: '800',
     lineHeight: 22,
@@ -316,175 +295,13 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: 214,
   },
-  itemRow: {
-    backgroundColor: UI_COLORS.surface,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: UI_COLORS.border,
-    padding: 17,
-    marginBottom: 16,
-    ...UI_SHADOWS.card,
-  },
-  itemMain: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  imageWrap: {
-    width: 82,
-    height: 82,
-    borderRadius: 21,
-    backgroundColor: UI_COLORS.surfaceSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  itemImage: {
-    width: 64,
-    height: 64,
-  },
-  itemCopy: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  itemMetaRow: {
-    marginBottom: 10,
-  },
-  itemCategoryPill: {
-    alignSelf: 'flex-start',
-    borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  itemCategoryLabel: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 14,
-  },
-  itemName: {
-    color: UI_COLORS.textStrong,
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 23,
-    marginBottom: 6,
-  },
-  itemSubtitle: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 6,
-  },
-  itemInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  itemStock: {
-    color: UI_COLORS.accentGreen,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 16,
-  },
-  itemStockUnavailable: {
-    color: UI_COLORS.accentRed,
-  },
-  itemEachPrice: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  removeButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeButtonPressed: {
-    opacity: 0.9,
-  },
-  removeButtonLabel: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 18,
-    lineHeight: 18,
-  },
-  itemFooter: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  quantityGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderRadius: UI_RADIUS.xl,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 5,
-    paddingVertical: 5,
-  },
-  quantityButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: UI_COLORS.surface,
-    borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quantityButtonPressed: {
-    opacity: 0.95,
-  },
-  quantityButtonDisabled: {
-    opacity: 0.45,
-  },
-  quantityButtonText: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 22,
-    fontWeight: '600',
-    lineHeight: 22,
-  },
-  quantityButtonTextAccent: {
-    color: UI_COLORS.accentGreen,
-  },
-  quantityValue: {
-    color: UI_COLORS.textStrong,
-    fontSize: 16,
-    fontWeight: '700',
-    minWidth: 24,
-    textAlign: 'center',
-    marginHorizontal: 12,
-  },
-  itemPriceBlock: {
-    alignItems: 'flex-end',
-    marginLeft: 16,
-  },
-  itemPriceLabel: {
-    color: UI_COLORS.mutedStrong,
-    ...UI_TYPOGRAPHY.label,
-    marginBottom: 4,
-  },
-  itemPrice: {
-    color: UI_COLORS.textStrong,
-    fontSize: 24,
-    fontWeight: '800',
-    lineHeight: 28,
-  },
   footer: {
     position: 'absolute',
     left: UI_LAYOUT.footerSide,
     right: UI_LAYOUT.footerSide,
     bottom: 92,
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 9,
@@ -513,11 +330,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     marginTop: 4,
-    maxWidth: 150,
+    maxWidth: 172,
   },
   checkoutButton: {
     minHeight: UI_LAYOUT.ctaHeight,
-    minWidth: 148,
+    minWidth: 176,
     backgroundColor: UI_COLORS.accentGreen,
     borderRadius: 16,
     borderWidth: 1,

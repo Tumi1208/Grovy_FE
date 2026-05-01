@@ -241,8 +241,9 @@ export function buildHomeScreenData(products = []) {
 
   return {
     banner: {
-      title: 'Fresh produce and pantry basics',
-      subtitle: 'A practical basket for everyday cooking at home.',
+      title: 'Weekly Fresh Basket',
+      subtitle:
+        'A smart starting point with produce, protein and pantry basics.',
       imageSource: LOCAL_HOME_IMAGES.banner,
     },
     exclusiveOffer: buildConfiguredSection(

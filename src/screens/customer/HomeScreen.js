@@ -41,10 +41,7 @@ import {
   SmartBaskets,
 } from '../../data/smartShoppingData';
 import { getProducts } from '../../services/productService';
-import {
-  normalizeSearchText,
-  productMatchesSearch,
-} from '../../utils/search';
+import { normalizeSearchText, productMatchesSearch } from '../../utils/search';
 import {
   buildBudgetBasket,
   resolveSmartBasketProducts,
@@ -131,7 +128,9 @@ function buildBatchAddSummary({ addedCount, missingCount, unavailableCount }) {
 
   if (unavailableCount > 0) {
     summary.push(
-      `${unavailableCount} out of stock item${unavailableCount === 1 ? '' : 's'} skipped.`,
+      `${unavailableCount} out of stock item${
+        unavailableCount === 1 ? '' : 's'
+      } skipped.`,
     );
   }
 
@@ -156,10 +155,16 @@ function PinGlyph() {
   );
 }
 
-function SectionHeader({ onSeeAll, title }) {
+function SectionHeader({ eyebrow, onSeeAll, subtitle, title }) {
   return (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionHeaderCopy}>
+        {eyebrow ? <Text style={styles.sectionEyebrow}>{eyebrow}</Text> : null}
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {subtitle ? (
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        ) : null}
+      </View>
       {onSeeAll ? (
         <ScalePressable
           android_ripple={{ color: '#E6EEE3' }}
@@ -211,46 +216,66 @@ function HomeStatusBanner({ errorMessage, isLoading }) {
         ]}
       >
         {isLoading
-          ? 'Refreshing the latest grocery assortment.'
-          : 'Showing the saved assortment while the catalog reconnects.'}
+          ? 'Refreshing Grovy assistant picks and grocery assortment.'
+          : 'Showing your saved assortment while the catalog reconnects.'}
       </Text>
     </View>
   );
 }
 
 function HomeHero({ banner, onPress }) {
+  const featureChips = ['Smart baskets', 'Budget picks', 'Recipe to cart'];
+
   return (
-    <ScalePressable
-      android_ripple={{ color: '#E7DAC8' }}
-      onPress={onPress}
-      pressScale={0.992}
-      style={({ pressed }) => [styles.heroCard, pressed && styles.heroPressed]}
-    >
+    <View style={styles.heroCard}>
       <View style={styles.heroCircleLarge} />
       <View style={styles.heroCircleSmall} />
 
       <View style={styles.heroCopy}>
-        <Text style={styles.heroEyebrow}>This week&apos;s basket</Text>
-        <Text style={styles.heroTitle}>{banner.title}</Text>
-        <Text style={styles.heroSubtitle}>{banner.subtitle}</Text>
+        <View style={styles.heroAssistantPill}>
+          <Text style={styles.heroAssistantPillLabel}>Grovy assistant</Text>
+        </View>
+        <Text style={styles.heroTitle}>Shop smarter this week</Text>
+        <Text style={styles.heroSubtitle}>
+          Build baskets by budget, recipe, or daily grocery needs.
+        </Text>
 
         <View style={styles.heroTagRow}>
-          <View style={styles.heroTag}>
-            <Text style={styles.heroTagLabel}>Fresh produce</Text>
-          </View>
-          <View style={styles.heroTag}>
-            <Text style={styles.heroTagLabel}>Pantry basics</Text>
-          </View>
+          {featureChips.map(tag => (
+            <View key={tag} style={styles.heroTag}>
+              <Text style={styles.heroTagLabel}>{tag}</Text>
+            </View>
+          ))}
         </View>
 
-        <View style={styles.heroActionRow}>
-          <Text style={styles.heroActionLabel}>Open weekly basket</Text>
-          <DirectionalHint
-            chevronSize={8}
-            color={UI_COLORS.textStrong}
-            mode="tinted"
-            size={22}
-          />
+        <ScalePressable
+          android_ripple={{ color: '#E6D7C3' }}
+          onPress={onPress}
+          pressScale={0.98}
+          style={({ pressed }) => [
+            styles.heroActionButton,
+            pressed && styles.heroActionButtonPressed,
+          ]}
+        >
+          <View style={styles.heroActionRow}>
+            <Text style={styles.heroActionLabel}>Start smart basket</Text>
+            <DirectionalHint
+              chevronSize={8}
+              color={UI_COLORS.textStrong}
+              mode="plain"
+              size={20}
+            />
+          </View>
+        </ScalePressable>
+
+        <View style={styles.heroFeaturedCard}>
+          <Text style={styles.heroFeaturedEyebrow}>Featured this week</Text>
+          <Text numberOfLines={1} style={styles.heroFeaturedTitle}>
+            {banner.title}
+          </Text>
+          <Text numberOfLines={2} style={styles.heroFeaturedSubtitle}>
+            {banner.subtitle}
+          </Text>
         </View>
       </View>
 
@@ -259,7 +284,7 @@ function HomeHero({ banner, onPress }) {
         source={banner.imageSource}
         style={styles.heroImage}
       />
-    </ScalePressable>
+    </View>
   );
 }
 
@@ -569,11 +594,11 @@ function HomeScreen({ navigation }) {
   const hasSearchQuery = Boolean(normalizedSearchQuery);
   const searchResults = hasSearchQuery
     ? products
-      .filter(product => productMatchesSearch(product, normalizedSearchQuery))
-      .map(product => ({
-        ...product,
-        imageSource: getProductImage(product.imageKey),
-      }))
+        .filter(product => productMatchesSearch(product, normalizedSearchQuery))
+        .map(product => ({
+          ...product,
+          imageSource: getProductImage(product.imageKey),
+        }))
     : [];
   const horizontalCardWidth = useMemo(
     () => getHomeProductCardWidth(width),
@@ -622,8 +647,7 @@ function HomeScreen({ navigation }) {
   function handleAddRecipeBasket(collection) {
     handleAddProductCollection(collection, {
       title: collection?.title || 'Recipe to Cart',
-      emptyMessage:
-        'No ingredients from this recipe are available right now.',
+      emptyMessage: 'No ingredients from this recipe are available right now.',
     });
   }
 
@@ -638,6 +662,15 @@ function HomeScreen({ navigation }) {
         emptyMessage: 'No products fit this budget right now.',
       },
     );
+  }
+
+  function handleHeroCtaPress() {
+    if (smartBaskets[0]) {
+      handleAddSmartBasket(smartBaskets[0]);
+      return;
+    }
+
+    handleOpenExplore();
   }
 
   return (
@@ -665,15 +698,9 @@ function HomeScreen({ navigation }) {
             </View>
 
             <View style={styles.brandBadge}>
-              <Text style={styles.brandBadgeText}>Open daily</Text>
+              <Text style={styles.brandBadgeText}>Smart picks</Text>
             </View>
           </View>
-
-          <Text style={styles.screenTitle}>Groceries for the week</Text>
-          <Text style={styles.screenSubtitle}>
-            Fresh produce, pantry staples and fridge basics in one grounded,
-            easy shop.
-          </Text>
 
           <View style={styles.searchBar}>
             <SearchGlyph />
@@ -756,19 +783,16 @@ function HomeScreen({ navigation }) {
                 isLoading={isLoading}
               />
 
-              <HomeHero
-                banner={homeData.banner}
-                onPress={() =>
-                  homeData.exclusiveOffer[0]
-                    ? handleOpenProduct(homeData.exclusiveOffer[0])
-                    : null
-                }
-              />
+              <HomeHero banner={homeData.banner} onPress={handleHeroCtaPress} />
 
               {shouldShowSmartSections ? (
                 <>
                   <View style={styles.sectionBlock}>
-                    <SectionHeader title="Smart Baskets" />
+                    <SectionHeader
+                      eyebrow="Smart shopping"
+                      subtitle="One-tap grocery bundles for real-life needs."
+                      title="Smart Baskets"
+                    />
                     <View style={styles.horizontalRail}>
                       <HomeSmartCollectionRow
                         actionLabel="Add basket"
@@ -783,6 +807,7 @@ function HomeScreen({ navigation }) {
                   <View style={styles.sectionBlock}>
                     <SectionHeader
                       onSeeAll={handleOpenExplore}
+                      subtitle="Jump to the part of the store you need."
                       title="Shop by aisle"
                     />
                     <View style={styles.horizontalRail}>
@@ -795,7 +820,10 @@ function HomeScreen({ navigation }) {
                   </View>
 
                   <View style={styles.sectionBlock}>
-                    <SectionHeader title="Shop by budget" />
+                    <SectionHeader
+                      subtitle="Let Grovy build a basket around your spending limit."
+                      title="Shop by Budget"
+                    />
                     <HomeBudgetModePanel
                       budgetPresets={BUDGET_PRESET_LIST}
                       onAddSuggestion={handleAddBudgetBasket}
@@ -826,7 +854,10 @@ function HomeScreen({ navigation }) {
                   ) : null}
 
                   <View style={styles.sectionBlock}>
-                    <SectionHeader title="Recipe to Cart" />
+                    <SectionHeader
+                      subtitle="Choose a meal idea and add ingredients in one tap."
+                      title="Recipe to Cart"
+                    />
                     <View style={styles.horizontalRail}>
                       <HomeSmartCollectionRow
                         actionLabel="Add ingredients"
@@ -843,6 +874,7 @@ function HomeScreen({ navigation }) {
                     <View style={styles.sectionBlock}>
                       <SectionHeader
                         onSeeAll={handleOpenExplore}
+                        subtitle="Popular staples for quick replenishment."
                         title="Popular in store"
                       />
                       <View style={styles.horizontalRail}>
@@ -860,6 +892,7 @@ function HomeScreen({ navigation }) {
                     <View style={styles.sectionBlock}>
                       <SectionHeader
                         onSeeAll={handleOpenExplore}
+                        subtitle="Reliable essentials for quick lunches and dinners."
                         title="Pantry and protein"
                       />
                       <HomeGroceriesGrid
@@ -882,7 +915,6 @@ function HomeScreen({ navigation }) {
             </>
           )}
         </ScrollView>
-
       </View>
     </SafeAreaView>
   );
@@ -980,18 +1012,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 16,
   },
-  screenTitle: {
-    color: UI_COLORS.textStrong,
-    ...UI_TYPOGRAPHY.screenTitle,
-    maxWidth: '90%',
-  },
-  screenSubtitle: {
-    color: UI_COLORS.mutedStrong,
-    ...UI_TYPOGRAPHY.body,
-    marginTop: 6,
-    marginBottom: 24,
-    maxWidth: '90%',
-  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1082,49 +1102,55 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.banner,
     borderRadius: UI_RADIUS.hero,
     borderWidth: 1,
-    borderColor: '#E6D8C7',
+    borderColor: UI_COLORS.border,
     overflow: 'hidden',
     paddingHorizontal: 22,
     paddingTop: 22,
     paddingBottom: 22,
-    minHeight: 228,
+    minHeight: 290,
     position: 'relative',
     marginBottom: 36,
     ...UI_SHADOWS.card,
   },
-  heroPressed: {
-    opacity: 0.97,
-  },
   heroCircleLarge: {
     position: 'absolute',
-    right: -10,
-    bottom: -20,
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: 'rgba(228, 237, 217, 0.78)',
+    right: -12,
+    bottom: -24,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: 'rgba(231, 238, 220, 0.84)',
   },
   heroCircleSmall: {
     position: 'absolute',
-    right: 76,
-    top: -24,
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: 'rgba(215, 155, 90, 0.13)',
+    right: 72,
+    top: -26,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(211, 141, 86, 0.16)',
   },
   heroCopy: {
-    width: '57%',
+    width: '60%',
     zIndex: 1,
   },
-  heroEyebrow: {
-    color: UI_COLORS.mutedStrong,
+  heroAssistantPill: {
+    alignSelf: 'flex-start',
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: 'rgba(255, 253, 252, 0.84)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 253, 252, 0.72)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 12,
+  },
+  heroAssistantPillLabel: {
+    color: UI_COLORS.accentGreen,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     lineHeight: 16,
     textTransform: 'uppercase',
-    letterSpacing: 0.35,
-    marginBottom: 10,
+    letterSpacing: 0.4,
   },
   heroTitle: {
     color: UI_COLORS.textStrong,
@@ -1136,12 +1162,12 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     marginTop: 10,
-    maxWidth: '94%',
+    maxWidth: '96%',
   },
   heroTagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 16,
+    marginTop: 18,
   },
   heroTag: {
     borderRadius: UI_RADIUS.round,
@@ -1159,26 +1185,65 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 14,
   },
+  heroActionButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 17,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  heroActionButtonPressed: {
+    opacity: 0.94,
+  },
   heroActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginTop: 8,
-    marginLeft: -1,
   },
   heroActionLabel: {
     color: UI_COLORS.textStrong,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     lineHeight: 18,
     marginRight: 6,
   },
+  heroFeaturedCard: {
+    marginTop: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 253, 250, 0.64)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 253, 250, 0.56)',
+    padding: 14,
+  },
+  heroFeaturedEyebrow: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 6,
+  },
+  heroFeaturedTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  heroFeaturedSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12.5,
+    lineHeight: 17,
+    marginTop: 4,
+  },
   heroImage: {
     position: 'absolute',
     right: 4,
-    bottom: 4,
-    width: 188,
-    height: 160,
+    bottom: 6,
+    width: 194,
+    height: 172,
   },
   sectionBlock: {
     marginBottom: 34,
@@ -1221,16 +1286,35 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 14,
+  },
+  sectionHeaderCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  sectionEyebrow: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.42,
+    marginBottom: 6,
   },
   sectionTitle: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.sectionTitle,
   },
+  sectionSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 4,
+  },
   sectionLinkButton: {
     marginLeft: 10,
+    marginTop: 4,
     paddingVertical: 4,
   },
   sectionLinkButtonPressed: {

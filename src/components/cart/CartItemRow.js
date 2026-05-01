@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { getProductImageSource } from '../../assets/productImages';
 import {
@@ -25,17 +25,25 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function QuantityButton({ disabled = false, label, onPress, testID }) {
+function QuantityButton({
+  disabled = false,
+  isAccent = false,
+  label,
+  onPress,
+  testID,
+}) {
   return (
     <ScalePressable
       android_ripple={{ color: '#EEE6DC' }}
       disabled={disabled}
       onPress={onPress}
-      pressScale={0.94}
+      pressScale={0.91}
       style={({ pressed }) => [
         styles.quantityButton,
+        isAccent && styles.quantityButtonAccent,
         disabled && styles.quantityButtonDisabled,
         pressed && !disabled && styles.quantityButtonPressed,
+        pressed && !disabled && isAccent && styles.quantityButtonPressedAccent,
       ]}
       testID={testID}
     >
@@ -66,10 +74,24 @@ function CartItemRow({
   const isAvailable = item.product.stock > 0;
   const isIncreaseDisabled =
     !isAvailable || item.quantity >= item.product.stock;
+  const totalPriceLabel = useMemo(
+    () => formatCurrency(item.product.price * item.quantity),
+    [item.product.price, item.quantity],
+  );
   const translateX = useRef(new Animated.Value(0)).current;
+  const quantityScale = useRef(new Animated.Value(1)).current;
+  const lineTotalScale = useRef(new Animated.Value(1)).current;
+  const lineTotalIncomingOpacity = useRef(new Animated.Value(1)).current;
+  const lineTotalIncomingTranslateY = useRef(new Animated.Value(0)).current;
+  const lineTotalOutgoingOpacity = useRef(new Animated.Value(0)).current;
+  const lineTotalOutgoingTranslateY = useRef(new Animated.Value(0)).current;
   const currentTranslateXRef = useRef(0);
   const dragStartXRef = useRef(0);
   const hasTriggeredSwipeActionRef = useRef(false);
+  const previousQuantityRef = useRef(item.quantity);
+  const currentLineTotalLabelRef = useRef(totalPriceLabel);
+  const [lineTotalLabel, setLineTotalLabel] = useState(totalPriceLabel);
+  const [outgoingLineTotalLabel, setOutgoingLineTotalLabel] = useState('');
 
   useEffect(() => {
     const listenerId = translateX.addListener(({ value }) => {
@@ -80,6 +102,120 @@ function CartItemRow({
       translateX.removeListener(listenerId);
     };
   }, [translateX]);
+
+  const animateQuantityValue = useCallback(() => {
+    quantityScale.stopAnimation();
+    quantityScale.setValue(1);
+
+    Animated.sequence([
+      Animated.timing(quantityScale, {
+        toValue: 1.15,
+        duration: 95,
+        useNativeDriver: true,
+      }),
+      Animated.spring(quantityScale, {
+        toValue: 1,
+        bounciness: 7,
+        speed: 20,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [quantityScale]);
+
+  const animateLineTotalValue = useCallback(
+    nextLabel => {
+      const currentLabel = currentLineTotalLabelRef.current;
+
+      if (currentLabel === nextLabel) {
+        setLineTotalLabel(nextLabel);
+        setOutgoingLineTotalLabel('');
+        return;
+      }
+
+      lineTotalScale.stopAnimation();
+      lineTotalIncomingOpacity.stopAnimation();
+      lineTotalIncomingTranslateY.stopAnimation();
+      lineTotalOutgoingOpacity.stopAnimation();
+      lineTotalOutgoingTranslateY.stopAnimation();
+
+      currentLineTotalLabelRef.current = nextLabel;
+      setOutgoingLineTotalLabel(currentLabel);
+      setLineTotalLabel(nextLabel);
+
+      lineTotalScale.setValue(0.96);
+      lineTotalIncomingOpacity.setValue(0);
+      lineTotalIncomingTranslateY.setValue(7);
+      lineTotalOutgoingOpacity.setValue(1);
+      lineTotalOutgoingTranslateY.setValue(0);
+
+      Animated.parallel([
+        Animated.spring(lineTotalScale, {
+          toValue: 1,
+          bounciness: 6,
+          speed: 18,
+          useNativeDriver: true,
+        }),
+        Animated.timing(lineTotalIncomingOpacity, {
+          toValue: 1,
+          duration: 160,
+          useNativeDriver: true,
+        }),
+        Animated.spring(lineTotalIncomingTranslateY, {
+          toValue: 0,
+          bounciness: 4,
+          speed: 20,
+          useNativeDriver: true,
+        }),
+        Animated.timing(lineTotalOutgoingOpacity, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(lineTotalOutgoingTranslateY, {
+          toValue: -6,
+          duration: 130,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setOutgoingLineTotalLabel('');
+      });
+    },
+    [
+      lineTotalIncomingOpacity,
+      lineTotalIncomingTranslateY,
+      lineTotalOutgoingOpacity,
+      lineTotalOutgoingTranslateY,
+      lineTotalScale,
+    ],
+  );
+
+  useEffect(() => {
+    if (previousQuantityRef.current === item.quantity) {
+      return;
+    }
+
+    previousQuantityRef.current = item.quantity;
+    animateQuantityValue();
+    animateLineTotalValue(totalPriceLabel);
+  }, [animateLineTotalValue, animateQuantityValue, item.quantity, totalPriceLabel]);
+
+  useEffect(() => {
+    return () => {
+      quantityScale.stopAnimation();
+      lineTotalScale.stopAnimation();
+      lineTotalIncomingOpacity.stopAnimation();
+      lineTotalIncomingTranslateY.stopAnimation();
+      lineTotalOutgoingOpacity.stopAnimation();
+      lineTotalOutgoingTranslateY.stopAnimation();
+    };
+  }, [
+    lineTotalIncomingOpacity,
+    lineTotalIncomingTranslateY,
+    lineTotalOutgoingOpacity,
+    lineTotalOutgoingTranslateY,
+    lineTotalScale,
+    quantityScale,
+  ]);
 
   const animateTo = useCallback(
     (toValue, onAnimationEnd) => {
@@ -227,6 +363,18 @@ function CartItemRow({
     onRemove?.(item.product.id);
   }, [item.product.id, onRemove]);
 
+  const animatedQuantityValueStyle = {
+    transform: [{ scale: quantityScale }],
+  };
+  const animatedIncomingLineTotalStyle = {
+    opacity: lineTotalIncomingOpacity,
+    transform: [{ scale: lineTotalScale }, { translateY: lineTotalIncomingTranslateY }],
+  };
+  const animatedOutgoingLineTotalStyle = {
+    opacity: lineTotalOutgoingOpacity,
+    transform: [{ translateY: lineTotalOutgoingTranslateY }],
+  };
+
   return (
     <View style={styles.rowWrap}>
       <View
@@ -333,9 +481,15 @@ function CartItemRow({
                 onPress={() => onDecrease(item.product.id)}
                 testID={`cart-item-decrease-${item.product.id}`}
               />
-              <Text style={styles.quantityValue}>{item.quantity}</Text>
+              <Animated.Text
+                style={[styles.quantityValue, animatedQuantityValueStyle]}
+                testID={`cart-item-quantity-value-${item.product.id}`}
+              >
+                {item.quantity}
+              </Animated.Text>
               <QuantityButton
                 disabled={isIncreaseDisabled}
+                isAccent
                 label="+"
                 onPress={() => onIncrease(item.product.id)}
                 testID={`cart-item-increase-${item.product.id}`}
@@ -344,9 +498,25 @@ function CartItemRow({
 
             <View style={styles.itemPriceBlock}>
               <Text style={styles.itemPriceLabel}>Line total</Text>
-              <Text style={styles.itemPrice}>
-                {formatCurrency(item.product.price * item.quantity)}
-              </Text>
+              <View style={styles.itemPriceValueWrap}>
+                {outgoingLineTotalLabel ? (
+                  <Animated.Text
+                    style={[
+                      styles.itemPrice,
+                      styles.itemPriceOverlay,
+                      animatedOutgoingLineTotalStyle,
+                    ]}
+                  >
+                    {outgoingLineTotalLabel}
+                  </Animated.Text>
+                ) : null}
+                <Animated.Text
+                  style={[styles.itemPrice, animatedIncomingLineTotalStyle]}
+                  testID={`cart-item-line-total-${item.product.id}`}
+                >
+                  {lineTotalLabel}
+                </Animated.Text>
+              </View>
             </View>
           </View>
         </View>
@@ -506,8 +676,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  quantityButtonAccent: {
+    borderColor: UI_COLORS.accentGreenSoft,
+  },
   quantityButtonPressed: {
-    opacity: 0.95,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderColor: UI_COLORS.border,
+  },
+  quantityButtonPressedAccent: {
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderColor: UI_COLORS.accentGreen,
   },
   quantityButtonDisabled: {
     opacity: 0.45,
@@ -549,6 +727,17 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     lineHeight: 26,
+    textAlign: 'right',
+  },
+  itemPriceValueWrap: {
+    minHeight: 26,
+    justifyContent: 'center',
+  },
+  itemPriceOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
   },
 });
 

@@ -227,6 +227,23 @@ function CartScreen({ navigation }) {
     [addToCart, items, removeFromCart, showFeedback],
   );
 
+  const handleDecreaseQuantity = useCallback(
+    productId => {
+      const item = items.find(entry => entry.product.id === productId);
+
+      if (!item) {
+        return;
+      }
+
+      if (item.quantity <= 1) {
+        configureCartRemovalLayout();
+      }
+
+      decreaseQuantity(productId);
+    },
+    [decreaseQuantity, items],
+  );
+
   const handleCheckout = useCallback(() => {
     if (!items.length) {
       showFeedback('Your cart is empty.', {
@@ -280,7 +297,7 @@ function CartScreen({ navigation }) {
                   key={item.product.id}
                   onCheckout={handleCheckout}
                   onClose={handleCloseItem}
-                  onDecrease={decreaseQuantity}
+                  onDecrease={handleDecreaseQuantity}
                   onIncrease={increaseQuantity}
                   onOpen={handleOpenItem}
                   onRemove={handleRemoveItem}

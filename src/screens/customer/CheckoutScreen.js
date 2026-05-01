@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  LayoutAnimation,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  UIManager,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,6 +43,30 @@ import { formatCurrency } from '../../utils/formatCurrency';
 
 const DELIVERY_FEE = 0;
 const DISCOUNT_AMOUNT = 0;
+
+if (
+  Platform.OS === 'android' &&
+  typeof UIManager.setLayoutAnimationEnabledExperimental === 'function'
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+function configureSummaryToggleLayout() {
+  LayoutAnimation.configureNext({
+    duration: 200,
+    create: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+    update: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+    },
+    delete: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+  });
+}
 
 function SummaryRow({
   description,
@@ -91,9 +118,9 @@ function HeaderButton({ children, onPress }) {
   );
 }
 
-function OrderPreviewRow({ item }) {
+function OrderPreviewRow({ item, testID }) {
   return (
-    <View style={styles.previewRow}>
+    <View style={styles.previewRow} testID={testID}>
       <View style={styles.previewImageWrap}>
         <ProductImage
           name={item.product.name}
@@ -136,6 +163,7 @@ function CheckoutScreen({ navigation }) {
       '199 Grovy Street, Fresh District',
   );
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successState, setSuccessState] = useState(null);
 
@@ -147,6 +175,9 @@ function CheckoutScreen({ navigation }) {
   const displaySubtotal = successState?.subtotal ?? subtotal;
   const displayTotalCost = successState?.totalCost ?? totalCost;
   const showSuccessModal = Boolean(successState?.order);
+  const itemCountLabel = `${displayItems.length} item${
+    displayItems.length === 1 ? '' : 's'
+  }`;
 
   function handleBackToHome() {
     setSuccessState(null);
@@ -183,6 +214,11 @@ function CheckoutScreen({ navigation }) {
         },
       ],
     });
+  }
+
+  function handleToggleSummary() {
+    configureSummaryToggleLayout();
+    setIsSummaryExpanded(currentValue => !currentValue);
   }
 
   async function handlePlaceOrder() {
@@ -311,21 +347,66 @@ function CheckoutScreen({ navigation }) {
           </View>
 
           <View style={styles.previewCard}>
-            <View style={styles.cardHeadingRow}>
-              <Text style={styles.cardTitle}>Order summary</Text>
-              <Text style={styles.cardMeta}>{displayItems.length} items</Text>
-            </View>
+            <ScalePressable
+              android_ripple={{ color: '#EEE6DC' }}
+              onPress={handleToggleSummary}
+              pressScale={0.995}
+              style={({ pressed }) => [
+                styles.orderSummaryToggle,
+                pressed && styles.orderSummaryTogglePressed,
+              ]}
+              testID="checkout-order-summary-toggle"
+            >
+              <View style={styles.orderSummaryToggleRow}>
+                <View style={styles.orderSummaryToggleCopy}>
+                  <Text style={styles.orderSummaryToggleTitle}>
+                    Order summary
+                  </Text>
+                  <Text style={styles.orderSummaryMeta}>{itemCountLabel}</Text>
+                </View>
 
-            {displayItems.slice(0, 3).map(item => (
-              <OrderPreviewRow item={item} key={item.product.id} />
-            ))}
+                <ChevronIcon
+                  color={UI_COLORS.mutedStrong}
+                  direction={isSummaryExpanded ? 'up' : 'down'}
+                  size={14}
+                  strokeWidth={1.8}
+                />
+              </View>
+            </ScalePressable>
 
-            {displayItems.length > 3 ? (
-              <Text style={styles.previewMoreLabel}>
-                +{displayItems.length - 3} more item
-                {displayItems.length - 3 === 1 ? '' : 's'}
-              </Text>
+            {isSummaryExpanded ? (
+              <View
+                style={styles.orderSummaryItems}
+                testID="checkout-order-summary-items"
+              >
+                {displayItems.map(item => (
+                  <OrderPreviewRow
+                    item={item}
+                    key={item.product.id}
+                    testID={`checkout-order-summary-item-${item.product.id}`}
+                  />
+                ))}
+              </View>
             ) : null}
+
+            <View style={styles.orderSummaryTotals}>
+              <SummaryRow
+                description={itemCountLabel}
+                label="Subtotal"
+                value={formatCurrency(displaySubtotal)}
+              />
+              <SummaryRow
+                emphasized
+                description={
+                  DELIVERY_FEE > 0
+                    ? `Includes ${formatCurrency(DELIVERY_FEE)} delivery`
+                    : 'Delivery included'
+                }
+                isLast
+                label="Total"
+                value={formatCurrency(displayTotalCost)}
+              />
+            </View>
           </View>
 
           <View style={styles.summaryCard}>
@@ -359,9 +440,7 @@ function CheckoutScreen({ navigation }) {
 
             <SummaryRow
               emphasized
-              description={`${displayItems.length} item${
-                displayItems.length === 1 ? '' : 's'
-              } • Subtotal ${formatCurrency(displaySubtotal)}`}
+              description={`${itemCountLabel} ready for delivery`}
               isLast
               label="Total"
               value={formatCurrency(displayTotalCost)}
@@ -573,15 +652,40 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     ...UI_SHADOWS.card,
   },
-  cardHeadingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
+  orderSummaryToggle: {
+    borderRadius: UI_RADIUS.lg,
   },
-  cardMeta: {
+  orderSummaryTogglePressed: {
+    opacity: 0.88,
+  },
+  orderSummaryToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  orderSummaryToggleCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  orderSummaryToggleTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 26,
+  },
+  orderSummaryMeta: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.label,
+    marginTop: 4,
+  },
+  orderSummaryItems: {
+    marginTop: 14,
+  },
+  orderSummaryTotals: {
+    marginTop: 14,
+    paddingTop: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: UI_COLORS.border,
   },
   previewRow: {
     flexDirection: 'row',
@@ -622,11 +726,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     lineHeight: 20,
-  },
-  previewMoreLabel: {
-    color: UI_COLORS.mutedStrong,
-    ...UI_TYPOGRAPHY.label,
-    marginTop: 8,
   },
   summaryCard: {
     backgroundColor: UI_COLORS.surface,

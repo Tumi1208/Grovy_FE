@@ -222,4 +222,27 @@ describe('CartScreen swipe action wiring', () => {
     expect(cartState.decreaseQuantity).toHaveBeenCalledWith('apple');
     expect(cartState.increaseQuantity).toHaveBeenCalledWith('apple');
   });
+
+  it('keeps row removal smooth when decreasing the final quantity', () => {
+    const cartState = createCartState({
+      items: [createCartItem({ quantity: 1 })],
+      subtotal: 2.5,
+      totalItems: 1,
+    });
+
+    mockUseCart.mockImplementation(() => cartState);
+
+    const renderer = renderScreen();
+
+    layoutAnimationSpy.mockClear();
+
+    act(() => {
+      renderer.root
+        .findByProps({ testID: 'mock-decrease-apple' })
+        .props.onPress();
+    });
+
+    expect(LayoutAnimation.configureNext).toHaveBeenCalled();
+    expect(cartState.decreaseQuantity).toHaveBeenCalledWith('apple');
+  });
 });

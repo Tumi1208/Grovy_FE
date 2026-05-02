@@ -16,6 +16,7 @@ import DirectionalHint from '../../components/DirectionalHint';
 import HomeProductCard, {
   HomeCategoryCard,
 } from '../../components/home/HomeProductCard';
+import SmartBasketPreviewSheet from '../../components/home/SmartBasketPreviewSheet';
 import ProductQuickActionsSheet from '../../components/ProductQuickActionsSheet';
 import {
   HomeBudgetModePanel,
@@ -467,6 +468,7 @@ function HomeScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedQuickActionProduct, setSelectedQuickActionProduct] =
     useState(null);
+  const [selectedSmartBasket, setSelectedSmartBasket] = useState(null);
   const [selectedBudgetPresetId, setSelectedBudgetPresetId] = useState(
     DEFAULT_BUDGET_PRESET_ID,
   );
@@ -565,6 +567,7 @@ function HomeScreen({ navigation }) {
     collection,
     {
       emptyMessage = 'No matching products are available right now.',
+      onAfterAdd,
       title = 'Basket',
     } = {},
   ) {
@@ -581,6 +584,12 @@ function HomeScreen({ navigation }) {
 
     addableProducts.forEach(product => {
       addToCart(product, 1);
+    });
+
+    onAfterAdd?.({
+      addedCount: addableProducts.length,
+      missingCount,
+      unavailableCount,
     });
 
     Alert.alert(
@@ -610,6 +619,18 @@ function HomeScreen({ navigation }) {
       category: category.category,
       title: category.title,
     });
+  }
+
+  function handleCloseSmartBasketPreview() {
+    setSelectedSmartBasket(null);
+  }
+
+  function handleOpenSmartBasketPreview(collection) {
+    if (!collection?.previewProducts?.length && !collection?.products?.length) {
+      return;
+    }
+
+    setSelectedSmartBasket(collection);
   }
 
   function handleOpenSmartCollection(collection) {
@@ -675,10 +696,11 @@ function HomeScreen({ navigation }) {
   const trimmedSearchQuery = searchQuery.trim();
   const shouldShowSmartSections = hasCatalogItems && !hasSearchQuery;
 
-  function handleAddSmartBasket(collection) {
+  function handleAddSmartBasketFromPreview(collection) {
     handleAddProductCollection(collection, {
       title: collection?.title || 'Smart basket',
       emptyMessage: 'No products from this basket are available right now.',
+      onAfterAdd: handleCloseSmartBasketPreview,
     });
   }
 
@@ -704,7 +726,7 @@ function HomeScreen({ navigation }) {
 
   function handleHeroCtaPress() {
     if (smartBaskets[0]) {
-      handleAddSmartBasket(smartBaskets[0]);
+      handleOpenSmartBasketPreview(smartBaskets[0]);
       return;
     }
 
@@ -834,11 +856,11 @@ function HomeScreen({ navigation }) {
                     />
                     <View style={styles.horizontalRail}>
                       <HomeSmartCollectionRow
-                        actionLabel="Add basket"
+                        actionLabel="Preview basket"
                         cardWidth={smartCollectionCardWidth}
                         items={smartBaskets}
-                        onActionPress={handleAddSmartBasket}
-                        onPress={handleOpenSmartCollection}
+                        onActionPress={handleOpenSmartBasketPreview}
+                        onPress={handleOpenSmartBasketPreview}
                       />
                     </View>
                   </View>
@@ -969,6 +991,13 @@ function HomeScreen({ navigation }) {
         onViewDetails={handleOpenProduct}
         product={selectedQuickActionProduct}
         visible={Boolean(selectedQuickActionProduct)}
+      />
+      <SmartBasketPreviewSheet
+        collection={selectedSmartBasket}
+        onAddAll={handleAddSmartBasketFromPreview}
+        onClose={handleCloseSmartBasketPreview}
+        onSelectProduct={handleOpenProduct}
+        visible={Boolean(selectedSmartBasket)}
       />
     </SafeAreaView>
   );

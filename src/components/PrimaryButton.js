@@ -3,6 +3,7 @@ import { StyleSheet, Text } from 'react-native';
 import {
   UI_COLORS,
   UI_LAYOUT,
+  UI_PRESS,
   UI_RADIUS,
   UI_SHADOWS,
   UI_TYPOGRAPHY,
@@ -23,7 +24,7 @@ function PrimaryButton({
     <ScalePressable
       disabled={disabled}
       onPress={onPress}
-      pressScale={0.985}
+      pressScale={UI_PRESS.scale.button}
       style={({ pressed }) => [
         styles.button,
         isSecondary ? styles.secondaryButton : styles.primaryButton,
@@ -65,10 +66,10 @@ const styles = StyleSheet.create({
     borderColor: UI_COLORS.borderSoft,
   },
   pressedButton: {
-    opacity: 0.88,
+    opacity: UI_PRESS.opacity.strong,
   },
   disabledButton: {
-    opacity: 0.55,
+    opacity: UI_PRESS.opacity.disabled,
   },
   label: {
     ...UI_TYPOGRAPHY.button,

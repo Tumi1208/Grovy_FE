@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import ProductImage from './ProductImage';
 import {
   UI_COLORS,
+  UI_PRESS,
   UI_RADIUS,
   UI_SHADOWS,
   UI_SPACING,
@@ -47,7 +48,7 @@ function ProductCard({
       delayLongPress={260}
       onLongPress={handleCardLongPress}
       onPress={handleCardPress}
-      pressScale={0.992}
+      pressScale={UI_PRESS.scale.subtle}
       style={({ pressed }) => [
         styles.card,
         style,
@@ -68,7 +69,7 @@ function ProductCard({
             event.stopPropagation();
             onToggleFavourite?.(product);
           }}
-          pressScale={0.94}
+          pressScale={UI_PRESS.scale.strong}
           style={({ pressed }) => [
             styles.favouriteButton,
             isFavourite && styles.favouriteButtonActive,
@@ -123,7 +124,7 @@ function ProductCard({
               event.stopPropagation();
               onAddToCart?.(product);
             }}
-            pressScale={0.94}
+            pressScale={UI_PRESS.scale.strong}
             style={({ pressed }) => [
               styles.actionBadge,
               !isAvailable && styles.actionBadgeDisabled,
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   pressedCard: {
-    opacity: 0.98,
+    opacity: UI_PRESS.opacity.subtle,
   },
   imagePanel: {
     backgroundColor: UI_COLORS.surfaceSoft,
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.accentRedSoft,
   },
   favouriteButtonPressed: {
-    opacity: 0.92,
+    opacity: UI_PRESS.opacity.medium,
   },
   favouriteIcon: {
     color: UI_COLORS.muted,
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
   },
   actionBadgePressed: {
     backgroundColor: UI_COLORS.accentGreenPressed,
-    opacity: 0.96,
+    opacity: UI_PRESS.opacity.soft,
   },
   actionBadgeLabel: {
     color: UI_COLORS.surface,

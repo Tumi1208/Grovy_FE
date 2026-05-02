@@ -21,6 +21,8 @@ import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
   UI_LAYOUT,
+  UI_MOTION,
+  UI_PRESS,
   UI_RADIUS,
   UI_SHADOWS,
   UI_TYPOGRAPHY,
@@ -31,7 +33,7 @@ import { formatCurrency } from '../../utils/formatCurrency';
 
 const FLOATING_BOTTOM_OFFSET = 94;
 const AUTO_COLLAPSE_DELAY_MS = 3000;
-const EXPAND_ANIMATION_DURATION_MS = 220;
+const EXPAND_ANIMATION_DURATION_MS = UI_MOTION.normal;
 const VISIBLE_ROUTES = new Set([
   CUSTOMER_ROUTES.HOME,
   CUSTOMER_ROUTES.EXPLORE,
@@ -205,11 +207,11 @@ function FloatingCartButton({
   );
 
   const handlePressIn = useCallback(() => {
-    animateButtonScale(0.97, 90);
+    animateButtonScale(UI_PRESS.scale.medium, UI_PRESS.timing.in);
   }, [animateButtonScale]);
 
   const handlePressOut = useCallback(() => {
-    animateButtonScale(1, 170);
+    animateButtonScale(1, UI_PRESS.timing.out);
   }, [animateButtonScale]);
 
   if (
@@ -358,7 +360,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   buttonPressed: {
-    opacity: 0.96,
+    opacity: UI_PRESS.opacity.soft,
   },
   iconWrap: {
     width: 56,

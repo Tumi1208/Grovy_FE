@@ -1,10 +1,13 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import OrderSuccessModal from '../../components/orders/OrderSuccessModal';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import { UI_COLORS } from '../../constants/ui';
 import { useAccountData } from '../../context/AccountDataContext';
+
+const COMING_SOON_BASKET_ALERT =
+  'Coming soon: save this basket for next time.';
 
 function OrderSuccessScreen({ navigation, route }) {
   const { getOrderById } = useAccountData();
@@ -45,11 +48,30 @@ function OrderSuccessScreen({ navigation, route }) {
     });
   }
 
+  function handleExploreSmartBaskets() {
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: CUSTOMER_ROUTES.HOME,
+          params: { focusSmartBaskets: true },
+        },
+      ],
+    });
+  }
+
+  function handleShowComingSoonBasketAlert() {
+    Alert.alert(COMING_SOON_BASKET_ALERT);
+  }
+
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.container}>
         <OrderSuccessModal
           onBackToHome={handleBackToHome}
+          onBuySimilarBasketAgain={handleShowComingSoonBasketAlert}
+          onExploreSmartBaskets={handleExploreSmartBaskets}
+          onSaveBasket={handleShowComingSoonBasketAlert}
           onTrackOrder={handleTrackOrder}
           order={order}
           presentation="screen"

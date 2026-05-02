@@ -1,6 +1,5 @@
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
 import {
   AUTH_ROUTES,
 } from '../src/constants/routes';
@@ -138,7 +137,7 @@ describe('navigation flow wiring', () => {
     ).toBe(false);
   });
 
-  it('routes Entry screen actions correctly and keeps Google/Apple mocked', () => {
+  it('routes Entry screen actions correctly', () => {
     mockUseApp.mockReturnValue({
       completeOnboarding: jest.fn(),
       openingFlow: {
@@ -161,12 +160,12 @@ describe('navigation flow wiring', () => {
     const root = renderer.root;
 
     act(() => {
-      findButtonByTitle(root, 'Go to Sign In').props.onPress();
+      findButtonByTitle(root, 'Sign In').props.onPress();
     });
     expect(navigation.navigate).toHaveBeenCalledWith(AUTH_ROUTES.SIGN_IN);
 
     act(() => {
-      findButtonByTitle(root, 'Go to Sign Up').props.onPress();
+      findButtonByTitle(root, 'Create account').props.onPress();
     });
     expect(navigation.navigate).toHaveBeenCalledWith(AUTH_ROUTES.SIGN_UP);
 
@@ -174,24 +173,6 @@ describe('navigation flow wiring', () => {
       findPressableByText(root, 'Continue with phone').props.onPress();
     });
     expect(navigation.navigate).toHaveBeenCalledWith(AUTH_ROUTES.NUMBER_INPUT);
-
-    act(() => {
-      findPressableByText(root, 'Continue with Google').props.onPress();
-    });
-    expect(
-      root.findAllByType(Text).some(node =>
-        getNodeText(node).includes('Google sign in is still mock-only'),
-      ),
-    ).toBe(true);
-
-    act(() => {
-      findPressableByText(root, 'Continue with Apple').props.onPress();
-    });
-    expect(
-      root.findAllByType(Text).some(node =>
-        getNodeText(node).includes('Apple sign in is still mock-only'),
-      ),
-    ).toBe(true);
   });
 
   it('keeps the phone flow connected from number to verification to location', () => {

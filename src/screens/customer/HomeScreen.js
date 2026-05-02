@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -466,7 +466,7 @@ function HomeSearchEmptyState({ onOpenSmartBaskets, onResetFilters }) {
   );
 }
 
-function HomeScreen({ navigation }) {
+function HomeScreen({ navigation, route }) {
   const { width } = useWindowDimensions();
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -706,6 +706,14 @@ function HomeScreen({ navigation }) {
   const trimmedSearchQuery = searchQuery.trim();
   const shouldShowSmartSections = hasCatalogItems && !hasSearchQuery;
 
+  const scrollToSmartBaskets = useCallback(() => {
+    scrollViewRef.current?.scrollTo?.({
+      y: Math.max(smartBasketsSectionOffsetRef.current - UI_SPACING.md, 0),
+      animated: true,
+    });
+    pendingSmartBasketScrollRef.current = false;
+  }, []);
+
   useEffect(() => {
     if (
       hasSearchQuery ||
@@ -716,18 +724,40 @@ function HomeScreen({ navigation }) {
     }
 
     const timeoutId = setTimeout(() => {
-      scrollViewRef.current?.scrollTo?.({
-        y: Math.max(
-          smartBasketsSectionOffsetRef.current - UI_SPACING.md,
-          0,
-        ),
-        animated: true,
-      });
-      pendingSmartBasketScrollRef.current = false;
+      scrollToSmartBaskets();
     }, 0);
 
     return () => clearTimeout(timeoutId);
-  }, [hasSearchQuery, shouldShowSmartSections]);
+  }, [hasSearchQuery, scrollToSmartBaskets, shouldShowSmartSections]);
+
+  useEffect(() => {
+    if (!route?.params?.focusSmartBaskets) {
+      return undefined;
+    }
+
+    pendingSmartBasketScrollRef.current = true;
+    navigation.setParams({ focusSmartBaskets: undefined });
+
+    if (hasSearchQuery || !shouldShowSmartSections) {
+      if (hasSearchQuery) {
+        setSearchQuery('');
+      }
+
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      scrollToSmartBaskets();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    hasSearchQuery,
+    navigation,
+    route?.params?.focusSmartBaskets,
+    scrollToSmartBaskets,
+    shouldShowSmartSections,
+  ]);
 
   function handleAddSmartBasketFromPreview(collection) {
     handleAddProductCollection(collection, {
@@ -774,11 +804,7 @@ function HomeScreen({ navigation }) {
       return;
     }
 
-    scrollViewRef.current?.scrollTo?.({
-      y: Math.max(smartBasketsSectionOffsetRef.current - UI_SPACING.md, 0),
-      animated: true,
-    });
-    pendingSmartBasketScrollRef.current = false;
+    scrollToSmartBaskets();
   }
 
   return (

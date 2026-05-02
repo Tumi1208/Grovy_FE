@@ -78,14 +78,9 @@ function SignUpScreen({ navigation }) {
 
   return (
     <AuthScreenLayout
-      eyebrow="New account"
-      heroBadges={[
-        'Auto sign in',
-        'Separate account data',
-        'Easy demo flow',
-      ]}
+      eyebrow="Create account"
       onPressBack={handleBack}
-      subtitle="Create a new Grovy account and the app will immediately continue with that profile."
+      subtitle="Create your Grovy account to save your details and shop faster next time."
       switchRow={
         <AuthSwitchRow
           actionLabel="Sign in"
@@ -108,7 +103,7 @@ function SignUpScreen({ navigation }) {
             setErrorMessage('');
           }
         }}
-        placeholder="Demo Shopper C"
+        placeholder="Your full name"
         textContentType="name"
         value={displayName}
       />

@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +21,8 @@ import { AUTH_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
   UI_LAYOUT,
+  UI_MOTION,
+  UI_PRESS,
   UI_RADIUS,
   UI_SHADOWS,
   UI_TYPOGRAPHY,
@@ -32,11 +36,13 @@ const OPENING_COLORS = Object.freeze({
   accentSoft: UI_COLORS.accentGreenSoft,
   accentWarm: UI_COLORS.banner,
   accentWarmSoft: UI_COLORS.surfaceTint,
-  canvas: UI_COLORS.screenLight,
-  canvasWarm: UI_COLORS.screen,
+  canvas: UI_COLORS.background,
+  canvasWarm: UI_COLORS.screenLight,
   surface: UI_COLORS.surface,
+  surfaceWarm: UI_COLORS.surfaceWarm,
   surfaceSoft: UI_COLORS.surfaceSoft,
   surfaceMuted: UI_COLORS.surfaceMuted,
+  surfaceTint: UI_COLORS.surfaceTint,
   border: UI_COLORS.border,
   borderSoft: UI_COLORS.borderSoft,
   text: UI_COLORS.textStrong,
@@ -53,7 +59,16 @@ const OPENING_IMAGES = Object.freeze({
 });
 
 const DEFAULT_COUNTRY_CODE = '+84';
-const MOCK_OTP_CODE = '1234';
+const SPLASH_NAVIGATION_DELAY_MS = 1400;
+const SPLASH_EXIT_DELAY_MS = 1180;
+
+const OPENING_ANIMATION = Object.freeze({
+  distance: 22,
+  duration: UI_MOTION.slow,
+  durationFast: UI_MOTION.fast,
+  durationNormal: UI_MOTION.normal,
+  scaleFrom: 0.985,
+});
 
 function normalizePhoneInput(value) {
   return value.replace(/[^0-9 ]/g, '').slice(0, 16);
@@ -75,10 +90,142 @@ function buildManualLocation(value) {
   };
 }
 
+function AnimatedIntroBlock({
+  children,
+  delay = 0,
+  distance = OPENING_ANIMATION.distance,
+  scaleFrom = OPENING_ANIMATION.scaleFrom,
+  style,
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(distance)).current;
+  const scale = useRef(new Animated.Value(scaleFrom)).current;
+  const shouldAnimate = !process.env.JEST_WORKER_ID;
+
+  useEffect(() => {
+    if (!shouldAnimate) {
+      return undefined;
+    }
+
+    const animation = Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: OPENING_ANIMATION.duration,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: OPENING_ANIMATION.duration,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 1,
+        duration: OPENING_ANIMATION.duration,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+
+    animation.start();
+
+    return () => {
+      animation.stop?.();
+      opacity.stopAnimation();
+      translateY.stopAnimation();
+      scale.stopAnimation();
+    };
+  }, [delay, opacity, scale, scaleFrom, shouldAnimate, translateY]);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        shouldAnimate
+          ? {
+              opacity,
+              transform: [{ translateY }, { scale }],
+            }
+          : null,
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+function FloatingVisual({
+  amplitude = 6,
+  children,
+  duration = 3600,
+  style,
+}) {
+  const translateY = useRef(new Animated.Value(0)).current;
+  const shouldAnimate = !process.env.JEST_WORKER_ID;
+
+  useEffect(() => {
+    if (!shouldAnimate) {
+      return undefined;
+    }
+
+    const animation = Animated.sequence([
+      Animated.timing(translateY, {
+        toValue: -amplitude,
+        duration: Math.round(duration * 0.45),
+        easing: Easing.inOut(Easing.sin),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: Math.round(duration * 0.55),
+        easing: Easing.inOut(Easing.sin),
+        useNativeDriver: true,
+      }),
+    ]);
+
+    animation.start();
+
+    return () => {
+      animation.stop?.();
+      translateY.stopAnimation();
+    };
+  }, [amplitude, duration, shouldAnimate, translateY]);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        shouldAnimate
+          ? {
+              transform: [{ translateY }],
+            }
+          : null,
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+function OpeningSceneBackground() {
+  return (
+    <View pointerEvents="none" style={styles.ambientBackground}>
+      <View style={[styles.ambientGlow, styles.ambientGlowPrimary]} />
+      <View style={[styles.ambientGlow, styles.ambientGlowSecondary]} />
+      <View style={[styles.ambientGlow, styles.ambientGlowTertiary]} />
+    </View>
+  );
+}
+
 function GrovyLogo({ large = false }) {
   return (
     <View style={styles.logoWrap}>
       <View style={[styles.logoMark, large && styles.logoMarkLarge]}>
+        <View style={[styles.logoMarkPlate, large && styles.logoMarkPlateLarge]} />
         <View
           style={[styles.logoLeafLeft, large && styles.logoLeafLeftLarge]}
         />
@@ -135,46 +282,6 @@ function CountryCodeChip({ label = DEFAULT_COUNTRY_CODE }) {
       <View style={styles.countryDot} />
       <Text style={styles.countryCodeChipLabel}>{label}</Text>
     </View>
-  );
-}
-
-function SocialButton({ iconLabel, onPress, title, tone = 'google' }) {
-  const isGoogle = tone === 'google';
-
-  return (
-    <Pressable
-      android_ripple={{ color: '#EEE7DC' }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.socialButton,
-        pressed && styles.socialButtonPressed,
-      ]}
-    >
-      <View
-        style={[
-          styles.socialGlyph,
-          isGoogle ? styles.socialGlyphGoogle : styles.socialGlyphApple,
-        ]}
-      >
-        <Text
-          style={[
-            styles.socialGlyphLabel,
-            isGoogle
-              ? styles.socialGlyphLabelGoogle
-              : styles.socialGlyphLabelApple,
-          ]}
-        >
-          {iconLabel}
-        </Text>
-      </View>
-      <Text style={styles.socialButtonLabel}>{title}</Text>
-      <DirectionalHint
-        chevronSize={8}
-        color={OPENING_COLORS.muted}
-        mode="plain"
-        style={styles.socialArrow}
-      />
-    </Pressable>
   );
 }
 
@@ -302,69 +409,84 @@ function LocationIllustration() {
     <View style={styles.locationIllustrationCard}>
       <View style={styles.locationHaloLarge} />
       <View style={styles.locationHaloSmall} />
-      <Image
-        resizeMode="contain"
-        source={OPENING_IMAGES.location}
-        style={styles.locationImage}
-      />
+      <View style={styles.locationIllustrationBadge}>
+        <Text style={styles.locationIllustrationBadgeLabel}>Delivery area</Text>
+      </View>
+      <FloatingVisual amplitude={5} duration={3800}>
+        <Image
+          resizeMode="contain"
+          source={OPENING_IMAGES.location}
+          style={styles.locationImage}
+        />
+      </FloatingVisual>
     </View>
   );
 }
 
-function LocationActionCard({
-  active = false,
-  badgeLabel,
-  description,
-  onPress,
-  title,
-}) {
-  return (
-    <Pressable
-      android_ripple={{ color: '#EEE7DC' }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.locationActionCard,
-        active && styles.locationActionCardActive,
-        pressed && styles.locationActionCardPressed,
-      ]}
-    >
-      <View style={[styles.locationActionIcon, active && styles.locationActionIconActive]}>
-        <View
-          style={[
-            styles.locationActionIconDot,
-            active && styles.locationActionIconDotActive,
-          ]}
-        />
-      </View>
-
-      <View style={styles.locationActionCopy}>
-        <Text style={styles.locationActionTitle}>{title}</Text>
-        <Text style={styles.locationActionDescription}>{description}</Text>
-      </View>
-
-      {badgeLabel ? (
-        <View style={styles.locationActionBadge}>
-          <Text style={styles.locationActionBadgeLabel}>{badgeLabel}</Text>
-        </View>
-      ) : null}
-
-      <DirectionalHint
-        chevronSize={8}
-        color={OPENING_COLORS.muted}
-        mode="plain"
-      />
-    </Pressable>
-  );
-}
-
 export function SplashScreen({ navigation }) {
+  const splashOpacity = useRef(new Animated.Value(0)).current;
+  const splashTranslateY = useRef(
+    new Animated.Value(OPENING_ANIMATION.distance),
+  ).current;
+  const splashScale = useRef(new Animated.Value(0.96)).current;
+
   useEffect(() => {
+    Animated.parallel([
+      Animated.timing(splashOpacity, {
+        toValue: 1,
+        duration: OPENING_ANIMATION.duration,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(splashTranslateY, {
+        toValue: 0,
+        duration: OPENING_ANIMATION.duration,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(splashScale, {
+        toValue: 1,
+        duration: OPENING_ANIMATION.duration,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    const exitTimer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(splashOpacity, {
+          toValue: 0,
+          duration: OPENING_ANIMATION.durationNormal,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(splashTranslateY, {
+          toValue: -10,
+          duration: OPENING_ANIMATION.durationNormal,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(splashScale, {
+          toValue: 0.985,
+          duration: OPENING_ANIMATION.durationNormal,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, SPLASH_EXIT_DELAY_MS);
+
     const timer = setTimeout(() => {
       navigation.replace(AUTH_ROUTES.ONBOARDING);
-    }, 1400);
+    }, SPLASH_NAVIGATION_DELAY_MS);
 
-    return () => clearTimeout(timer);
-  }, [navigation]);
+    return () => {
+      clearTimeout(exitTimer);
+      clearTimeout(timer);
+      splashOpacity.stopAnimation();
+      splashTranslateY.stopAnimation();
+      splashScale.stopAnimation();
+    };
+  }, [navigation, splashOpacity, splashScale, splashTranslateY]);
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.lightSafeArea}>
@@ -375,19 +497,82 @@ export function SplashScreen({ navigation }) {
       <View style={styles.splashScreen}>
         <View style={styles.splashHaloPrimary} />
         <View style={styles.splashHaloSecondary} />
+        <View style={styles.splashHaloTertiary} />
 
-        <View style={styles.splashCard}>
-          <GrovyLogo large />
+        <Animated.View
+          style={[
+            styles.splashCard,
+            {
+              opacity: splashOpacity,
+              transform: [{ translateY: splashTranslateY }, { scale: splashScale }],
+            },
+          ]}
+        >
+          <View style={styles.splashCardTone} />
+          <View style={styles.splashCardToneWarm} />
+          <View style={styles.splashBadge}>
+            <Text style={styles.splashBadgeLabel}>Grovy weekly shop</Text>
+          </View>
+          <FloatingVisual amplitude={4} duration={3200}>
+            <GrovyLogo large />
+          </FloatingVisual>
           <Text style={styles.splashTagline}>Fresh groceries made simple</Text>
-          <Text style={styles.splashSubtitle}>Preparing your weekly shop</Text>
-        </View>
+          <Text style={styles.splashSubtitle}>
+            Preparing a warmer, calmer grocery flow for your next restock.
+          </Text>
+          <View style={styles.splashStatusRow}>
+            <View style={styles.splashStatusDot} />
+            <Text style={styles.splashStatusText}>Setting up your welcome</Text>
+          </View>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
 }
 
-export function WelcomeScreen({ navigation }) {
+export function WelcomeScreen() {
   const { completeOnboarding } = useApp();
+  const [isContinuing, setIsContinuing] = useState(false);
+  const welcomeOpacity = useRef(new Animated.Value(1)).current;
+  const welcomeTranslateY = useRef(new Animated.Value(0)).current;
+  const welcomeScale = useRef(new Animated.Value(1)).current;
+
+  const handleGetStarted = useCallback(() => {
+    if (isContinuing) {
+      return;
+    }
+
+    setIsContinuing(true);
+
+    Animated.parallel([
+      Animated.timing(welcomeOpacity, {
+        toValue: 0,
+        duration: OPENING_ANIMATION.durationNormal,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(welcomeTranslateY, {
+        toValue: 14,
+        duration: OPENING_ANIMATION.durationNormal,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(welcomeScale, {
+        toValue: 0.985,
+        duration: OPENING_ANIMATION.durationNormal,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      completeOnboarding();
+    });
+  }, [
+    completeOnboarding,
+    isContinuing,
+    welcomeOpacity,
+    welcomeScale,
+    welcomeTranslateY,
+  ]);
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.lightSafeArea}>
@@ -395,54 +580,95 @@ export function WelcomeScreen({ navigation }) {
         backgroundColor={OPENING_COLORS.canvas}
         barStyle="dark-content"
       />
-      <View style={styles.welcomeScreen}>
-        <View style={styles.welcomeHeroCard}>
-          <View style={styles.welcomeHeroWarmTone} />
-          <View style={styles.welcomeHeroSoftTone} />
-          <Image
-            resizeMode="contain"
-            source={OPENING_IMAGES.welcome}
-            style={styles.welcomeHeroImage}
-          />
-        </View>
+      <Animated.View
+        style={[
+          styles.welcomeScreen,
+          {
+            opacity: welcomeOpacity,
+            transform: [{ translateY: welcomeTranslateY }, { scale: welcomeScale }],
+          },
+        ]}
+      >
+        <OpeningSceneBackground />
 
-        <View style={styles.welcomeCard}>
-          <GrovyLogo />
-          <ScreenHeader
-            eyebrow="Groceries, kept simple"
-            subtitle="Fresh produce, pantry basics and weekly essentials in one grounded, practical shop."
-            title="Welcome to Grovy"
-          />
+        <ScrollView
+          bounces={false}
+          contentContainerStyle={styles.welcomeContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <AnimatedIntroBlock delay={30} distance={16} style={styles.welcomeHeroCard}>
+            <View style={styles.welcomeHeroWarmTone} />
+            <View style={styles.welcomeHeroSoftTone} />
+            <View style={styles.welcomeHeroTopRow}>
+              <SupportPill label="Fresh this week" tone="warm" />
+              <Text style={styles.welcomeHeroTopMeta}>Curated for quick restocks</Text>
+            </View>
+            <View style={styles.welcomeHeroCopyBlock}>
+              <Text style={styles.welcomeHeroTitle}>A calmer way to restock.</Text>
+              <Text style={styles.welcomeHeroSubtitle}>
+                Fresh produce, pantry basics, and weekly essentials arranged for a warm,
+                easy first run through Grovy.
+              </Text>
+            </View>
+            <View style={styles.welcomeHeroVisualWrap}>
+              <View style={styles.welcomeHeroImageHalo} />
+              <FloatingVisual amplitude={6} duration={3800}>
+                <Image
+                  resizeMode="contain"
+                  source={OPENING_IMAGES.welcome}
+                  style={styles.welcomeHeroImage}
+                />
+              </FloatingVisual>
+            </View>
+            <View style={styles.welcomeHeroSpotlightCard}>
+              <Text style={styles.welcomeHeroSpotlightEyebrow}>Weekly reset</Text>
+              <Text style={styles.welcomeHeroSpotlightTitle}>
+                Fresh produce, pantry basics, and easy top-up essentials in one calm flow.
+              </Text>
+            </View>
+          </AnimatedIntroBlock>
 
-          <View style={styles.supportPillRow}>
-            <SupportPill label="Fresh produce" tone="warm" />
-            <SupportPill label="Pantry staples" />
-          </View>
+          <AnimatedIntroBlock delay={120} distance={24} style={styles.welcomeCard}>
+            <View style={styles.welcomeCardAccent} />
+            <GrovyLogo />
+            <ScreenHeader
+              eyebrow="Groceries, kept simple"
+              subtitle="Fresh produce, pantry basics, and weekly staples in one clean, grounded grocery flow."
+              title="Welcome to Grovy"
+            />
 
-          <PrimaryButton
-            onPress={completeOnboarding}
-            style={styles.primaryAction}
-            title="Get started"
-          />
-        </View>
-      </View>
+            <View style={styles.supportPillRow}>
+              <SupportPill label="Fresh produce" tone="warm" />
+              <SupportPill label="Pantry staples" />
+              <SupportPill label="Weekly restock" />
+            </View>
+
+            <PrimaryButton
+              disabled={isContinuing}
+              labelStyle={styles.welcomePrimaryActionLabel}
+              onPress={handleGetStarted}
+              style={[
+                styles.primaryAction,
+                styles.welcomePrimaryAction,
+                isContinuing && styles.welcomePrimaryActionPending,
+              ]}
+              title={isContinuing ? 'Opening Grovy...' : 'Get started'}
+            />
+            <Text style={styles.welcomeFooterNote}>
+              Create your account and set your delivery area to start shopping.
+            </Text>
+          </AnimatedIntroBlock>
+        </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
 
 export function EntryScreen({ navigation }) {
   const handleBack = buildBackHandler(navigation, AUTH_ROUTES.ONBOARDING);
-  const [socialMessage, setSocialMessage] = useState('');
 
   function handleContinueWithPhone() {
-    setSocialMessage('');
     navigation.navigate(AUTH_ROUTES.NUMBER_INPUT);
-  }
-
-  function handleMockSocial(providerLabel) {
-    setSocialMessage(
-      `${providerLabel} sign in is still mock-only. Use phone, Sign In or Sign Up to continue the demo.`,
-    );
   }
 
   return (
@@ -451,97 +677,87 @@ export function EntryScreen({ navigation }) {
         backgroundColor={OPENING_COLORS.canvas}
         barStyle="dark-content"
       />
-      <ScrollView
-        contentContainerStyle={styles.signInScreen}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.signInHeroCard}>
-          <View style={styles.signInHeroSoftTone} />
-          <View style={styles.signInHeroWarmTone} />
-          <Image
-            resizeMode="contain"
-            source={OPENING_IMAGES.signIn}
-            style={styles.signInHeroImage}
-          />
-        </View>
-
-        <View style={styles.signInCard}>
-          <BackButton onPress={handleBack} />
-          <ScreenHeader
-            eyebrow="Start here"
-            subtitle="Pick the path you want to demo. Phone stays mocked, email Sign In and Sign Up keep the real backend flow."
-            title="How would you like to continue?"
-          />
-
-          <PrimaryButton
-            onPress={() => {
-              setSocialMessage('');
-              navigation.navigate(AUTH_ROUTES.SIGN_IN);
-            }}
-            style={styles.entryPrimaryAction}
-            title="Go to Sign In"
-          />
-          <PrimaryButton
-            onPress={() => {
-              setSocialMessage('');
-              navigation.navigate(AUTH_ROUTES.SIGN_UP);
-            }}
-            style={styles.entrySecondaryAction}
-            title="Go to Sign Up"
-            variant="secondary"
-          />
-
-          <Pressable
-            android_ripple={{ color: '#EEE7DC' }}
-            onPress={handleContinueWithPhone}
-            style={({ pressed }) => [
-              styles.phoneEntryButton,
-              pressed && styles.phoneEntryButtonPressed,
-            ]}
-          >
-            <CountryCodeChip />
-            <View style={styles.phoneEntryCopy}>
-              <Text style={styles.phoneEntryLabel}>Continue with phone</Text>
-              <Text style={styles.phoneEntryMeta}>
-                The quickest way to get into the shop
+      <View style={styles.openingScrollScene}>
+        <OpeningSceneBackground />
+        <ScrollView
+          contentContainerStyle={styles.signInScreen}
+          showsVerticalScrollIndicator={false}
+        >
+          <AnimatedIntroBlock delay={30} distance={16} style={styles.signInHeroCard}>
+            <View style={styles.signInHeroSoftTone} />
+            <View style={styles.signInHeroWarmTone} />
+            <View style={styles.signInHeroTopRow}>
+              <View style={styles.signInHeroBadge}>
+                <Text style={styles.signInHeroBadgeLabel}>Get started</Text>
+              </View>
+            </View>
+            <View style={styles.signInHeroCopy}>
+              <Text style={styles.signInHeroTitle}>
+                Choose how you'd like to continue.
+              </Text>
+              <Text style={styles.signInHeroSubtitle}>
+                Sign in to your Grovy account, create a new one, or continue
+                with your mobile number.
               </Text>
             </View>
-            <DirectionalHint
-              chevronSize={8}
-              color={OPENING_COLORS.muted}
-              mode="plain"
-              style={styles.phoneEntryArrow}
+            <FloatingVisual amplitude={5} duration={3600}>
+              <Image
+                resizeMode="contain"
+                source={OPENING_IMAGES.signIn}
+                style={styles.signInHeroImage}
+              />
+            </FloatingVisual>
+          </AnimatedIntroBlock>
+
+          <AnimatedIntroBlock delay={120} distance={24} style={styles.signInCard}>
+            <BackButton onPress={handleBack} />
+            <ScreenHeader
+              eyebrow="Start here"
+              subtitle="Choose the option that works best for you."
+              title="How would you like to continue?"
             />
-          </Pressable>
 
-          <View style={styles.orDividerRow}>
-            <View style={styles.orDivider} />
-            <Text style={styles.orLabel}>Or use a saved account</Text>
-            <View style={styles.orDivider} />
-          </View>
+            <PrimaryButton
+              onPress={() => {
+                navigation.navigate(AUTH_ROUTES.SIGN_IN);
+              }}
+              style={styles.entryPrimaryAction}
+              title="Sign In"
+            />
+            <PrimaryButton
+              onPress={() => {
+                navigation.navigate(AUTH_ROUTES.SIGN_UP);
+              }}
+              style={styles.entrySecondaryAction}
+              title="Create account"
+              variant="secondary"
+            />
 
-          <SocialButton
-            iconLabel="G"
-            onPress={() => handleMockSocial('Google')}
-            tone="google"
-            title="Continue with Google"
-          />
-          <SocialButton
-            iconLabel="A"
-            onPress={() => handleMockSocial('Apple')}
-            tone="apple"
-            title="Continue with Apple"
-          />
-
-          <InlineNotice
-            message={
-              socialMessage ||
-              'Google and Apple stay in mock mode for now. Continue with phone or move into Sign In and Sign Up.'
-            }
-            tone={socialMessage ? 'warning' : 'neutral'}
-          />
-        </View>
-      </ScrollView>
+            <Pressable
+              android_ripple={{ color: '#EEE7DC' }}
+              onPress={handleContinueWithPhone}
+              style={({ pressed }) => [
+                styles.phoneEntryButton,
+                pressed && styles.phoneEntryButtonPressed,
+              ]}
+            >
+              <CountryCodeChip />
+              <View style={styles.phoneEntryCopy}>
+                <Text style={styles.phoneEntryLabel}>Continue with phone</Text>
+                <Text style={styles.phoneEntryMeta}>
+                  Use your mobile number to continue
+                </Text>
+              </View>
+              <DirectionalHint
+                chevronSize={8}
+                color={OPENING_COLORS.muted}
+                mode="plain"
+                style={styles.phoneEntryArrow}
+              />
+            </Pressable>
+          </AnimatedIntroBlock>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -590,47 +806,52 @@ export function NumberInputScreen({ navigation, route }) {
         style={styles.flexOne}
       >
         <View style={styles.formScreen}>
-          <View>
-            <BackButton onPress={handleBack} />
-            <ScreenHeader
-              eyebrow="Sign in"
-              subtitle="We'll send a short verification code before you continue."
-              title="Enter your mobile number"
-            />
+          <OpeningSceneBackground />
+          <AnimatedIntroBlock delay={30} distance={18}>
+            <View>
+              <BackButton onPress={handleBack} />
+              <ScreenHeader
+                eyebrow="Sign in"
+                subtitle="We'll send a short verification code before you continue."
+                title="Enter your mobile number"
+              />
 
-            <View style={styles.formCard}>
-              <Text style={styles.fieldLabel}>Mobile number</Text>
-              <View style={styles.phoneInputRow}>
-                <CountryCodeChip label={countryCode} />
-                <TextInput
-                  autoFocus
-                  keyboardType="phone-pad"
-                  onChangeText={value => {
-                    setPhoneNumber(normalizePhoneInput(value));
-                    if (errorMessage) {
-                      setErrorMessage('');
-                    }
-                  }}
-                  placeholder="912 345 678"
-                  placeholderTextColor={OPENING_COLORS.mutedSoft}
-                  selectionColor={OPENING_COLORS.accent}
-                  style={styles.phoneInput}
-                  value={phoneNumber}
-                />
+              <View style={styles.formCard}>
+                <Text style={styles.fieldLabel}>Mobile number</Text>
+                <View style={styles.phoneInputRow}>
+                  <CountryCodeChip label={countryCode} />
+                  <TextInput
+                    autoFocus
+                    keyboardType="phone-pad"
+                    onChangeText={value => {
+                      setPhoneNumber(normalizePhoneInput(value));
+                      if (errorMessage) {
+                        setErrorMessage('');
+                      }
+                    }}
+                    placeholder="912 345 678"
+                    placeholderTextColor={OPENING_COLORS.mutedSoft}
+                    selectionColor={OPENING_COLORS.accent}
+                    style={styles.phoneInput}
+                    value={phoneNumber}
+                  />
+                </View>
+                <Text style={styles.helperText}>
+                  We'll use this number to verify your account.
+                </Text>
+                <InlineNotice message={errorMessage} tone="error" />
               </View>
-              <Text style={styles.helperText}>
-                Standard carrier rates may apply. We only mock the OTP step here.
-              </Text>
-              <InlineNotice message={errorMessage} tone="error" />
             </View>
-          </View>
+          </AnimatedIntroBlock>
 
-          <PrimaryButton
-            onPress={handleNext}
-            disabled={!phoneNumber.trim()}
-            style={styles.primaryAction}
-            title="Continue"
-          />
+          <AnimatedIntroBlock delay={120} distance={26}>
+            <PrimaryButton
+              onPress={handleNext}
+              disabled={!phoneNumber.trim()}
+              style={styles.primaryAction}
+              title="Continue"
+            />
+          </AnimatedIntroBlock>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -682,58 +903,51 @@ export function VerificationScreen({ navigation, route }) {
         style={styles.flexOne}
       >
         <View style={styles.formScreen}>
-          <View>
-            <BackButton onPress={handleBack} />
-            <ScreenHeader
-              eyebrow="Verification"
-              subtitle={`Enter the 4-digit code sent to ${countryCode} ${phoneNumber}.`}
-              title="Check your code"
-            />
+          <OpeningSceneBackground />
+          <AnimatedIntroBlock delay={30} distance={18}>
+            <View>
+              <BackButton onPress={handleBack} />
+              <ScreenHeader
+                eyebrow="Verification"
+                subtitle={`Enter the 4-digit code sent to ${countryCode} ${phoneNumber}.`}
+                title="Check your code"
+              />
 
-            <View style={styles.formCard}>
-              <Text style={styles.fieldLabel}>Verification code</Text>
-              <VerificationBoxes
-                code={code}
-                onPress={() => inputRef.current?.focus()}
-              />
-              <TextInput
-                keyboardType="number-pad"
-                maxLength={4}
-                onChangeText={value => {
-                  setCode(value.replace(/[^0-9]/g, '').slice(0, 4));
-                  if (errorMessage) {
-                    setErrorMessage('');
-                  }
-                }}
-                ref={inputRef}
-                selectionColor={OPENING_COLORS.accent}
-                style={styles.hiddenVerificationInput}
-                value={code}
-              />
-              <Text style={styles.helperText}>
-                Any 4 digits work for this demo, or tap the helper below to autofill 1234.
-              </Text>
-              <InlineNotice message={errorMessage} tone="error" />
-              <Pressable
-                onPress={() => {
-                  setCode(MOCK_OTP_CODE);
-                  setErrorMessage('');
-                }}
-                style={({ pressed }) => [
-                  styles.resendButton,
-                  pressed && styles.resendButtonPressed,
-                ]}
-              >
-                <Text style={styles.resendText}>Use demo code {MOCK_OTP_CODE}</Text>
-              </Pressable>
+              <View style={styles.formCard}>
+                <Text style={styles.fieldLabel}>Verification code</Text>
+                <VerificationBoxes
+                  code={code}
+                  onPress={() => inputRef.current?.focus()}
+                />
+                <TextInput
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  onChangeText={value => {
+                    setCode(value.replace(/[^0-9]/g, '').slice(0, 4));
+                    if (errorMessage) {
+                      setErrorMessage('');
+                    }
+                  }}
+                  ref={inputRef}
+                  selectionColor={OPENING_COLORS.accent}
+                  style={styles.hiddenVerificationInput}
+                  value={code}
+                />
+                <Text style={styles.helperText}>
+                  Enter the verification code to continue.
+                </Text>
+                <InlineNotice message={errorMessage} tone="error" />
+              </View>
             </View>
-          </View>
+          </AnimatedIntroBlock>
 
-          <PrimaryButton
-            onPress={handleNext}
-            style={styles.primaryAction}
-            title="Continue to location"
-          />
+          <AnimatedIntroBlock delay={120} distance={26}>
+            <PrimaryButton
+              onPress={handleNext}
+              style={styles.primaryAction}
+              title="Continue to location"
+            />
+          </AnimatedIntroBlock>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -769,18 +983,14 @@ export function LocationScreen({ navigation, route }) {
     '';
   const manualInputRef = useRef(null);
   const [manualLocation, setManualLocation] = useState(initialLocationValue);
-  const [selectedMethod, setSelectedMethod] = useState(
-    openingFlow.selectedLocation?.source || 'manual',
-  );
   const [selectedSuggestion, setSelectedSuggestion] = useState(
     openingFlow.selectedLocation?.source === 'manual' ? initialLocationValue : '',
   );
-  const [currentLocationMessage, setCurrentLocationMessage] = useState('');
   const [manualErrorMessage, setManualErrorMessage] = useState('');
   const [isSuggestionPanelVisible, setIsSuggestionPanelVisible] = useState(false);
 
   const suggestionItems = getLocationSuggestions(manualLocation, 6);
-  const showSuggestions = selectedMethod === 'manual' && isSuggestionPanelVisible;
+  const showSuggestions = isSuggestionPanelVisible;
   const showSuggestionEmptyState =
     showSuggestions && manualLocation.trim().length > 0 && !suggestionItems.length;
   const hasManualValue = Boolean(manualLocation.trim());
@@ -797,33 +1007,10 @@ export function LocationScreen({ navigation, route }) {
     });
   }
 
-  function handleManualEntry() {
-    setSelectedMethod('manual');
-    setCurrentLocationMessage('');
-    setManualErrorMessage('');
-    setIsSuggestionPanelVisible(true);
-    focusManualInput();
-  }
-
-  function handleUseCurrentLocation() {
-    setSelectedMethod('manual');
-    setManualErrorMessage('');
-    setCurrentLocationMessage(
-      'Current location detection is coming soon. Please enter your area manually for now.',
-    );
-    setIsSuggestionPanelVisible(true);
-    focusManualInput();
-  }
-
   function handleManualLocationChange(value) {
     setManualLocation(value);
     setSelectedSuggestion('');
-    setCurrentLocationMessage('');
     setManualErrorMessage('');
-
-    if (selectedMethod !== 'manual') {
-      setSelectedMethod('manual');
-    }
 
     if (!isSuggestionPanelVisible) {
       setIsSuggestionPanelVisible(true);
@@ -833,22 +1020,17 @@ export function LocationScreen({ navigation, route }) {
   function handleSelectSuggestion(locationLabel) {
     setManualLocation(locationLabel);
     setSelectedSuggestion(locationLabel);
-    setSelectedMethod('manual');
-    setCurrentLocationMessage('');
     setManualErrorMessage('');
     setIsSuggestionPanelVisible(false);
     saveOpeningLocation(buildManualLocation(locationLabel));
   }
 
   function handleFocusManualInput() {
-    setSelectedMethod('manual');
-    setCurrentLocationMessage('');
     setIsSuggestionPanelVisible(true);
   }
 
   async function handleContinue() {
     if (!manualLocation.trim()) {
-      setSelectedMethod('manual');
       setManualErrorMessage('Please enter your area or address.');
       setIsSuggestionPanelVisible(true);
       focusManualInput();
@@ -877,152 +1059,145 @@ export function LocationScreen({ navigation, route }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flexOne}
       >
-        <ScrollView
-          contentContainerStyle={styles.locationContent}
-          keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-          <BackButton onPress={handleBack} />
-          <LocationIllustration />
-          <ScreenHeader
-            eyebrow="Almost there"
-            subtitle="Choose where you shop so the first store view already feels local and familiar."
-            title="Select your location"
-          />
-
-          <View style={styles.formCard}>
-            <Text style={styles.fieldLabel}>Choose a delivery location</Text>
-
-            <LocationActionCard
-              badgeLabel="Coming soon"
-              description="Keep this saved for a future update. Manual entry works best for now."
-              onPress={handleUseCurrentLocation}
-              title="Use current location"
-            />
-
-            <LocationActionCard
-              active={selectedMethod === 'manual'}
-              description="Type a district, neighborhood or short address yourself."
-              onPress={handleManualEntry}
-              title="Enter manually"
-            />
-
-            <InlineNotice message={currentLocationMessage} tone="warning" />
-
-            <View style={styles.manualEntryWrap}>
-              <Text style={styles.fieldLabel}>Manual location</Text>
-              <View style={styles.textFieldWrap}>
-                <TextInput
-                  autoCapitalize="words"
-                  onChangeText={handleManualLocationChange}
-                  onFocus={handleFocusManualInput}
-                  placeholder="District 1, Ho Chi Minh City"
-                  placeholderTextColor={OPENING_COLORS.mutedSoft}
-                  ref={manualInputRef}
-                  selectionColor={OPENING_COLORS.accent}
-                  style={styles.textField}
-                  value={manualLocation}
+        <View style={styles.openingScrollScene}>
+          <OpeningSceneBackground />
+          <ScrollView
+            contentContainerStyle={styles.locationContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <AnimatedIntroBlock delay={30} distance={18}>
+              <View>
+                <BackButton onPress={handleBack} />
+                <LocationIllustration />
+                <ScreenHeader
+                  eyebrow="Almost there"
+                  subtitle="Choose where you shop so the first store view already feels local and familiar."
+                  title="Select your location"
                 />
-              </View>
-              <Text style={styles.helperText}>
-                Search from nearby areas or keep your own typed location.
-              </Text>
 
-              {hasManualValue ? (
-                <View style={styles.locationSummaryCard}>
-                  <Text style={styles.locationSummaryEyebrow}>
-                    {selectedSuggestion ? 'Selected area' : 'Manual area'}
-                  </Text>
-                  <Text style={styles.locationSummaryTitle}>{manualLocation.trim()}</Text>
-                  <Text style={styles.locationSummaryDetail}>
-                    {selectedSuggestion
-                      ? 'Picked from suggestions'
-                      : 'You can continue with this text as entered.'}
-                  </Text>
-                </View>
-              ) : null}
-
-              {showSuggestions ? (
-                <View style={styles.suggestionsCard}>
-                  <Text style={styles.suggestionsHeading}>
-                    {manualLocation.trim() ? 'Matching areas' : 'Popular areas'}
-                  </Text>
-
-                  {showSuggestionEmptyState ? (
-                    <View style={styles.suggestionsEmptyState}>
-                      <Text style={styles.suggestionsEmptyTitle}>
-                        No matching areas found
-                      </Text>
-                      <Text style={styles.suggestionsEmptySubtitle}>
-                        You can keep your typed location and continue.
-                      </Text>
+                <View style={styles.formCard}>
+                  <View style={styles.manualEntryWrap}>
+                    <Text style={styles.fieldLabel}>Delivery location</Text>
+                    <View style={styles.textFieldWrap}>
+                      <TextInput
+                        autoCapitalize="words"
+                        onChangeText={handleManualLocationChange}
+                        onFocus={handleFocusManualInput}
+                        placeholder="District 1, Ho Chi Minh City"
+                        placeholderTextColor={OPENING_COLORS.mutedSoft}
+                        ref={manualInputRef}
+                        selectionColor={OPENING_COLORS.accent}
+                        style={styles.textField}
+                        value={manualLocation}
+                      />
                     </View>
-                  ) : (
-                    <ScrollView
-                      keyboardShouldPersistTaps="handled"
-                      nestedScrollEnabled
-                      showsVerticalScrollIndicator={false}
-                      style={styles.suggestionsList}
-                    >
-                      {suggestionItems.map(locationLabel => {
-                        const isSelected = selectedSuggestion === locationLabel;
+                    <Text style={styles.helperText}>
+                      Enter your district, neighborhood, or full address.
+                    </Text>
 
-                        return (
-                          <Pressable
-                            key={locationLabel}
-                            android_ripple={{ color: '#E8ECE2' }}
-                            onPress={() => handleSelectSuggestion(locationLabel)}
-                            style={({ pressed }) => [
-                              styles.suggestionItem,
-                              isSelected && styles.suggestionItemSelected,
-                              pressed && styles.suggestionItemPressed,
-                            ]}
+                    {hasManualValue ? (
+                      <View style={styles.locationSummaryCard}>
+                        <Text style={styles.locationSummaryEyebrow}>
+                          {selectedSuggestion ? 'Selected area' : 'Manual area'}
+                        </Text>
+                        <Text style={styles.locationSummaryTitle}>
+                          {manualLocation.trim()}
+                        </Text>
+                        <Text style={styles.locationSummaryDetail}>
+                          {selectedSuggestion
+                            ? 'Picked from suggestions'
+                            : 'You can continue with this text as entered.'}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {showSuggestions ? (
+                      <View style={styles.suggestionsCard}>
+                        <Text style={styles.suggestionsHeading}>
+                          {manualLocation.trim() ? 'Matching areas' : 'Popular areas'}
+                        </Text>
+
+                        {showSuggestionEmptyState ? (
+                          <View style={styles.suggestionsEmptyState}>
+                            <Text style={styles.suggestionsEmptyTitle}>
+                              No matching areas found
+                            </Text>
+                            <Text style={styles.suggestionsEmptySubtitle}>
+                              You can keep your typed location and continue.
+                            </Text>
+                          </View>
+                        ) : (
+                          <ScrollView
+                            keyboardShouldPersistTaps="handled"
+                            nestedScrollEnabled
+                            showsVerticalScrollIndicator={false}
+                            style={styles.suggestionsList}
                           >
-                            <View style={styles.suggestionCopy}>
-                              <Text
-                                style={[
-                                  styles.suggestionLabel,
-                                  isSelected && styles.suggestionLabelSelected,
-                                ]}
-                              >
-                                {locationLabel}
-                              </Text>
-                              <Text style={styles.suggestionMeta}>
-                                Tap to use this area
-                              </Text>
-                            </View>
-                            {isSelected ? (
-                              <View style={styles.suggestionBadge}>
-                                <Text style={styles.suggestionBadgeLabel}>
-                                  Selected
-                                </Text>
-                              </View>
-                            ) : (
-                              <DirectionalHint
-                                chevronSize={8}
-                                color={OPENING_COLORS.muted}
-                                mode="plain"
-                              />
-                            )}
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  )}
+                            {suggestionItems.map(locationLabel => {
+                              const isSelected = selectedSuggestion === locationLabel;
+
+                              return (
+                                <Pressable
+                                  key={locationLabel}
+                                  android_ripple={{ color: '#E8ECE2' }}
+                                  onPress={() => handleSelectSuggestion(locationLabel)}
+                                  style={({ pressed }) => [
+                                    styles.suggestionItem,
+                                    isSelected && styles.suggestionItemSelected,
+                                    pressed && styles.suggestionItemPressed,
+                                  ]}
+                                >
+                                  <View style={styles.suggestionCopy}>
+                                    <Text
+                                      style={[
+                                        styles.suggestionLabel,
+                                        isSelected && styles.suggestionLabelSelected,
+                                      ]}
+                                    >
+                                      {locationLabel}
+                                    </Text>
+                                    <Text style={styles.suggestionMeta}>
+                                      Tap to use this area
+                                    </Text>
+                                  </View>
+                                  {isSelected ? (
+                                    <View style={styles.suggestionBadge}>
+                                      <Text style={styles.suggestionBadgeLabel}>
+                                        Selected
+                                      </Text>
+                                    </View>
+                                  ) : (
+                                    <DirectionalHint
+                                      chevronSize={8}
+                                      color={OPENING_COLORS.muted}
+                                      mode="plain"
+                                    />
+                                  )}
+                                </Pressable>
+                              );
+                            })}
+                          </ScrollView>
+                        )}
+                      </View>
+                    ) : null}
+
+                    <InlineNotice message={manualErrorMessage} tone="error" />
+                  </View>
                 </View>
-              ) : null}
+              </View>
+            </AnimatedIntroBlock>
 
-              <InlineNotice message={manualErrorMessage} tone="error" />
-            </View>
-          </View>
-
-          <PrimaryButton
-            disabled={!hasManualValue}
-            onPress={handleContinue}
-            style={[styles.primaryAction, styles.locationAction]}
-            title="Continue to shop"
-          />
-        </ScrollView>
+            <AnimatedIntroBlock delay={130} distance={26}>
+              <PrimaryButton
+                disabled={!hasManualValue}
+                onPress={handleContinue}
+                style={[styles.primaryAction, styles.locationAction]}
+                title="Continue to shop"
+              />
+            </AnimatedIntroBlock>
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -1035,6 +1210,35 @@ const styles = StyleSheet.create({
   lightSafeArea: {
     flex: 1,
     backgroundColor: OPENING_COLORS.canvas,
+  },
+  ambientBackground: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  ambientGlow: {
+    position: 'absolute',
+    borderRadius: UI_RADIUS.round,
+  },
+  ambientGlowPrimary: {
+    top: -86,
+    right: -46,
+    width: 240,
+    height: 240,
+    backgroundColor: 'rgba(84, 122, 78, 0.09)',
+  },
+  ambientGlowSecondary: {
+    bottom: 42,
+    left: -70,
+    width: 200,
+    height: 200,
+    backgroundColor: 'rgba(215, 155, 90, 0.11)',
+  },
+  ambientGlowTertiary: {
+    top: '42%',
+    right: '20%',
+    width: 118,
+    height: 118,
+    backgroundColor: 'rgba(255, 255, 255, 0.44)',
   },
   splashScreen: {
     flex: 1,
@@ -1062,49 +1266,135 @@ const styles = StyleSheet.create({
     borderRadius: 90,
     backgroundColor: 'rgba(215, 155, 90, 0.14)',
   },
+  splashHaloTertiary: {
+    position: 'absolute',
+    top: '34%',
+    left: -48,
+    width: 124,
+    height: 124,
+    borderRadius: 62,
+    backgroundColor: 'rgba(255, 255, 255, 0.44)',
+  },
   splashCard: {
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 348,
     backgroundColor: OPENING_COLORS.surface,
-    borderRadius: 32,
+    borderRadius: 36,
     borderWidth: 1,
     borderColor: OPENING_COLORS.border,
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     paddingVertical: 30,
     alignItems: 'center',
+    overflow: 'hidden',
     ...UI_SHADOWS.card,
+  },
+  splashCardTone: {
+    position: 'absolute',
+    top: -46,
+    right: -24,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(84, 122, 78, 0.08)',
+  },
+  splashCardToneWarm: {
+    position: 'absolute',
+    bottom: -36,
+    left: -26,
+    width: 164,
+    height: 164,
+    borderRadius: 82,
+    backgroundColor: 'rgba(215, 155, 90, 0.12)',
+  },
+  splashBadge: {
+    marginBottom: 18,
+    borderRadius: UI_RADIUS.pill,
+    borderWidth: 1,
+    borderColor: '#DDE8D8',
+    backgroundColor: OPENING_COLORS.accentSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  splashBadgeLabel: {
+    color: OPENING_COLORS.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    letterSpacing: 0.24,
+    textTransform: 'uppercase',
   },
   splashTagline: {
     marginTop: 18,
     color: OPENING_COLORS.text,
-    ...UI_TYPOGRAPHY.title,
+    ...UI_TYPOGRAPHY.heroTitle,
     textAlign: 'center',
+    maxWidth: '90%',
   },
   splashSubtitle: {
     marginTop: 8,
     color: OPENING_COLORS.muted,
-    ...UI_TYPOGRAPHY.meta,
+    ...UI_TYPOGRAPHY.body,
     textAlign: 'center',
+    maxWidth: '88%',
+  },
+  splashStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 18,
+  },
+  splashStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: OPENING_COLORS.accent,
+    marginRight: 8,
+  },
+  splashStatusText: {
+    color: OPENING_COLORS.muted,
+    ...UI_TYPOGRAPHY.label,
   },
   welcomeScreen: {
     flex: 1,
+    backgroundColor: OPENING_COLORS.canvas,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  welcomeContent: {
+    flexGrow: 1,
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingTop: 12,
     paddingBottom: 24,
-    backgroundColor: OPENING_COLORS.canvas,
-    justifyContent: 'space-between',
+  },
+  welcomeBackgroundGlowTop: {
+    position: 'absolute',
+    top: -92,
+    right: -48,
+    width: 228,
+    height: 228,
+    borderRadius: 114,
+    backgroundColor: 'rgba(84, 122, 78, 0.08)',
+  },
+  welcomeBackgroundGlowBottom: {
+    position: 'absolute',
+    bottom: 72,
+    left: -72,
+    width: 184,
+    height: 184,
+    borderRadius: 92,
+    backgroundColor: 'rgba(215, 155, 90, 0.1)',
   },
   welcomeHeroCard: {
-    flex: 1,
-    minHeight: 328,
+    minHeight: 416,
     backgroundColor: OPENING_COLORS.accentWarm,
     borderRadius: UI_RADIUS.hero,
     borderWidth: 1,
-    borderColor: '#E6D8C7',
+    borderColor: '#E1D0BD',
     overflow: 'hidden',
     marginBottom: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    justifyContent: 'space-between',
     ...UI_SHADOWS.card,
   },
   welcomeHeroWarmTone: {
@@ -1125,29 +1415,106 @@ const styles = StyleSheet.create({
     borderRadius: 69,
     backgroundColor: 'rgba(84, 122, 78, 0.1)',
   },
+  welcomeHeroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  welcomeHeroTopMeta: {
+    color: OPENING_COLORS.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  welcomeHeroCopyBlock: {
+    marginTop: 12,
+  },
+  welcomeHeroTitle: {
+    color: OPENING_COLORS.text,
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 32,
+    maxWidth: '85%',
+  },
+  welcomeHeroSubtitle: {
+    color: OPENING_COLORS.muted,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 8,
+    maxWidth: '94%',
+  },
+  welcomeHeroVisualWrap: {
+    marginTop: 12,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcomeHeroImageHalo: {
+    position: 'absolute',
+    width: 228,
+    height: 228,
+    borderRadius: 114,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
   welcomeHeroImage: {
-    width: '100%',
-    height: '84%',
+    width: 260,
+    height: 182,
+    alignSelf: 'center',
+  },
+  welcomeHeroSpotlightCard: {
+    alignSelf: 'stretch',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(230, 216, 199, 0.95)',
+    backgroundColor: 'rgba(255, 253, 252, 0.88)',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  welcomeHeroSpotlightEyebrow: {
+    color: OPENING_COLORS.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    letterSpacing: 0.24,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  welcomeHeroSpotlightTitle: {
+    color: OPENING_COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 21,
   },
   welcomeCard: {
     backgroundColor: OPENING_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 30,
     borderWidth: 1,
     borderColor: OPENING_COLORS.border,
-    paddingHorizontal: 22,
+    paddingHorizontal: 24,
     paddingTop: 24,
-    paddingBottom: 22,
+    paddingBottom: 24,
+    overflow: 'hidden',
     ...UI_SHADOWS.card,
+  },
+  welcomeCardAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 24,
+    right: 24,
+    height: 4,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    backgroundColor: OPENING_COLORS.accent,
   },
   supportPillRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: -2,
-    marginBottom: 18,
+    marginTop: 4,
+    marginBottom: 20,
   },
   supportPill: {
     backgroundColor: OPENING_COLORS.surfaceSoft,
-    borderRadius: UI_RADIUS.round,
+    borderRadius: UI_RADIUS.pill,
     borderWidth: 1,
     borderColor: OPENING_COLORS.borderSoft,
     paddingHorizontal: 11,
@@ -1167,6 +1534,24 @@ const styles = StyleSheet.create({
   primaryAction: {
     width: '100%',
   },
+  welcomePrimaryAction: {
+    marginTop: 4,
+    minHeight: 62,
+    borderRadius: 24,
+    ...UI_SHADOWS.floating,
+  },
+  welcomePrimaryActionLabel: {
+    ...UI_TYPOGRAPHY.buttonLarge,
+  },
+  welcomePrimaryActionPending: {
+    opacity: 0.96,
+  },
+  welcomeFooterNote: {
+    color: OPENING_COLORS.muted,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 14,
+    textAlign: 'center',
+  },
   entryPrimaryAction: {
     marginBottom: 12,
   },
@@ -1178,20 +1563,28 @@ const styles = StyleSheet.create({
   },
   signInScreen: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingTop: 16,
+    paddingBottom: 28,
     backgroundColor: OPENING_COLORS.canvas,
   },
+  openingScrollScene: {
+    flex: 1,
+    backgroundColor: OPENING_COLORS.canvas,
+    position: 'relative',
+    overflow: 'hidden',
+  },
   signInHeroCard: {
-    height: 244,
-    backgroundColor: OPENING_COLORS.surfaceMuted,
+    minHeight: 304,
+    backgroundColor: OPENING_COLORS.surfaceWarm,
     borderRadius: UI_RADIUS.hero,
     borderWidth: 1,
-    borderColor: OPENING_COLORS.borderSoft,
+    borderColor: OPENING_COLORS.border,
     overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginBottom: 18,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 18,
+    marginBottom: 20,
+    ...UI_SHADOWS.card,
   },
   signInHeroSoftTone: {
     position: 'absolute',
@@ -1212,18 +1605,61 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(215, 155, 90, 0.14)',
   },
   signInHeroImage: {
-    width: '88%',
-    height: 196,
-    marginBottom: 10,
+    width: '94%',
+    height: 136,
+    marginTop: 8,
+    alignSelf: 'center',
+  },
+  signInHeroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  signInHeroBadge: {
+    borderRadius: UI_RADIUS.pill,
+    borderWidth: 1,
+    borderColor: '#DCD7CD',
+    backgroundColor: 'rgba(255, 255, 255, 0.84)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  signInHeroBadgeLabel: {
+    color: OPENING_COLORS.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  signInHeroMeta: {
+    color: OPENING_COLORS.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  signInHeroCopy: {
+    marginTop: 18,
+  },
+  signInHeroTitle: {
+    color: OPENING_COLORS.text,
+    fontSize: 25,
+    fontWeight: '800',
+    lineHeight: 30,
+    maxWidth: '88%',
+  },
+  signInHeroSubtitle: {
+    color: OPENING_COLORS.muted,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 8,
+    maxWidth: '92%',
   },
   signInCard: {
     backgroundColor: OPENING_COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 30,
     borderWidth: 1,
     borderColor: OPENING_COLORS.border,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 8,
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 10,
     ...UI_SHADOWS.card,
   },
   phoneEntryButton: {
@@ -1236,9 +1672,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
     marginBottom: 18,
+    ...UI_SHADOWS.card,
   },
   phoneEntryButtonPressed: {
-    opacity: 0.94,
+    opacity: UI_PRESS.opacity.soft,
   },
   phoneEntryCopy: {
     flex: 1,
@@ -1278,15 +1715,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 62,
-    backgroundColor: OPENING_COLORS.surface,
+    backgroundColor: 'rgba(255, 253, 252, 0.9)',
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: OPENING_COLORS.border,
+    borderColor: OPENING_COLORS.borderSoft,
     paddingHorizontal: 14,
     marginBottom: 12,
   },
   socialButtonPressed: {
-    opacity: 0.94,
+    opacity: UI_PRESS.opacity.soft,
   },
   socialGlyph: {
     width: 36,
@@ -1330,6 +1767,8 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 20,
     backgroundColor: OPENING_COLORS.canvas,
+    position: 'relative',
+    overflow: 'hidden',
   },
   backButton: {
     width: UI_LAYOUT.iconButton,
@@ -1343,7 +1782,7 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   backButtonPressed: {
-    opacity: 0.9,
+    opacity: UI_PRESS.opacity.medium,
   },
   backButtonDisabled: {
     opacity: 0.45,
@@ -1373,10 +1812,10 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: OPENING_COLORS.surface,
-    borderRadius: 26,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: OPENING_COLORS.border,
-    padding: 18,
+    padding: 20,
     ...UI_SHADOWS.card,
   },
   fieldGroup: {
@@ -1428,7 +1867,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   noticeActionButtonPressed: {
-    opacity: 0.76,
+    opacity: UI_PRESS.opacity.medium,
   },
   noticeActionLabel: {
     color: OPENING_COLORS.accent,
@@ -1489,7 +1928,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   verificationBoxesPressed: {
-    opacity: 0.96,
+    opacity: UI_PRESS.opacity.soft,
   },
   verificationBox: {
     flex: 1,
@@ -1528,7 +1967,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   resendButtonPressed: {
-    opacity: 0.72,
+    opacity: UI_PRESS.opacity.medium,
   },
   resendText: {
     color: OPENING_COLORS.accent,
@@ -1552,7 +1991,7 @@ const styles = StyleSheet.create({
     backgroundColor: OPENING_COLORS.accentSoft,
   },
   locationActionCardPressed: {
-    opacity: 0.96,
+    opacity: UI_PRESS.opacity.soft,
   },
   locationActionIcon: {
     width: 38,
@@ -1614,11 +2053,11 @@ const styles = StyleSheet.create({
   locationContent: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingTop: 12,
-    paddingBottom: 28,
+    paddingBottom: 30,
     backgroundColor: OPENING_COLORS.canvas,
   },
   locationIllustrationCard: {
-    height: 210,
+    height: 224,
     borderRadius: UI_RADIUS.hero,
     borderWidth: 1,
     borderColor: '#DEE4D7',
@@ -1629,6 +2068,25 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 6,
     ...UI_SHADOWS.card,
+  },
+  locationIllustrationBadge: {
+    position: 'absolute',
+    top: 18,
+    left: 18,
+    borderRadius: UI_RADIUS.pill,
+    borderWidth: 1,
+    borderColor: '#D5E2D2',
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  locationIllustrationBadgeLabel: {
+    color: OPENING_COLORS.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.24,
   },
   locationHaloLarge: {
     position: 'absolute',
@@ -1700,7 +2158,7 @@ const styles = StyleSheet.create({
     backgroundColor: OPENING_COLORS.accentSoft,
   },
   suggestionItemPressed: {
-    opacity: 0.96,
+    opacity: UI_PRESS.opacity.soft,
   },
   suggestionCopy: {
     flex: 1,
@@ -1814,6 +2272,18 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     marginRight: 14,
+  },
+  logoMarkPlate: {
+    position: 'absolute',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: OPENING_COLORS.surfaceTint,
+  },
+  logoMarkPlateLarge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   logoLeafLeft: {
     position: 'absolute',

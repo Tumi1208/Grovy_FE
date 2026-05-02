@@ -4,6 +4,7 @@ import DirectionalHint from '../DirectionalHint';
 import ProductImage from '../ProductImage';
 import {
   UI_COLORS,
+  UI_PRESS,
   UI_RADIUS,
   UI_SHADOWS,
   UI_TYPOGRAPHY,
@@ -44,7 +45,7 @@ function HomeProductCard({
       delayLongPress={260}
       onLongPress={handleCardLongPress}
       onPress={handleCardPress}
-      pressScale={0.992}
+      pressScale={UI_PRESS.scale.subtle}
       style={({ pressed }) => [
         styles.card,
         style,
@@ -94,7 +95,7 @@ function HomeProductCard({
             event.stopPropagation();
             onAddToCart?.(product);
           }}
-          pressScale={0.94}
+          pressScale={UI_PRESS.scale.strong}
           style={({ pressed }) => [
             styles.addButton,
             !isAvailable && styles.addButtonDisabled,
@@ -113,7 +114,7 @@ export function HomeCategoryCard({ category, onPress, style }) {
     <ScalePressable
       android_ripple={{ color: '#EDE5DB' }}
       onPress={() => onPress?.(category)}
-      pressScale={0.992}
+      pressScale={UI_PRESS.scale.subtle}
       style={({ pressed }) => [
         styles.categoryCard,
         {
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   cardPressed: {
-    opacity: 0.98,
+    opacity: UI_PRESS.opacity.subtle,
   },
   imageWrap: {
     height: 144,
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
   },
   addButtonPressed: {
     backgroundColor: UI_COLORS.accentGreenPressed,
-    opacity: 0.96,
+    opacity: UI_PRESS.opacity.soft,
   },
   addButtonLabel: {
     color: UI_COLORS.surface,
@@ -278,7 +279,7 @@ const styles = StyleSheet.create({
     ...UI_SHADOWS.card,
   },
   categoryCardPressed: {
-    opacity: 0.98,
+    opacity: UI_PRESS.opacity.subtle,
   },
   categoryCopy: {
     flex: 1,

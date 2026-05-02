@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   LayoutAnimation,
   Platform,
   ScrollView,
@@ -43,6 +44,8 @@ import { formatCurrency } from '../../utils/formatCurrency';
 
 const DELIVERY_FEE = 0;
 const DISCOUNT_AMOUNT = 0;
+const COMING_SOON_BASKET_ALERT =
+  'Coming soon: save this basket for next time.';
 
 if (
   Platform.OS === 'android' &&
@@ -214,6 +217,23 @@ function CheckoutScreen({ navigation }) {
         },
       ],
     });
+  }
+
+  function handleExploreSmartBaskets() {
+    setSuccessState(null);
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: CUSTOMER_ROUTES.HOME,
+          params: { focusSmartBaskets: true },
+        },
+      ],
+    });
+  }
+
+  function handleShowComingSoonBasketAlert() {
+    Alert.alert(COMING_SOON_BASKET_ALERT);
   }
 
   function handleToggleSummary() {
@@ -530,7 +550,10 @@ function CheckoutScreen({ navigation }) {
 
         <OrderSuccessModal
           onBackToHome={handleBackToHome}
+          onBuySimilarBasketAgain={handleShowComingSoonBasketAlert}
+          onExploreSmartBaskets={handleExploreSmartBaskets}
           onRequestClose={handleBackToHome}
+          onSaveBasket={handleShowComingSoonBasketAlert}
           onTrackOrder={handleTrackOrder}
           order={successState?.order || null}
           visible={showSuccessModal}

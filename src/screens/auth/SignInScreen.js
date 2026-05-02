@@ -66,13 +66,8 @@ function SignInScreen({ navigation }) {
   return (
     <AuthScreenLayout
       eyebrow="Welcome back"
-      heroBadges={[
-        'Email sign in',
-        'MongoDB profile',
-        'Persistent session',
-      ]}
       onPressBack={handleBack}
-      subtitle="Sign in with your Grovy account to load the right profile, account data and saved edits."
+      subtitle="Sign in to access your saved details, delivery information, and orders."
       switchRow={
         <AuthSwitchRow
           actionLabel="Create one"
@@ -99,7 +94,7 @@ function SignInScreen({ navigation }) {
           }
         }}
         onSubmitEditing={() => passwordInputRef.current?.focus()}
-        placeholder="demo.a@grovy.app"
+        placeholder="name@example.com"
         returnKeyType="next"
         textContentType="emailAddress"
         value={email}

@@ -166,13 +166,15 @@ function AuthScreenLayout({
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.subtitle}>{subtitle}</Text>
 
-            <View style={styles.badgeRow}>
-              {heroBadges.map(badge => (
-                <View key={badge} style={styles.badge}>
-                  <Text style={styles.badgeLabel}>{badge}</Text>
-                </View>
-              ))}
-            </View>
+            {heroBadges.length ? (
+              <View style={styles.badgeRow}>
+                {heroBadges.map(badge => (
+                  <View key={badge} style={styles.badge}>
+                    <Text style={styles.badgeLabel}>{badge}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.formCard}>{children}</View>

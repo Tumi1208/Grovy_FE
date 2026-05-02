@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { CUSTOMER_ROUTES } from '../constants/routes';
-import { UI_COLORS, UI_SHADOWS } from '../constants/ui';
+import { UI_COLORS, UI_MOTION, UI_PRESS, UI_SHADOWS } from '../constants/ui';
 import ScalePressable from './ScalePressable';
 
 const NAV_COLORS = Object.freeze({
@@ -19,7 +19,7 @@ const NAV_COLORS = Object.freeze({
   activeSoft: UI_COLORS.accentGreenSoft,
   badge: UI_COLORS.accentRed,
 });
-const NAV_PILL_TRANSITION_MS = 220;
+const NAV_PILL_TRANSITION_MS = UI_MOTION.normal;
 
 function SearchGlyph({ active = false }) {
   return (
@@ -128,7 +128,7 @@ function BottomNavigationItem({
     <ScalePressable
       android_ripple={{ color: '#E9F0E6' }}
       onPress={onPress}
-      pressScale={0.97}
+      pressScale={UI_PRESS.scale.medium}
       style={({ pressed }) => [
         styles.navItem,
         pressed && styles.navItemPressed,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navItemPressed: {
-    opacity: 0.92,
+    opacity: UI_PRESS.opacity.medium,
   },
   iconWrap: {
     minWidth: 28,

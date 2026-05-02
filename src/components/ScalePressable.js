@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet } from 'react-native';
+import { UI_PRESS } from '../constants/ui';
 
 function ScalePressable({
   children,
@@ -7,9 +8,9 @@ function ScalePressable({
   disabled = false,
   onPressIn,
   onPressOut,
-  pressInDuration = 90,
-  pressOutDuration = 160,
-  pressScale = 0.98,
+  pressInDuration = UI_PRESS.timing.in,
+  pressOutDuration = UI_PRESS.timing.out,
+  pressScale = UI_PRESS.scale.default,
   style,
   ...props
 }) {

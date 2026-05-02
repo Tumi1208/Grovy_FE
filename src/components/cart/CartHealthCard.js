@@ -191,14 +191,14 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 10,
-    borderRadius: UI_RADIUS.round,
+    borderRadius: UI_RADIUS.pill,
     backgroundColor: 'rgba(79, 122, 74, 0.12)',
     overflow: 'hidden',
     marginBottom: 14,
   },
   progressFill: {
     height: '100%',
-    borderRadius: UI_RADIUS.round,
+    borderRadius: UI_RADIUS.pill,
     backgroundColor: UI_COLORS.accentGreen,
   },
   labelRow: {
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   },
   labelPill: {
     alignSelf: 'flex-start',
-    borderRadius: UI_RADIUS.round,
+    borderRadius: UI_RADIUS.pill,
     backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
     borderColor: '#D5E1D0',
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   positiveDot: {
     width: 6,
     height: 6,
-    borderRadius: UI_RADIUS.round,
+    borderRadius: UI_RADIUS.pill,
     backgroundColor: UI_COLORS.accentGreen,
     marginTop: 8,
     marginRight: 8,
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   suggestionDot: {
     width: 6,
     height: 6,
-    borderRadius: UI_RADIUS.round,
+    borderRadius: UI_RADIUS.pill,
     backgroundColor: UI_COLORS.accentGreen,
     marginTop: 8,
     marginRight: 8,

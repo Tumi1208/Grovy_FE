@@ -36,11 +36,15 @@ function AuthNavigator({ initialRouteName = AUTH_ROUTES.SPLASH }) {
       <Stack.Screen
         name={AUTH_ROUTES.ONBOARDING}
         component={WelcomeScreen}
-        options={{ gestureEnabled: false }}
+        options={{
+          animation: 'fade_from_bottom',
+          gestureEnabled: false,
+        }}
       />
       <Stack.Screen
         name={AUTH_ROUTES.ENTRY}
         component={EntryScreen}
+        options={{ animation: 'fade_from_bottom' }}
       />
       <Stack.Screen
         name={AUTH_ROUTES.SIGN_IN}

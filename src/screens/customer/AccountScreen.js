@@ -12,7 +12,6 @@ import {
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
 import { useAccountData } from '../../context/AccountDataContext';
-import { CUSTOMER_ACCOUNT_MENU } from '../../data/customerTabsData';
 import { useApp } from '../../context/AppContext';
 import { useCart } from '../../context/CartContext';
 import {
@@ -32,24 +31,190 @@ const ACCOUNT_MENU_ROUTES = Object.freeze({
   About: CUSTOMER_ROUTES.ABOUT_GROVY,
 });
 
-function MenuRow({ label, onPress }) {
+const ACCOUNT_MENU_GROUPS = Object.freeze([
+  {
+    id: 'profile',
+    title: 'Profile',
+    items: ['Edit Profile', 'Notifications'],
+  },
+  {
+    id: 'shopping',
+    title: 'Shopping',
+    items: ['Orders', 'Delivery Address', 'Payment Methods'],
+  },
+  {
+    id: 'support',
+    title: 'Support',
+    items: ['Help', 'About'],
+  },
+]);
+
+const ACCOUNT_MENU_PRESENTATION = Object.freeze({
+  'Edit Profile': {
+    monogram: 'EP',
+    tone: {
+      backgroundColor: '#E8F1E3',
+      borderColor: '#D6E6D0',
+      textColor: UI_COLORS.accentGreen,
+    },
+  },
+  Orders: {
+    monogram: 'OR',
+    tone: {
+      backgroundColor: '#F8E8DA',
+      borderColor: '#EECFB5',
+      textColor: '#B16E37',
+    },
+  },
+  'Delivery Address': {
+    monogram: 'DA',
+    tone: {
+      backgroundColor: '#F3EBE1',
+      borderColor: '#E6D7C6',
+      textColor: '#87654A',
+    },
+  },
+  'Payment Methods': {
+    monogram: 'PM',
+    tone: {
+      backgroundColor: '#ECEFF5',
+      borderColor: '#D9DFEA',
+      textColor: '#62708B',
+    },
+  },
+  Notifications: {
+    monogram: 'NO',
+    tone: {
+      backgroundColor: '#F8E8E3',
+      borderColor: '#EBCFC8',
+      textColor: '#AA6552',
+    },
+  },
+  Help: {
+    monogram: 'HE',
+    tone: {
+      backgroundColor: '#F8EFD8',
+      borderColor: '#ECDFB7',
+      textColor: '#A27A2D',
+    },
+  },
+  About: {
+    monogram: 'AB',
+    tone: {
+      backgroundColor: '#EDF3E8',
+      borderColor: '#D8E3CE',
+      textColor: '#5E7B4A',
+    },
+  },
+});
+
+function formatCountLabel(count, singular, plural) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function getEnabledNotificationsCount(notificationSettings) {
+  return Object.values(notificationSettings || {}).filter(Boolean).length;
+}
+
+function getMenuMeta(label, {
+  addresses,
+  defaultAddress,
+  defaultPaymentMethod,
+  notificationSettings,
+  orders,
+  ordersLoading,
+  paymentMethods,
+  userEmail,
+  userPhone,
+}) {
+  switch (label) {
+    case 'Edit Profile':
+      return userPhone || userEmail;
+    case 'Orders':
+      if (ordersLoading) {
+        return 'Syncing recent orders';
+      }
+
+      return orders.length
+        ? `${formatCountLabel(orders.length, 'order', 'orders')} on account`
+        : 'No orders saved yet';
+    case 'Delivery Address':
+      return defaultAddress
+        ? `${defaultAddress.label} default · ${formatCountLabel(addresses.length, 'address', 'addresses')}`
+        : 'Add your first delivery spot';
+    case 'Payment Methods':
+      return defaultPaymentMethod
+        ? `${formatCountLabel(paymentMethods.length, 'method', 'methods')} · ${formatPaymentMethodShortLabel(defaultPaymentMethod)}`
+        : 'Choose a checkout method';
+    case 'Notifications': {
+      const totalChannels = Object.keys(notificationSettings || {}).length;
+      const enabledChannels = getEnabledNotificationsCount(notificationSettings);
+
+      return `${enabledChannels}/${totalChannels} alerts enabled`;
+    }
+    case 'Help':
+      return 'Support and help center';
+    case 'About':
+      return 'App info and policies';
+    default:
+      return '';
+  }
+}
+
+function MenuRow({ label, meta, onPress }) {
+  const presentation = ACCOUNT_MENU_PRESENTATION[label];
+
   return (
     <ScalePressable
-      android_ripple={{ color: '#EEE7DC' }}
+      android_ripple={{ color: '#F1E5D7' }}
+      contentStyle={styles.menuRowFrame}
       onPress={onPress}
       pressScale={0.985}
       style={({ pressed }) => [
-        styles.menuRow,
+        styles.menuRowPressable,
         pressed && styles.menuRowPressed,
       ]}
     >
-      <Text style={styles.menuRowLabel}>{label}</Text>
-      <DirectionalHint
-        chevronSize={8}
-        color={UI_COLORS.mutedStrong}
-        mode="plain"
-        style={styles.menuRowIndicator}
-      />
+      <View style={styles.menuRowContent}>
+        <View
+          style={[
+            styles.menuMonogram,
+            {
+              backgroundColor: presentation.tone.backgroundColor,
+              borderColor: presentation.tone.borderColor,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.menuMonogramLabel,
+              { color: presentation.tone.textColor },
+            ]}
+          >
+            {presentation.monogram}
+          </Text>
+        </View>
+
+        <View style={styles.menuRowCopy}>
+          <Text style={styles.menuRowLabel}>{label}</Text>
+          {meta ? (
+            <View style={styles.menuMetaChip}>
+              <Text numberOfLines={1} style={styles.menuMetaChipLabel}>
+                {meta}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      <View style={styles.menuRowIndicatorWrap}>
+        <DirectionalHint
+          chevronSize={8}
+          color={UI_COLORS.mutedStrong}
+          mode="plain"
+          style={styles.menuRowIndicator}
+        />
+      </View>
     </ScalePressable>
   );
 }
@@ -87,10 +252,39 @@ function PreferenceCard({ detail, label, value }) {
   );
 }
 
+function SettingsGroup({ items, menuContext, onPress, title }) {
+  return (
+    <View style={styles.menuGroupCard}>
+      <View style={styles.menuGroupHeader}>
+        <Text style={styles.menuGroupTitle}>{title}</Text>
+      </View>
+
+      {items.map((label, index) => (
+        <View key={label}>
+          <MenuRow
+            label={label}
+            meta={getMenuMeta(label, menuContext)}
+            onPress={() => onPress(label)}
+          />
+          {index < items.length - 1 ? <View style={styles.divider} /> : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function AccountScreen({ navigation }) {
   const { currentUser, signOut } = useApp();
   const { totalItems } = useCart();
-  const { defaultAddress, defaultPaymentMethod, orders } = useAccountData();
+  const {
+    addresses,
+    defaultAddress,
+    defaultPaymentMethod,
+    notificationSettings,
+    orders,
+    ordersLoading,
+    paymentMethods,
+  } = useAccountData();
   const userName =
     currentUser?.displayName || currentUser?.name || 'Grovy Member';
   const userEmail = currentUser?.email || 'youraccount@grovy.app';
@@ -103,6 +297,17 @@ function AccountScreen({ navigation }) {
     formatPaymentMethodShortLabel(defaultPaymentMethod),
     defaultAddress ? `Default: ${defaultAddress.label}` : '',
   ].filter(Boolean);
+  const menuContext = {
+    addresses,
+    defaultAddress,
+    defaultPaymentMethod,
+    notificationSettings,
+    orders,
+    ordersLoading,
+    paymentMethods,
+    userEmail,
+    userPhone,
+  };
 
   function handleMenuPress(label) {
     const routeName = ACCOUNT_MENU_ROUTES[label];
@@ -117,6 +322,9 @@ function AccountScreen({ navigation }) {
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
+        <View pointerEvents="none" style={styles.backgroundGlowPrimary} />
+        <View pointerEvents="none" style={styles.backgroundGlowSecondary} />
+
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -187,16 +395,16 @@ function AccountScreen({ navigation }) {
           </View>
 
           <Text style={styles.sectionLabel}>Settings</Text>
-          <View style={styles.menuCard}>
-            {CUSTOMER_ACCOUNT_MENU.map((label, index) => (
-              <View key={label}>
-                <MenuRow label={label} onPress={() => handleMenuPress(label)} />
-                {index < CUSTOMER_ACCOUNT_MENU.length - 1 ? (
-                  <View style={styles.divider} />
-                ) : null}
-              </View>
-            ))}
-          </View>
+
+          {ACCOUNT_MENU_GROUPS.map(group => (
+            <SettingsGroup
+              key={group.id}
+              items={group.items}
+              menuContext={menuContext}
+              onPress={handleMenuPress}
+              title={group.title}
+            />
+          ))}
 
           <ScalePressable
             android_ripple={{ color: '#F0E1DC' }}
@@ -223,6 +431,26 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: UI_COLORS.screenLight,
+  },
+  backgroundGlowPrimary: {
+    position: 'absolute',
+    top: 18,
+    right: -58,
+    width: 168,
+    height: 168,
+    borderRadius: 84,
+    backgroundColor: '#F2E5D6',
+    opacity: 0.72,
+  },
+  backgroundGlowSecondary: {
+    position: 'absolute',
+    top: 236,
+    left: -70,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: '#E7F0E2',
+    opacity: 0.7,
   },
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
@@ -387,38 +615,105 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.meta,
   },
-  menuCard: {
+  menuGroupCard: {
     backgroundColor: UI_COLORS.surface,
     borderRadius: 26,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     overflow: 'hidden',
-    marginBottom: 18,
+    marginBottom: 14,
     ...UI_SHADOWS.card,
   },
-  menuRow: {
+  menuGroupHeader: {
+    paddingTop: 16,
+    paddingHorizontal: 18,
+    paddingBottom: 4,
+  },
+  menuGroupTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 20,
+  },
+  menuRowPressable: {
+    alignSelf: 'stretch',
+  },
+  menuRowFrame: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 18,
-    paddingVertical: 17,
+    paddingVertical: 16,
   },
   menuRowPressed: {
-    opacity: 0.94,
+    backgroundColor: '#FFFBF7',
+  },
+  menuRowContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  menuMonogram: {
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    position: 'relative',
+  },
+  menuMonogramLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.45,
+    lineHeight: 14,
+  },
+  menuRowCopy: {
+    flex: 1,
   },
   menuRowLabel: {
     color: UI_COLORS.textStrong,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     lineHeight: 22,
   },
+  menuMetaChip: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    borderRadius: UI_RADIUS.round,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    maxWidth: '100%',
+  },
+  menuMetaChipLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
+  menuRowIndicatorWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
   menuRowIndicator: {
-    marginLeft: 8,
+    marginLeft: 1,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: UI_COLORS.border,
-    marginHorizontal: 18,
+    marginLeft: 80,
+    marginRight: 18,
   },
   logoutButton: {
     minHeight: UI_LAYOUT.ctaHeight,

@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
-import { StyleSheet } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
 import PrimaryButton from '../../components/PrimaryButton';
 import { AUTH_ROUTES } from '../../constants/routes';
+import {
+  UI_COLORS,
+  UI_TYPOGRAPHY,
+} from '../../constants/ui';
 import { useApp } from '../../context/AppContext';
 import AuthScreenLayout, {
   AuthNotice,
@@ -15,6 +19,9 @@ function isValidEmail(email) {
 
 function SignUpScreen({ navigation }) {
   const { signUp } = useApp();
+  const emailInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+  const confirmPasswordInputRef = useRef(null);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -79,8 +86,9 @@ function SignUpScreen({ navigation }) {
   return (
     <AuthScreenLayout
       eyebrow="Create account"
+      heroBadges={['Secure sign up', 'Saved favourites', 'Nearby delivery']}
       onPressBack={handleBack}
-      subtitle="Create your Grovy account to save your details and shop faster next time."
+      subtitle="Create your Grovy account to keep your shopping details saved, checkout faster, and unlock nearby delivery."
       switchRow={
         <AuthSwitchRow
           actionLabel="Sign in"
@@ -96,6 +104,8 @@ function SignUpScreen({ navigation }) {
         autoCapitalize="words"
         autoComplete="name"
         autoFocus
+        blurOnSubmit={false}
+        editable={!isSubmitting}
         label="Full name"
         onChangeText={value => {
           setDisplayName(value);
@@ -103,7 +113,9 @@ function SignUpScreen({ navigation }) {
             setErrorMessage('');
           }
         }}
+        onSubmitEditing={() => emailInputRef.current?.focus()}
         placeholder="Your full name"
+        returnKeyType="next"
         textContentType="name"
         value={displayName}
       />
@@ -111,6 +123,8 @@ function SignUpScreen({ navigation }) {
       <AuthTextField
         autoCapitalize="none"
         autoComplete="email"
+        blurOnSubmit={false}
+        editable={!isSubmitting}
         keyboardType="email-address"
         label="Email"
         onChangeText={value => {
@@ -119,13 +133,19 @@ function SignUpScreen({ navigation }) {
             setErrorMessage('');
           }
         }}
-        placeholder="yourname@grovy.app"
+        onSubmitEditing={() => passwordInputRef.current?.focus()}
+        placeholder="name@example.com"
+        returnKeyType="next"
         textContentType="emailAddress"
         value={email}
+        ref={emailInputRef}
       />
 
       <AuthTextField
-        autoComplete="password"
+        autoComplete="new-password"
+        blurOnSubmit={false}
+        editable={!isSubmitting}
+        helperText="Use at least 6 characters so your account is ready for future sign-ins."
         label="Password"
         onChangeText={value => {
           setPassword(value);
@@ -133,14 +153,18 @@ function SignUpScreen({ navigation }) {
             setErrorMessage('');
           }
         }}
+        onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
         placeholder="At least 6 characters"
+        returnKeyType="next"
         secureTextEntry
         textContentType="newPassword"
         value={password}
+        ref={passwordInputRef}
       />
 
       <AuthTextField
-        autoComplete="password"
+        autoComplete="new-password"
+        editable={!isSubmitting}
         label="Confirm password"
         onChangeText={value => {
           setConfirmPassword(value);
@@ -148,25 +172,44 @@ function SignUpScreen({ navigation }) {
             setErrorMessage('');
           }
         }}
+        onSubmitEditing={handleSignUp}
         placeholder="Re-enter your password"
+        returnKeyType="done"
         secureTextEntry
+        submitBehavior="submit"
         textContentType="password"
         value={confirmPassword}
+        ref={confirmPasswordInputRef}
       />
 
       <PrimaryButton
-        disabled={isSubmitting}
+        loading={isSubmitting}
         onPress={handleSignUp}
         style={styles.submitButton}
-        title={isSubmitting ? 'Creating account...' : 'Sign Up'}
+        labelStyle={styles.submitButtonLabel}
+        title={isSubmitting ? 'Creating your account...' : 'Create account'}
       />
+
+      <Text style={styles.supportText}>
+        Next, Grovy will ask for your delivery location so the app can keep
+        your nearby products and checkout flow accurate.
+      </Text>
     </AuthScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   submitButton: {
-    marginTop: 6,
+    marginTop: 4,
+  },
+  submitButtonLabel: {
+    ...UI_TYPOGRAPHY.buttonLarge,
+  },
+  supportText: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 14,
+    textAlign: 'center',
   },
 });
 

@@ -34,6 +34,12 @@ export function AuthNotice({ message, tone = 'error' }) {
         isSuccess ? styles.noticeSuccess : styles.noticeError,
       ]}
     >
+      <View
+        style={[
+          styles.noticeAccent,
+          isSuccess ? styles.noticeAccentSuccess : styles.noticeAccentError,
+        ]}
+      />
       <Text
         style={[
           styles.noticeLabel,
@@ -53,9 +59,13 @@ export const AuthTextField = React.forwardRef(function AuthTextField(
     autoFocus = false,
     blurOnSubmit,
     editable = true,
+    helperText,
+    inputStyle,
     keyboardType = 'default',
     label,
+    onBlur,
     onChangeText,
+    onFocus,
     onSubmitEditing,
     placeholder,
     returnKeyType,
@@ -66,6 +76,9 @@ export const AuthTextField = React.forwardRef(function AuthTextField(
   },
   ref,
 ) {
+  const [isFocused, setIsFocused] = React.useState(false);
+  const hasValue = Boolean(`${value || ''}`.trim());
+
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -76,9 +89,18 @@ export const AuthTextField = React.forwardRef(function AuthTextField(
         autoCorrect={false}
         autoFocus={autoFocus}
         blurOnSubmit={blurOnSubmit}
+        cursorColor={UI_COLORS.accentGreen}
         editable={editable}
         keyboardType={keyboardType}
+        onBlur={event => {
+          setIsFocused(false);
+          onBlur?.(event);
+        }}
         onChangeText={onChangeText}
+        onFocus={event => {
+          setIsFocused(true);
+          onFocus?.(event);
+        }}
         onSubmitEditing={onSubmitEditing}
         placeholder={placeholder}
         placeholderTextColor={UI_COLORS.muted}
@@ -86,10 +108,17 @@ export const AuthTextField = React.forwardRef(function AuthTextField(
         secureTextEntry={secureTextEntry}
         selectionColor={UI_COLORS.accentGreen}
         submitBehavior={submitBehavior}
-        style={[styles.textField, !editable && styles.textFieldReadonly]}
+        style={[
+          styles.textField,
+          hasValue && styles.textFieldFilled,
+          isFocused && styles.textFieldFocused,
+          !editable && styles.textFieldReadonly,
+          inputStyle,
+        ]}
         textContentType={textContentType}
         value={value}
       />
+      {helperText ? <Text style={styles.fieldHelper}>{helperText}</Text> : null}
     </View>
   );
 });
@@ -128,11 +157,13 @@ function AuthScreenLayout({
         barStyle="dark-content"
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flexOne}
       >
         <ScrollView
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentContainerStyle={styles.content}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -158,28 +189,32 @@ function AuthScreenLayout({
             </View>
           ) : null}
 
-          <View style={styles.heroCard}>
-            <View style={styles.heroOrbWarm} />
-            <View style={styles.heroOrbSoft} />
-            <Text style={styles.brand}>Grovy</Text>
-            <Text style={styles.eyebrow}>{eyebrow}</Text>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
+          <View style={styles.mainContent}>
+            <View style={styles.heroCard}>
+              <View style={styles.heroOrbWarm} />
+              <View style={styles.heroOrbSoft} />
+              <Text style={styles.brand}>Grovy</Text>
+              <Text style={styles.eyebrow}>{eyebrow}</Text>
+              <Text style={styles.title}>{title}</Text>
+              <Text style={styles.subtitle}>{subtitle}</Text>
 
-            {heroBadges.length ? (
-              <View style={styles.badgeRow}>
-                {heroBadges.map(badge => (
-                  <View key={badge} style={styles.badge}>
-                    <Text style={styles.badgeLabel}>{badge}</Text>
-                  </View>
-                ))}
-              </View>
+              {heroBadges.length ? (
+                <View style={styles.badgeRow}>
+                  {heroBadges.map(badge => (
+                    <View key={badge} style={styles.badge}>
+                      <Text style={styles.badgeLabel}>{badge}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.formCard}>{children}</View>
+
+            {switchRow ? (
+              <View style={styles.switchRowWrap}>{switchRow}</View>
             ) : null}
           </View>
-
-          <View style={styles.formCard}>{children}</View>
-
-          {switchRow ? <View style={styles.switchRowWrap}>{switchRow}</View> : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -195,12 +230,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    flexGrow: 1,
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingTop: 12,
-    paddingBottom: 28,
+    paddingBottom: 32,
   },
   topBar: {
-    marginBottom: 12,
+    marginBottom: 14,
+  },
+  mainContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   backButton: {
     minHeight: 38,
@@ -230,8 +270,8 @@ const styles = StyleSheet.create({
     borderColor: '#E1D2BF',
     overflow: 'hidden',
     paddingHorizontal: 22,
-    paddingVertical: 24,
-    marginBottom: 18,
+    paddingVertical: 26,
+    marginBottom: 20,
     ...UI_SHADOWS.card,
   },
   heroOrbWarm: {
@@ -257,7 +297,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
     lineHeight: 30,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   eyebrow: {
     color: UI_COLORS.mutedStrong,
@@ -303,12 +343,14 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.surface,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: UI_COLORS.border,
-    padding: 20,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 18,
     ...UI_SHADOWS.card,
   },
   fieldGroup: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   fieldLabel: {
     color: UI_COLORS.mutedStrong,
@@ -316,7 +358,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   textField: {
-    minHeight: 56,
+    minHeight: 58,
     backgroundColor: UI_COLORS.surfaceSoft,
     borderRadius: 20,
     borderWidth: 1,
@@ -326,15 +368,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  textFieldFilled: {
+    backgroundColor: UI_COLORS.surface,
+  },
+  textFieldFocused: {
+    borderColor: UI_COLORS.accentGreen,
+    backgroundColor: UI_COLORS.surface,
+    shadowColor: UI_COLORS.accentGreen,
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 1,
+  },
   textFieldReadonly: {
     opacity: 0.74,
   },
+  fieldHelper: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 8,
+  },
   notice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     borderRadius: 18,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    marginBottom: 14,
+    marginBottom: 16,
   },
   noticeError: {
     backgroundColor: '#FFF5F3',
@@ -355,8 +419,20 @@ const styles = StyleSheet.create({
   noticeLabelSuccess: {
     color: UI_COLORS.accentGreen,
   },
+  noticeAccent: {
+    width: 8,
+    borderRadius: 999,
+    alignSelf: 'stretch',
+    marginRight: 12,
+  },
+  noticeAccentError: {
+    backgroundColor: UI_COLORS.accentRed,
+  },
+  noticeAccentSuccess: {
+    backgroundColor: UI_COLORS.accentGreen,
+  },
   switchRowWrap: {
-    marginTop: 18,
+    marginTop: 20,
     alignItems: 'center',
   },
   switchRow: {

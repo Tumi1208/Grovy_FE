@@ -1,7 +1,11 @@
 import React, { useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import PrimaryButton from '../../components/PrimaryButton';
 import { AUTH_ROUTES } from '../../constants/routes';
+import {
+  UI_COLORS,
+  UI_TYPOGRAPHY,
+} from '../../constants/ui';
 import { useApp } from '../../context/AppContext';
 import AuthScreenLayout, {
   AuthNotice,
@@ -66,8 +70,9 @@ function SignInScreen({ navigation }) {
   return (
     <AuthScreenLayout
       eyebrow="Welcome back"
+      heroBadges={['Saved details', 'Order history', 'Faster checkout']}
       onPressBack={handleBack}
-      subtitle="Sign in to access your saved details, delivery information, and orders."
+      subtitle="Sign in to pick up where you left off with your delivery details, saved items, and recent orders."
       switchRow={
         <AuthSwitchRow
           actionLabel="Create one"
@@ -75,7 +80,7 @@ function SignInScreen({ navigation }) {
           prompt="New to Grovy?"
         />
       }
-      title="Sign in to your account"
+      title="Sign in to your Grovy account"
     >
       <AuthNotice message={errorMessage} />
 
@@ -101,9 +106,10 @@ function SignInScreen({ navigation }) {
       />
 
       <AuthTextField
-        autoComplete="password"
+        autoComplete="current-password"
         blurOnSubmit={false}
         editable={!isSubmitting}
+        helperText="Use the same account you shop with so your cart and saved details stay in sync."
         label="Password"
         onChangeText={value => {
           setPassword(value);
@@ -122,18 +128,33 @@ function SignInScreen({ navigation }) {
       />
 
       <PrimaryButton
-        disabled={isSubmitting}
+        loading={isSubmitting}
         onPress={handleSignIn}
         style={styles.submitButton}
-        title={isSubmitting ? 'Signing in...' : 'Sign In'}
+        labelStyle={styles.submitButtonLabel}
+        title={isSubmitting ? 'Signing you in...' : 'Continue to Grovy'}
       />
+
+      <Text style={styles.supportText}>
+        Grovy will take you to the right next step for this account, including
+        location setup if it is still missing.
+      </Text>
     </AuthScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   submitButton: {
-    marginTop: 6,
+    marginTop: 4,
+  },
+  submitButtonLabel: {
+    ...UI_TYPOGRAPHY.buttonLarge,
+  },
+  supportText: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 14,
+    textAlign: 'center',
   },
 });
 

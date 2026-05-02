@@ -982,24 +982,36 @@ export function LocationScreen({ navigation, route }) {
     currentUser?.location?.label ||
     '';
   const manualInputRef = useRef(null);
+  const isMountedRef = useRef(true);
   const [manualLocation, setManualLocation] = useState(initialLocationValue);
   const [selectedSuggestion, setSelectedSuggestion] = useState(
     openingFlow.selectedLocation?.source === 'manual' ? initialLocationValue : '',
   );
+  const [isManualInputFocused, setIsManualInputFocused] = useState(false);
   const [manualErrorMessage, setManualErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggestionPanelVisible, setIsSuggestionPanelVisible] = useState(false);
 
   const suggestionItems = getLocationSuggestions(manualLocation, 6);
-  const showSuggestions = isSuggestionPanelVisible;
+  const showSuggestions = isSuggestionPanelVisible && !isSubmitting;
   const showSuggestionEmptyState =
     showSuggestions && manualLocation.trim().length > 0 && !suggestionItems.length;
   const hasManualValue = Boolean(manualLocation.trim());
+  const hasSelectedSuggestion = Boolean(selectedSuggestion);
 
   useEffect(() => {
     if (!canAccessLocationStep) {
       navigation.replace(AUTH_ROUTES.ENTRY);
     }
   }, [canAccessLocationStep, navigation]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   function focusManualInput() {
     requestAnimationFrame(() => {
@@ -1018,6 +1030,10 @@ export function LocationScreen({ navigation, route }) {
   }
 
   function handleSelectSuggestion(locationLabel) {
+    if (isSubmitting) {
+      return;
+    }
+
     setManualLocation(locationLabel);
     setSelectedSuggestion(locationLabel);
     setManualErrorMessage('');
@@ -1026,10 +1042,15 @@ export function LocationScreen({ navigation, route }) {
   }
 
   function handleFocusManualInput() {
+    setIsManualInputFocused(true);
     setIsSuggestionPanelVisible(true);
   }
 
   async function handleContinue() {
+    if (isSubmitting) {
+      return;
+    }
+
     if (!manualLocation.trim()) {
       setManualErrorMessage('Please enter your area or address.');
       setIsSuggestionPanelVisible(true);
@@ -1039,13 +1060,18 @@ export function LocationScreen({ navigation, route }) {
 
     const manualSelection = buildManualLocation(manualLocation);
     saveOpeningLocation(manualSelection);
+    setManualErrorMessage('');
+    setIsSubmitting(true);
 
     try {
       await completeCustomerOpeningFlow(manualSelection);
     } catch (error) {
-      setManualErrorMessage(
-        error.message || 'Could not save your location right now.',
-      );
+      if (isMountedRef.current) {
+        setManualErrorMessage(
+          error.message || 'Could not save your location right now.',
+        );
+        setIsSubmitting(false);
+      }
     }
   }
 
@@ -1056,13 +1082,15 @@ export function LocationScreen({ navigation, route }) {
         barStyle="dark-content"
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flexOne}
       >
         <View style={styles.openingScrollScene}>
           <OpeningSceneBackground />
           <ScrollView
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             contentContainerStyle={styles.locationContent}
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -1071,43 +1099,115 @@ export function LocationScreen({ navigation, route }) {
                 <BackButton onPress={handleBack} />
                 <LocationIllustration />
                 <ScreenHeader
-                  eyebrow="Almost there"
-                  subtitle="Choose where you shop so the first store view already feels local and familiar."
-                  title="Select your location"
+                  eyebrow="Set your delivery area"
+                  subtitle="Choose the area you shop from most so Grovy can open with the right local context from the very first screen."
+                  title="Where should we deliver?"
                 />
+                <View style={styles.supportPillRow}>
+                  <SupportPill label="Manual entry" tone="warm" />
+                  <SupportPill label="Popular areas" />
+                  <SupportPill label="No GPS required" />
+                </View>
+              </View>
+            </AnimatedIntroBlock>
 
-                <View style={styles.formCard}>
+            <AnimatedIntroBlock delay={110} distance={22}>
+              <View style={[styles.formCard, styles.locationFormCard]}>
+                <View style={styles.locationFormIntro}>
+                  <Text style={styles.locationFormEyebrow}>Choose or type</Text>
+                  <Text style={styles.locationFormTitle}>
+                    Start with a delivery area that feels most like home.
+                  </Text>
+                  <Text style={styles.locationFormSubtitle}>
+                    Pick a suggested area or type your address manually. This
+                    step is required, but live GPS access is not.
+                  </Text>
+                </View>
+
+                <View style={styles.locationFieldCard}>
                   <View style={styles.manualEntryWrap}>
                     <Text style={styles.fieldLabel}>Delivery location</Text>
-                    <View style={styles.textFieldWrap}>
+                    <View
+                      style={[
+                        styles.textFieldWrap,
+                        isManualInputFocused && styles.locationTextFieldWrapFocused,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.locationFieldIcon,
+                          isManualInputFocused && styles.locationFieldIconActive,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.locationFieldIconDot,
+                            isManualInputFocused && styles.locationFieldIconDotActive,
+                          ]}
+                        />
+                      </View>
                       <TextInput
                         autoCapitalize="words"
+                        blurOnSubmit={false}
+                        cursorColor={OPENING_COLORS.accent}
+                        editable={!isSubmitting}
+                        onBlur={() => {
+                          setIsManualInputFocused(false);
+                        }}
                         onChangeText={handleManualLocationChange}
                         onFocus={handleFocusManualInput}
+                        onSubmitEditing={handleContinue}
                         placeholder="District 1, Ho Chi Minh City"
                         placeholderTextColor={OPENING_COLORS.mutedSoft}
                         ref={manualInputRef}
+                        returnKeyType="done"
                         selectionColor={OPENING_COLORS.accent}
-                        style={styles.textField}
+                        style={[
+                          styles.textField,
+                          hasManualValue && styles.locationTextFieldFilled,
+                        ]}
                         value={manualLocation}
                       />
                     </View>
-                    <Text style={styles.helperText}>
-                      Enter your district, neighborhood, or full address.
+                    <Text style={[styles.helperText, styles.locationHelperText]}>
+                      Enter your district, neighborhood, or full address. Grovy
+                      will use this to localize the onboarding flow for this
+                      account.
                     </Text>
 
                     {hasManualValue ? (
                       <View style={styles.locationSummaryCard}>
-                        <Text style={styles.locationSummaryEyebrow}>
-                          {selectedSuggestion ? 'Selected area' : 'Manual area'}
-                        </Text>
+                        <View style={styles.locationSummaryHeader}>
+                          <Text style={styles.locationSummaryEyebrow}>
+                            {hasSelectedSuggestion ? 'Selected area' : 'Ready to save'}
+                          </Text>
+                          <View
+                            style={[
+                              styles.locationSummaryBadge,
+                              hasSelectedSuggestion
+                                ? styles.locationSummaryBadgeActive
+                                : null,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.locationSummaryBadgeLabel,
+                                hasSelectedSuggestion
+                                  ? styles.locationSummaryBadgeLabelActive
+                                  : null,
+                              ]}
+                            >
+                              {hasSelectedSuggestion ? 'Suggestion match' : 'Manual entry'}
+                            </Text>
+                          </View>
+                        </View>
                         <Text style={styles.locationSummaryTitle}>
                           {manualLocation.trim()}
                         </Text>
                         <Text style={styles.locationSummaryDetail}>
-                          {selectedSuggestion
-                            ? 'Picked from suggestions'
-                            : 'You can continue with this text as entered.'}
+                          {hasSelectedSuggestion
+                            ? 'Picked from Grovy suggestions for a smoother first delivery setup.'
+                            : 'You can continue with this location exactly as entered.'}
                         </Text>
                       </View>
                     ) : null}
@@ -1141,11 +1241,12 @@ export function LocationScreen({ navigation, route }) {
                                 <Pressable
                                   key={locationLabel}
                                   android_ripple={{ color: '#E8ECE2' }}
+                                  disabled={isSubmitting}
                                   onPress={() => handleSelectSuggestion(locationLabel)}
                                   style={({ pressed }) => [
                                     styles.suggestionItem,
                                     isSelected && styles.suggestionItemSelected,
-                                    pressed && styles.suggestionItemPressed,
+                                    pressed && !isSubmitting && styles.suggestionItemPressed,
                                   ]}
                                 >
                                   <View style={styles.suggestionCopy}>
@@ -1188,13 +1289,25 @@ export function LocationScreen({ navigation, route }) {
               </View>
             </AnimatedIntroBlock>
 
-            <AnimatedIntroBlock delay={130} distance={26}>
+            <AnimatedIntroBlock delay={180} distance={26}>
+              <View style={styles.locationFooter}>
               <PrimaryButton
                 disabled={!hasManualValue}
+                labelStyle={styles.locationActionLabel}
+                loading={isSubmitting}
                 onPress={handleContinue}
                 style={[styles.primaryAction, styles.locationAction]}
-                title="Continue to shop"
+                title={
+                  isSubmitting
+                    ? 'Saving your location...'
+                    : 'Continue to shop'
+                }
               />
+                <Text style={styles.locationFooterNote}>
+                  This saves a starting delivery area for this account so Grovy
+                  opens in the right place next time.
+                </Text>
+              </View>
             </AnimatedIntroBlock>
           </ScrollView>
         </View>
@@ -2051,6 +2164,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   locationContent: {
+    flexGrow: 1,
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingTop: 12,
     paddingBottom: 30,
@@ -2108,6 +2222,43 @@ const styles = StyleSheet.create({
     width: 180,
     height: 130,
   },
+  locationFormCard: {
+    paddingTop: 18,
+    paddingBottom: 18,
+  },
+  locationFormIntro: {
+    borderRadius: 22,
+    backgroundColor: OPENING_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: OPENING_COLORS.borderSoft,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginBottom: 14,
+  },
+  locationFormEyebrow: {
+    color: OPENING_COLORS.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.28,
+    marginBottom: 6,
+  },
+  locationFormTitle: {
+    color: OPENING_COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  locationFormSubtitle: {
+    color: OPENING_COLORS.muted,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 8,
+  },
+  locationFieldCard: {
+    borderRadius: 24,
+    backgroundColor: OPENING_COLORS.surface,
+  },
   textFieldWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2118,8 +2269,50 @@ const styles = StyleSheet.create({
     minHeight: UI_LAYOUT.searchHeight,
     paddingHorizontal: 16,
   },
+  locationTextFieldWrapFocused: {
+    borderColor: OPENING_COLORS.accent,
+    backgroundColor: OPENING_COLORS.surface,
+    shadowColor: OPENING_COLORS.accent,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 1,
+  },
   manualEntryWrap: {
     marginTop: 4,
+  },
+  locationFieldIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: OPENING_COLORS.border,
+    backgroundColor: OPENING_COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  locationFieldIconActive: {
+    borderColor: '#D2E0CF',
+    backgroundColor: OPENING_COLORS.accentSoft,
+  },
+  locationFieldIconDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: OPENING_COLORS.mutedSoft,
+  },
+  locationFieldIconDotActive: {
+    backgroundColor: OPENING_COLORS.accent,
+  },
+  locationTextFieldFilled: {
+    color: OPENING_COLORS.text,
+  },
+  locationHelperText: {
+    marginBottom: 14,
   },
   suggestionsCard: {
     marginTop: 14,
@@ -2224,6 +2417,12 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     marginBottom: 2,
   },
+  locationSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   locationSummaryEyebrow: {
     color: OPENING_COLORS.accent,
     fontSize: 12,
@@ -2231,7 +2430,30 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
-    marginBottom: 4,
+    marginBottom: 0,
+  },
+  locationSummaryBadge: {
+    borderRadius: UI_RADIUS.round,
+    borderWidth: 1,
+    borderColor: '#D2DCCF',
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  locationSummaryBadgeActive: {
+    borderColor: '#CDE0C8',
+    backgroundColor: OPENING_COLORS.surface,
+  },
+  locationSummaryBadgeLabel: {
+    color: OPENING_COLORS.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.28,
+  },
+  locationSummaryBadgeLabelActive: {
+    color: OPENING_COLORS.accent,
   },
   locationSummaryTitle: {
     color: OPENING_COLORS.text,
@@ -2244,6 +2466,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginTop: 4,
+  },
+  locationFooter: {
+    paddingBottom: 8,
+  },
+  locationActionLabel: {
+    ...UI_TYPOGRAPHY.buttonLarge,
+  },
+  locationFooterNote: {
+    color: OPENING_COLORS.muted,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 14,
+    textAlign: 'center',
   },
   textField: {
     flex: 1,

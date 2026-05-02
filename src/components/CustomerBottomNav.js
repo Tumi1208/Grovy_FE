@@ -20,6 +20,7 @@ const NAV_COLORS = Object.freeze({
   badge: UI_COLORS.accentRed,
 });
 const NAV_PILL_TRANSITION_MS = UI_MOTION.normal;
+const NAV_ITEM_TRANSITION_MS = UI_MOTION.normal;
 
 function SearchGlyph({ active = false }) {
   return (
@@ -120,33 +121,184 @@ const NAV_ITEMS = Object.freeze([
 function BottomNavigationItem({
   active = false,
   badgeCount = 0,
-  icon,
   label,
   onPress,
+  renderIcon,
+  route,
+  showsBadge = false,
 }) {
+  const activeProgress = useRef(new Animated.Value(active ? 1 : 0)).current;
+  const badgeVisibility = useRef(
+    new Animated.Value(showsBadge && badgeCount > 0 ? 1 : 0),
+  ).current;
+
+  useEffect(() => {
+    Animated.timing(activeProgress, {
+      toValue: active ? 1 : 0,
+      duration: NAV_ITEM_TRANSITION_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [active, activeProgress]);
+
+  useEffect(() => {
+    Animated.timing(badgeVisibility, {
+      toValue: showsBadge && badgeCount > 0 ? 1 : 0,
+      duration: UI_MOTION.fast,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [badgeCount, badgeVisibility, showsBadge]);
+
+  const animatedContentStyle = useMemo(
+    () => ({
+      transform: [
+        {
+          translateY: activeProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, -1],
+          }),
+        },
+        {
+          scale: activeProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1, 1.02],
+          }),
+        },
+      ],
+    }),
+    [activeProgress],
+  );
+
+  const inactiveLayerStyle = useMemo(
+    () => ({
+      opacity: activeProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0],
+      }),
+      transform: [
+        {
+          translateY: activeProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 1],
+          }),
+        },
+        {
+          scale: activeProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1, 0.94],
+          }),
+        },
+      ],
+    }),
+    [activeProgress],
+  );
+
+  const activeLayerStyle = useMemo(
+    () => ({
+      opacity: activeProgress,
+      transform: [
+        {
+          translateY: activeProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1, 0],
+          }),
+        },
+        {
+          scale: activeProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.94, 1],
+          }),
+        },
+      ],
+    }),
+    [activeProgress],
+  );
+
+  const animatedBadgeStyle = useMemo(
+    () => ({
+      opacity: badgeVisibility,
+      transform: [
+        {
+          translateY: activeProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, -1],
+          }),
+        },
+        {
+          scale: badgeVisibility.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.84, 1],
+          }),
+        },
+      ],
+    }),
+    [activeProgress, badgeVisibility],
+  );
+
+  const badgeLabel = badgeCount > 0 ? `${badgeCount}` : '';
+
   return (
     <ScalePressable
+      accessibilityLabel={label}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
       android_ripple={{ color: '#E9F0E6' }}
       onPress={onPress}
-      pressScale={UI_PRESS.scale.medium}
+      pressScale={UI_PRESS.scale.default}
       style={({ pressed }) => [
         styles.navItem,
         pressed && styles.navItemPressed,
       ]}
+      testID={`bottom-nav-tab-${route}`}
     >
-      <View style={styles.navItemInner}>
+      <Animated.View style={[styles.navItemInner, animatedContentStyle]}>
         <View style={styles.iconWrap}>
-          {icon}
-          {badgeCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeLabel}>{badgeCount}</Text>
-            </View>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.iconLayer, inactiveLayerStyle]}
+          >
+            {renderIcon(false)}
+          </Animated.View>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.iconLayer, activeLayerStyle]}
+          >
+            {renderIcon(true)}
+          </Animated.View>
+
+          {showsBadge ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.badge, animatedBadgeStyle]}
+            >
+              {badgeLabel ? (
+                <Text style={styles.badgeLabel}>{badgeLabel}</Text>
+              ) : null}
+            </Animated.View>
           ) : null}
         </View>
-        <Text style={[styles.label, active && styles.labelActive]}>
-          {label}
-        </Text>
-      </View>
+
+        <View style={styles.labelWrap}>
+          <Text
+            style={[styles.label, styles.labelActive, styles.labelPlaceholder]}
+          >
+            {label}
+          </Text>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.labelLayer, inactiveLayerStyle]}
+          >
+            <Text style={styles.label}>{label}</Text>
+          </Animated.View>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.labelLayer, activeLayerStyle]}
+          >
+            <Text style={[styles.label, styles.labelActive]}>{label}</Text>
+          </Animated.View>
+        </View>
+      </Animated.View>
     </ScalePressable>
   );
 }
@@ -229,9 +381,11 @@ function CustomerBottomNav({
               key={item.route}
               active={isActive}
               badgeCount={item.showsBadge ? totalItems : 0}
-              icon={item.renderIcon(isActive)}
               label={item.label}
               onPress={() => handleNavigate(item.route)}
+              renderIcon={item.renderIcon}
+              route={item.route}
+              showsBadge={item.showsBadge}
             />
           );
         })}
@@ -282,14 +436,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navItemPressed: {
-    opacity: UI_PRESS.opacity.medium,
+    opacity: UI_PRESS.opacity.soft,
   },
   iconWrap: {
-    minWidth: 28,
-    minHeight: 20,
+    width: 30,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 5,
+    position: 'relative',
+  },
+  iconLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  labelWrap: {
+    minHeight: 14,
+    minWidth: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  labelLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   label: {
     color: NAV_COLORS.text,
@@ -299,6 +471,9 @@ const styles = StyleSheet.create({
   labelActive: {
     color: NAV_COLORS.active,
     fontWeight: '700',
+  },
+  labelPlaceholder: {
+    opacity: 0,
   },
   textActive: {
     color: NAV_COLORS.active,

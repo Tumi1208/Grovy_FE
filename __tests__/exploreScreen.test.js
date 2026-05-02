@@ -1,9 +1,7 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Alert } from 'react-native';
-import HomeScreen from '../src/screens/customer/HomeScreen';
+import ExploreScreen from '../src/screens/customer/ExploreScreen';
 import { DEMO_PRODUCTS } from '../src/data/demoProducts';
 
-const mockUseApp = jest.fn();
 const mockUseCart = jest.fn();
 const mockUseFavourite = jest.fn();
 const mockGetProducts = jest.fn();
@@ -15,10 +13,6 @@ jest.mock('react-native-safe-area-context', () => ({
 
     return <View>{children}</View>;
   },
-}));
-
-jest.mock('../src/context/AppContext', () => ({
-  useApp: () => mockUseApp(),
 }));
 
 jest.mock('../src/context/CartContext', () => ({
@@ -54,33 +48,6 @@ jest.mock('../src/components/ScalePressable', () => {
 jest.mock('../src/components/ProductQuickActionsSheet', () => {
   return function MockProductQuickActionsSheet() {
     return null;
-  };
-});
-
-jest.mock('../src/components/home/SmartBasketPreviewSheet', () => {
-  return function MockSmartBasketPreviewSheet({
-    collection,
-    onAddAll,
-    onClose,
-    visible,
-  }) {
-    const React = require('react');
-    const { Pressable, Text, View } = require('react-native');
-
-    if (!visible || !collection) {
-      return null;
-    }
-
-    return (
-      <View testID="mock-smart-basket-preview">
-        <Text>{collection.title}</Text>
-        <Pressable
-          onPress={() => onAddAll?.(collection)}
-          testID="mock-smart-basket-add-all"
-        />
-        <Pressable onPress={onClose} testID="mock-smart-basket-close" />
-      </View>
-    );
   };
 });
 
@@ -123,40 +90,24 @@ function findClosestPressableForText(root, text) {
   return matchingPressables[0];
 }
 
-function findAllByTestId(root, testID) {
-  return root.findAll(
-    node => node.props?.testID === testID && typeof node.type === 'string',
-  );
-}
-
-describe('HomeScreen smart basket preview', () => {
-  const addToCart = jest.fn();
+describe('ExploreScreen empty search actions', () => {
   const navigation = {
     navigate: jest.fn(),
   };
   let activeRenderer = null;
-  let alertSpy;
 
   beforeEach(() => {
     jest.useFakeTimers();
-    addToCart.mockReset();
     navigation.navigate.mockReset();
     mockGetProducts.mockResolvedValue(DEMO_PRODUCTS);
-    mockUseApp.mockReturnValue({
-      currentUser: {
-        location: {
-          shortLabel: 'HCMC, Vietnam',
-        },
-      },
-    });
     mockUseCart.mockReturnValue({
-      addToCart,
+      addToCart: jest.fn(),
     });
     mockUseFavourite.mockReturnValue({
       addToFavourites: jest.fn(),
       isFavourite: jest.fn(() => false),
+      toggleFavourite: jest.fn(),
     });
-    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -171,8 +122,6 @@ describe('HomeScreen smart basket preview', () => {
       jest.runOnlyPendingTimers();
     });
     jest.useRealTimers();
-    alertSpy.mockRestore();
-    mockUseApp.mockReset();
     mockUseCart.mockReset();
     mockUseFavourite.mockReset();
     mockGetProducts.mockReset();
@@ -181,7 +130,7 @@ describe('HomeScreen smart basket preview', () => {
   async function renderScreen() {
     await act(async () => {
       activeRenderer = TestRenderer.create(
-        <HomeScreen navigation={navigation} />,
+        <ExploreScreen navigation={navigation} />,
       );
       await Promise.resolve();
       await Promise.resolve();
@@ -194,83 +143,28 @@ describe('HomeScreen smart basket preview', () => {
     return activeRenderer;
   }
 
-  it('opens preview before adding smart basket items to cart', async () => {
-    const renderer = await renderScreen();
-
-    act(() => {
-      findClosestPressableForText(
-        renderer.root,
-        'Weekly Fresh Basket',
-      ).props.onPress();
-    });
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-
-    expect(addToCart).not.toHaveBeenCalled();
-    expect(findAllByTestId(renderer.root, 'mock-smart-basket-preview')).toHaveLength(
-      1,
-    );
-
-    act(() => {
-      renderer.root
-        .findByProps({ testID: 'mock-smart-basket-add-all' })
-        .props.onPress();
-    });
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-
-    expect(addToCart.mock.calls.map(([product]) => product.id)).toEqual([
-      'grovy-apple-001',
-      'grovy-banana-001',
-      'grovy-eggs-red-001',
-      'grovy-rice-001',
-      'grovy-chicken-001',
-      'grovy-ginger-001',
-    ]);
-    expect(addToCart.mock.calls.every(([, quantity]) => quantity === 1)).toBe(
-      true,
-    );
-    expect(findAllByTestId(renderer.root, 'mock-smart-basket-preview')).toHaveLength(
-      0,
-    );
-    expect(alertSpy).toHaveBeenCalledWith(
-      'Weekly Fresh Basket',
-      'Added 6 items to cart.',
-    );
-  });
-
-  it('returns empty searches to the smart basket section', async () => {
+  it('clears an empty search back to the aisle list', async () => {
     const renderer = await renderScreen();
 
     act(() => {
       renderer.root
-        .findByProps({ placeholder: 'Search groceries' })
+        .findByProps({ placeholder: 'Search groceries and aisles' })
         .props.onChangeText('zzzz');
     });
 
     expect(
-      renderer.root.findByProps({ placeholder: 'Search groceries' }).props.value,
-    ).toBe('zzzz');
-
-    act(() => {
-      findClosestPressableForText(
-        renderer.root,
-        'View Smart Baskets',
-      ).props.onPress();
-    });
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-
-    expect(
-      renderer.root.findByProps({ placeholder: 'Search groceries' }).props.value,
-    ).toBe('');
-    expect(
       renderer.root.findAll(
-        node => node.type === 'Text' && getNodeText(node) === 'Smart Baskets',
-      ).length,
-    ).toBeGreaterThan(0);
+        node => node.type === 'Text' && getNodeText(node) === 'No results found',
+      ),
+    ).toHaveLength(1);
+
+    act(() => {
+      findClosestPressableForText(renderer.root, 'Clear Search').props.onPress();
+    });
+
+    expect(
+      renderer.root.findByProps({ placeholder: 'Search groceries and aisles' })
+        .props.value,
+    ).toBe('');
   });
 });

@@ -115,6 +115,45 @@ function createFavouriteState(overrides = {}) {
   };
 }
 
+function getNodeText(node) {
+  if (typeof node === 'string') {
+    return node;
+  }
+
+  if (!node || !node.children) {
+    return '';
+  }
+
+  return node.children.map(getNodeText).join(' ');
+}
+
+function findClosestPressableForText(root, text) {
+  const matchingTextNodes = root.findAll(
+    node => node.type === 'Text' && getNodeText(node) === text,
+  );
+  const matchingPressables = matchingTextNodes
+    .map(node => {
+      let currentNode = node.parent;
+
+      while (currentNode) {
+        if (typeof currentNode.props?.onPress === 'function') {
+          return currentNode;
+        }
+
+        currentNode = currentNode.parent;
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  if (!matchingPressables.length) {
+    throw new Error(`Could not find pressable for text: ${text}`);
+  }
+
+  return matchingPressables[0];
+}
+
 describe('FavouriteScreen swipe action wiring', () => {
   const navigation = {
     navigate: jest.fn(),
@@ -234,5 +273,26 @@ describe('FavouriteScreen swipe action wiring', () => {
         initialProduct: favouriteState.favourites[0],
       },
     );
+  });
+
+  it('routes empty saved lists to Explore', () => {
+    const cartState = createCartState();
+    const favouriteState = createFavouriteState({
+      favourites: [],
+    });
+
+    mockUseCart.mockImplementation(() => cartState);
+    mockUseFavourite.mockImplementation(() => favouriteState);
+
+    const renderer = renderScreen();
+
+    act(() => {
+      findClosestPressableForText(
+        renderer.root,
+        'Explore products',
+      ).props.onPress();
+    });
+
+    expect(navigation.navigate).toHaveBeenCalledWith(CUSTOMER_ROUTES.EXPLORE);
   });
 });

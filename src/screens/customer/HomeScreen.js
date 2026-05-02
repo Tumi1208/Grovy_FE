@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -442,19 +442,26 @@ function HomeScreenEmptyState({
   );
 }
 
-function HomeSearchEmptyState({ onResetFilters }) {
+function HomeSearchEmptyState({ onOpenSmartBaskets, onResetFilters }) {
   return (
     <View style={styles.emptyCard}>
       <Text style={styles.emptyTitle}>No products found</Text>
       <Text style={styles.emptySubtitle}>
-        Try another keyword or clear the search.
+        Try another keyword or explore Smart Baskets.
       </Text>
-      <View style={styles.emptySpacer} />
-      <PrimaryButton
-        title="Clear Search"
-        onPress={onResetFilters}
-        variant="secondary"
-      />
+      <View style={styles.emptyActionGroup}>
+        <PrimaryButton
+          onPress={onResetFilters}
+          style={[styles.emptyActionButton, styles.emptyActionButtonSecondary]}
+          title="Clear Search"
+          variant="secondary"
+        />
+        <PrimaryButton
+          onPress={onOpenSmartBaskets}
+          style={styles.emptyActionButton}
+          title="View Smart Baskets"
+        />
+      </View>
     </View>
   );
 }
@@ -472,6 +479,9 @@ function HomeScreen({ navigation }) {
   const [selectedBudgetPresetId, setSelectedBudgetPresetId] = useState(
     DEFAULT_BUDGET_PRESET_ID,
   );
+  const scrollViewRef = useRef(null);
+  const pendingSmartBasketScrollRef = useRef(false);
+  const smartBasketsSectionOffsetRef = useRef(0);
   const { currentUser } = useApp();
   const { addToCart } = useCart();
   const { addToFavourites, isFavourite } = useFavourite();
@@ -696,6 +706,29 @@ function HomeScreen({ navigation }) {
   const trimmedSearchQuery = searchQuery.trim();
   const shouldShowSmartSections = hasCatalogItems && !hasSearchQuery;
 
+  useEffect(() => {
+    if (
+      hasSearchQuery ||
+      !shouldShowSmartSections ||
+      !pendingSmartBasketScrollRef.current
+    ) {
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      scrollViewRef.current?.scrollTo?.({
+        y: Math.max(
+          smartBasketsSectionOffsetRef.current - UI_SPACING.md,
+          0,
+        ),
+        animated: true,
+      });
+      pendingSmartBasketScrollRef.current = false;
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [hasSearchQuery, shouldShowSmartSections]);
+
   function handleAddSmartBasketFromPreview(collection) {
     handleAddProductCollection(collection, {
       title: collection?.title || 'Smart basket',
@@ -733,12 +766,28 @@ function HomeScreen({ navigation }) {
     handleOpenExplore();
   }
 
+  function handleViewSmartBaskets() {
+    pendingSmartBasketScrollRef.current = true;
+
+    if (hasSearchQuery) {
+      setSearchQuery('');
+      return;
+    }
+
+    scrollViewRef.current?.scrollTo?.({
+      y: Math.max(smartBasketsSectionOffsetRef.current - UI_SPACING.md, 0),
+      animated: true,
+    });
+    pendingSmartBasketScrollRef.current = false;
+  }
+
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.headerRow}>
@@ -829,7 +878,10 @@ function HomeScreen({ navigation }) {
                   onRetry={handleReloadProducts}
                 />
               ) : (
-                <HomeSearchEmptyState onResetFilters={handleResetFilters} />
+                <HomeSearchEmptyState
+                  onOpenSmartBaskets={handleViewSmartBaskets}
+                  onResetFilters={handleResetFilters}
+                />
               )}
 
               <HomeStatusBanner
@@ -848,7 +900,13 @@ function HomeScreen({ navigation }) {
 
               {shouldShowSmartSections ? (
                 <>
-                  <View style={styles.sectionBlock}>
+                  <View
+                    onLayout={event => {
+                      smartBasketsSectionOffsetRef.current =
+                        event.nativeEvent.layout.y;
+                    }}
+                    style={styles.sectionBlock}
+                  >
                     <SectionHeader
                       eyebrow="Smart shopping"
                       subtitle="One-tap grocery bundles for real-life needs."
@@ -1453,6 +1511,18 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     textAlign: 'center',
+  },
+  emptyActionGroup: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: UI_SPACING.md,
+  },
+  emptyActionButton: {
+    width: '100%',
+    maxWidth: 260,
+  },
+  emptyActionButtonSecondary: {
+    marginBottom: 10,
   },
   emptySpacer: {
     height: UI_SPACING.md,

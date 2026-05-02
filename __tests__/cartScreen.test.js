@@ -120,6 +120,45 @@ function createCartState(overrides = {}) {
   };
 }
 
+function getNodeText(node) {
+  if (typeof node === 'string') {
+    return node;
+  }
+
+  if (!node || !node.children) {
+    return '';
+  }
+
+  return node.children.map(getNodeText).join(' ');
+}
+
+function findClosestPressableForText(root, text) {
+  const matchingTextNodes = root.findAll(
+    node => node.type === 'Text' && getNodeText(node) === text,
+  );
+  const matchingPressables = matchingTextNodes
+    .map(node => {
+      let currentNode = node.parent;
+
+      while (currentNode) {
+        if (typeof currentNode.props?.onPress === 'function') {
+          return currentNode;
+        }
+
+        currentNode = currentNode.parent;
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  if (!matchingPressables.length) {
+    throw new Error(`Could not find pressable for text: ${text}`);
+  }
+
+  return matchingPressables[0];
+}
+
 describe('CartScreen swipe action wiring', () => {
   const navigation = {
     navigate: jest.fn(),
@@ -244,5 +283,26 @@ describe('CartScreen swipe action wiring', () => {
 
     expect(LayoutAnimation.configureNext).toHaveBeenCalled();
     expect(cartState.decreaseQuantity).toHaveBeenCalledWith('apple');
+  });
+
+  it('routes empty carts back to smart baskets on Home', () => {
+    const cartState = createCartState({
+      items: [],
+      subtotal: 0,
+      totalItems: 0,
+    });
+
+    mockUseCart.mockImplementation(() => cartState);
+
+    const renderer = renderScreen();
+
+    act(() => {
+      findClosestPressableForText(
+        renderer.root,
+        'Browse Smart Baskets',
+      ).props.onPress();
+    });
+
+    expect(navigation.navigate).toHaveBeenCalledWith(CUSTOMER_ROUTES.HOME);
   });
 });

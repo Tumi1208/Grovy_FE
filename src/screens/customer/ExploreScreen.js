@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryFallbackImage } from '../../assets/productImages';
 import DirectionalHint from '../../components/DirectionalHint';
+import PrimaryButton from '../../components/PrimaryButton';
 import ProductCard from '../../components/ProductCard';
 import ProductImage from '../../components/ProductImage';
 import ProductQuickActionsSheet from '../../components/ProductQuickActionsSheet';
@@ -13,6 +14,7 @@ import {
   UI_LAYOUT,
   UI_RADIUS,
   UI_SHADOWS,
+  UI_SPACING,
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
 import {
@@ -407,10 +409,18 @@ function ExploreScreen({ navigation }) {
 
           {hasNoResults ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateTitle}>No products found</Text>
+              <Text style={styles.emptyStateTitle}>No results found</Text>
               <Text style={styles.emptyStateSubtitle}>
-                Try another keyword or clear the search.
+                Try another keyword or browse all aisles.
               </Text>
+              <View style={styles.emptyStateActionWrap}>
+                <PrimaryButton
+                  onPress={handleClearSearch}
+                  style={styles.emptyStateButton}
+                  title="Clear Search"
+                  variant="secondary"
+                />
+              </View>
             </View>
           ) : null}
         </ScrollView>
@@ -662,6 +672,15 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     textAlign: 'center',
+  },
+  emptyStateActionWrap: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: UI_SPACING.md,
+  },
+  emptyStateButton: {
+    width: '100%',
+    maxWidth: 240,
   },
 });
 

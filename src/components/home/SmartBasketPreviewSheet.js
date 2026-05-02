@@ -18,6 +18,7 @@ import {
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
 import { formatCurrency } from '../../utils/formatCurrency';
+import DirectionalHint from '../DirectionalHint';
 import PrimaryButton from '../PrimaryButton';
 import ProductImage from '../ProductImage';
 import ScalePressable from '../ScalePressable';
@@ -55,11 +56,91 @@ function getEstimatedTotal(collection, resolvedProducts) {
   return Number(total.toFixed(2));
 }
 
-function SummaryCard({ label, value }) {
+function getCollectionTags(collection = {}) {
+  if (!Array.isArray(collection?.tags)) {
+    return [];
+  }
+
+  return collection.tags.filter(Boolean).slice(0, 3);
+}
+
+function getAvailabilityMessages(missingCount, unavailableCount) {
+  const messages = [];
+
+  if (missingCount > 0) {
+    messages.push(
+      `${missingCount} configured item${missingCount === 1 ? '' : 's'} could not be matched.`,
+    );
+  }
+
+  if (unavailableCount > 0) {
+    messages.push(
+      `${unavailableCount} product${unavailableCount === 1 ? '' : 's'} are out of stock and will be skipped.`,
+    );
+  }
+
+  return messages;
+}
+
+function SummaryCard({ highlight = false, label, value }) {
   return (
-    <View style={styles.summaryCard}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
+    <View style={[styles.summaryCard, highlight && styles.summaryCardHighlight]}>
+      <Text
+        style={[
+          styles.summaryLabel,
+          highlight && styles.summaryLabelHighlight,
+        ]}
+      >
+        {label}
+      </Text>
+      <Text
+        style={[
+          styles.summaryValue,
+          highlight && styles.summaryValueHighlight,
+        ]}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function PreviewCluster({ products = [] }) {
+  const previewProducts = products.slice(0, 4);
+  const remainingCount = Math.max(0, products.length - previewProducts.length);
+
+  if (!previewProducts.length) {
+    return (
+      <View style={styles.previewFallback}>
+        <Text style={styles.previewFallbackLabel}>No matches</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.previewCluster}>
+      {previewProducts.map((product, index) => (
+        <View
+          key={product.id || `${product.name}-${index}`}
+          style={[
+            styles.previewBubble,
+            index > 0 && styles.previewBubbleOffset,
+            { zIndex: previewProducts.length - index },
+          ]}
+        >
+          <ProductImage
+            name={product.name}
+            resizeMode="contain"
+            source={getProductImage(product.imageKey)}
+            style={styles.previewBubbleImage}
+          />
+        </View>
+      ))}
+      {remainingCount > 0 ? (
+        <View style={[styles.previewBubble, styles.previewBubbleOffset, styles.previewCountBubble]}>
+          <Text style={styles.previewCountLabel}>+{remainingCount}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -67,19 +148,17 @@ function SummaryCard({ label, value }) {
 function BasketProductRow({ onPress, product }) {
   const isAvailable = product?.stock > 0;
   const imageSource = getProductImage(product?.imageKey);
+  const canOpenDetails = product?.id && typeof onPress === 'function';
 
   return (
     <ScalePressable
       android_ripple={{ color: '#EFE6DA' }}
-      disabled={!product?.id || typeof onPress !== 'function'}
+      disabled={!canOpenDetails}
       onPress={() => onPress?.(product)}
       pressScale={0.992}
       style={({ pressed }) => [
         styles.productRow,
-        pressed &&
-          product?.id &&
-          typeof onPress === 'function' &&
-          styles.productRowPressed,
+        pressed && canOpenDetails && styles.productRowPressed,
       ]}
       testID={product?.id ? `smart-basket-preview-item-${product.id}` : undefined}
     >
@@ -92,37 +171,50 @@ function BasketProductRow({ onPress, product }) {
         />
       </View>
 
-      <View style={styles.productCopy}>
+      <View style={styles.productBody}>
+        <View style={styles.productTopRow}>
+          <Text numberOfLines={1} style={styles.productCategory}>
+            {product?.category || 'Groceries'}
+          </Text>
+          <Text style={styles.productPrice}>{formatCurrency(product?.price || 0)}</Text>
+        </View>
+
         <Text numberOfLines={2} style={styles.productName}>
           {product?.name || 'Unnamed product'}
         </Text>
-        <Text numberOfLines={1} style={styles.productMeta}>
-          {product?.category || 'Groceries'}
-        </Text>
-      </View>
 
-      <View style={styles.productMetaColumn}>
-        <Text style={styles.productPrice}>
-          {formatCurrency(product?.price || 0)}
-        </Text>
-        <View
-          style={[
-            styles.productStatusPill,
-            isAvailable
-              ? styles.productStatusPillAvailable
-              : styles.productStatusPillUnavailable,
-          ]}
-        >
-          <Text
+        <View style={styles.productBottomRow}>
+          <View
             style={[
-              styles.productStatusLabel,
+              styles.productStatusPill,
               isAvailable
-                ? styles.productStatusLabelAvailable
-                : styles.productStatusLabelUnavailable,
+                ? styles.productStatusPillAvailable
+                : styles.productStatusPillUnavailable,
             ]}
           >
-            {isAvailable ? 'Ready' : 'Out of stock'}
-          </Text>
+            <Text
+              style={[
+                styles.productStatusLabel,
+                isAvailable
+                  ? styles.productStatusLabelAvailable
+                  : styles.productStatusLabelUnavailable,
+              ]}
+            >
+              {isAvailable ? 'Ready' : 'Out of stock'}
+            </Text>
+          </View>
+
+          {canOpenDetails ? (
+            <View style={styles.productHintRow}>
+              <Text style={styles.productHintLabel}>View details</Text>
+              <DirectionalHint
+                chevronSize={7}
+                color={UI_COLORS.mutedStrong}
+                mode="plain"
+                size={16}
+              />
+            </View>
+          ) : null}
         </View>
       </View>
     </ScalePressable>
@@ -144,6 +236,7 @@ function SmartBasketPreviewSheet({
   const sheetOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(28)).current;
   const resolvedProducts = getResolvedProducts(collection);
+  const collectionTags = getCollectionTags(collection);
   const addableCount =
     Number(collection?.addableCount) ||
     resolvedProducts.filter(product => product?.id && product?.stock > 0).length;
@@ -152,6 +245,15 @@ function SmartBasketPreviewSheet({
     Number(collection?.unavailableCount) ||
     resolvedProducts.filter(product => product?.stock <= 0).length;
   const estimatedTotal = getEstimatedTotal(collection, resolvedProducts);
+  const availabilityMessages = getAvailabilityMessages(
+    missingCount,
+    unavailableCount,
+  );
+  const footerNote =
+    availabilityMessages[0] ||
+    (addableCount > 0
+      ? 'Items will appear in your mini cart right away.'
+      : 'Try another basket when more products are available.');
 
   const animateSheet = useCallback(
     ({ isEntering, onComplete } = {}) => {
@@ -258,7 +360,7 @@ function SmartBasketPreviewSheet({
   );
   const animatedSheetStyle = useMemo(
     () => ({
-      maxHeight: Math.min(height * 0.82, 620),
+      maxHeight: Math.min(height * 0.86, 700),
       opacity: sheetOpacity,
       transform: [{ translateY: sheetTranslateY }],
     }),
@@ -294,14 +396,60 @@ function SmartBasketPreviewSheet({
 
           <ScrollView
             bounces={false}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             style={styles.scrollView}
           >
-            <Text style={styles.eyebrow}>Smart basket preview</Text>
-            <Text style={styles.title}>{collection.title || 'Smart basket'}</Text>
-            {collection.subtitle ? (
-              <Text style={styles.subtitle}>{collection.subtitle}</Text>
-            ) : null}
+            <View style={styles.heroCard}>
+              <View pointerEvents="none" style={styles.heroGlowLarge} />
+              <View pointerEvents="none" style={styles.heroGlowSmall} />
+
+              <View style={styles.heroTopRow}>
+                <View style={styles.heroEyebrowPill}>
+                  <Text style={styles.heroEyebrowLabel}>Smart basket preview</Text>
+                </View>
+
+                <View style={styles.heroTotalPill}>
+                  <Text style={styles.heroTotalCaption}>Estimated total</Text>
+                  <Text style={styles.heroTotalValue}>
+                    {formatCurrency(estimatedTotal)}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.title}>{collection.title || 'Smart basket'}</Text>
+              {collection.subtitle ? (
+                <Text style={styles.subtitle}>{collection.subtitle}</Text>
+              ) : null}
+
+              {collectionTags.length ? (
+                <View style={styles.tagRow}>
+                  {collectionTags.map(tag => (
+                    <View key={tag} style={styles.tagChip}>
+                      <Text style={styles.tagLabel}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              <View style={styles.heroBottomRow}>
+                <PreviewCluster products={resolvedProducts} />
+
+                <View style={styles.heroInfoColumn}>
+                  <View style={styles.heroReadyPill}>
+                    <Text style={styles.heroReadyLabel}>
+                      {addableCount} item{addableCount === 1 ? '' : 's'} ready
+                    </Text>
+                  </View>
+
+                  {typeof onSelectProduct === 'function' ? (
+                    <Text style={styles.heroHint}>
+                      Tap any product below to jump into details.
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            </View>
 
             <View style={styles.summaryRow}>
               <SummaryCard
@@ -311,21 +459,28 @@ function SmartBasketPreviewSheet({
                 }`}
               />
               <SummaryCard
-                label="Ready"
+                label="Available"
                 value={`${addableCount} item${addableCount === 1 ? '' : 's'}`}
               />
               <SummaryCard
-                label="Est. total"
+                highlight
+                label="Add now"
                 value={formatCurrency(estimatedTotal)}
               />
             </View>
 
-            <View style={styles.listCard}>
-              <View style={styles.listHeader}>
-                <Text style={styles.listTitle}>Resolved products</Text>
-                {typeof onSelectProduct === 'function' ? (
-                  <Text style={styles.listHint}>Tap an item for details</Text>
-                ) : null}
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionCopy}>
+                  <Text style={styles.sectionEyebrow}>Included right now</Text>
+                  <Text style={styles.sectionTitle}>Basket contents</Text>
+                </View>
+
+                <View style={styles.sectionCountPill}>
+                  <Text style={styles.sectionCountLabel}>
+                    {resolvedProducts.length}
+                  </Text>
+                </View>
               </View>
 
               {resolvedProducts.length ? (
@@ -339,44 +494,67 @@ function SmartBasketPreviewSheet({
                   />
                 ))
               ) : (
-                <Text style={styles.emptyStateText}>
-                  No matching products are available right now.
-                </Text>
+                <View style={styles.emptyStateCard}>
+                  <Text style={styles.emptyStateTitle}>Nothing matched yet</Text>
+                  <Text style={styles.emptyStateText}>
+                    No matching products are available right now.
+                  </Text>
+                </View>
               )}
             </View>
 
-            {missingCount > 0 || unavailableCount > 0 ? (
+            {availabilityMessages.length ? (
               <View style={styles.noteCard}>
-                <Text style={styles.noteTitle}>Availability notes</Text>
-                {missingCount > 0 ? (
-                  <Text style={styles.noteText}>
-                    {missingCount} configured item
-                    {missingCount === 1 ? '' : 's'} could not be matched.
+                <Text style={styles.noteTitle}>Heads up</Text>
+                {availabilityMessages.map(message => (
+                  <Text key={message} style={styles.noteText}>
+                    {message}
                   </Text>
-                ) : null}
-                {unavailableCount > 0 ? (
-                  <Text style={styles.noteText}>
-                    {unavailableCount} product
-                    {unavailableCount === 1 ? '' : 's'} are out of stock and
-                    won&apos;t be added.
-                  </Text>
-                ) : null}
+                ))}
               </View>
             ) : null}
           </ScrollView>
 
-          <View style={styles.buttonStack}>
+          <View style={styles.footerCard}>
+            <View style={styles.footerTopRow}>
+              <View style={styles.footerCopy}>
+                <Text style={styles.footerEyebrow}>
+                  {addableCount > 0
+                    ? `${addableCount} item${addableCount === 1 ? '' : 's'} ready to add`
+                    : 'Nothing ready to add'}
+                </Text>
+                <Text style={styles.footerValue}>
+                  {addableCount > 0
+                    ? formatCurrency(estimatedTotal)
+                    : 'Check back later'}
+                </Text>
+              </View>
+
+              <View style={styles.footerBadge}>
+                <Text style={styles.footerBadgeLabel}>1 tap</Text>
+              </View>
+            </View>
+
+            <Text style={styles.footerNote}>{footerNote}</Text>
+
             <PrimaryButton
               disabled={addableCount <= 0}
               onPress={() => onAddAll?.(collection)}
               style={styles.primaryButton}
               title={addableCount > 0 ? 'Add all to cart' : 'No items available'}
             />
-            <PrimaryButton
+
+            <ScalePressable
+              android_ripple={{ color: '#EDE0D0' }}
               onPress={() => handleDismiss()}
-              title="Close"
-              variant="secondary"
-            />
+              pressScale={0.985}
+              style={({ pressed }) => [
+                styles.closeButton,
+                pressed && styles.closeButtonPressed,
+              ]}
+            >
+              <Text style={styles.closeButtonLabel}>Close</Text>
+            </ScalePressable>
           </View>
         </Animated.View>
       </View>
@@ -391,155 +569,373 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(23, 18, 15, 0.48)',
+    backgroundColor: 'rgba(20, 15, 12, 0.58)',
   },
   sheet: {
-    backgroundColor: UI_COLORS.surface,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    backgroundColor: '#FFF9F2',
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: UI_COLORS.border,
+    borderColor: '#E7D6C2',
     paddingTop: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+    overflow: 'hidden',
     ...UI_SHADOWS.floating,
   },
   handle: {
     alignSelf: 'center',
-    width: 44,
-    height: 4,
+    width: 52,
+    height: 5,
     borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.borderStrong,
-    opacity: 0.55,
-    marginBottom: 18,
+    backgroundColor: '#D4C0A8',
+    opacity: 0.72,
+    marginBottom: 16,
   },
   scrollView: {
     flexGrow: 0,
+    minHeight: 0,
   },
-  eyebrow: {
+  scrollContent: {
+    paddingBottom: 8,
+  },
+  heroCard: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: '#E7D6C2',
+    backgroundColor: '#F4E9D8',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  heroGlowLarge: {
+    position: 'absolute',
+    top: -38,
+    right: -18,
+    width: 126,
+    height: 126,
+    borderRadius: 63,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+  },
+  heroGlowSmall: {
+    position: 'absolute',
+    bottom: -24,
+    left: -14,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: 'rgba(79, 122, 74, 0.08)',
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  heroEyebrowPill: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: 'rgba(255, 253, 250, 0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 253, 250, 0.72)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  heroEyebrowLabel: {
     color: UI_COLORS.accentGreen,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 16,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.45,
-    marginBottom: 8,
+  },
+  heroTotalPill: {
+    alignItems: 'flex-end',
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 253, 250, 0.82)',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  heroTotalCaption: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.32,
+    marginBottom: 4,
+  },
+  heroTotalValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 22,
   },
   title: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.title,
+    marginTop: 14,
   },
   subtitle: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     marginTop: 8,
   },
-  summaryRow: {
+  tagRow: {
     flexDirection: 'row',
-    marginTop: 18,
-    marginBottom: 18,
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 14,
   },
-  summaryCard: {
-    flex: 1,
-    borderRadius: UI_RADIUS.lg,
+  tagChip: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: 'rgba(255, 255, 255, 0.68)',
     borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    backgroundColor: UI_COLORS.surfaceSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderColor: 'rgba(255, 255, 255, 0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  summaryLabel: {
+  tagLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  heroBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  previewCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 58,
+    marginRight: 14,
+  },
+  previewBubble: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.76)',
+    backgroundColor: '#FFFDF9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  previewBubbleOffset: {
+    marginLeft: -12,
+  },
+  previewBubbleImage: {
+    width: '100%',
+    height: '100%',
+  },
+  previewCountBubble: {
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderColor: '#D7E4D2',
+  },
+  previewCountLabel: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  previewFallback: {
+    minWidth: 112,
+    minHeight: 58,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.58)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+  },
+  previewFallbackLabel: {
     color: UI_COLORS.mutedStrong,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 16,
+  },
+  heroInfoColumn: {
+    flex: 1,
+  },
+  heroReadyPill: {
+    alignSelf: 'flex-start',
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: 'rgba(79, 122, 74, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 8,
+  },
+  heroReadyLabel: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+  },
+  heroHint: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  summaryCard: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#EADBCB',
+    backgroundColor: '#FFFDF9',
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+  },
+  summaryCardHighlight: {
+    backgroundColor: '#F0F5EB',
+    borderColor: '#D9E7D5',
+  },
+  summaryLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
     marginBottom: 6,
   },
+  summaryLabelHighlight: {
+    color: UI_COLORS.accentGreen,
+  },
   summaryValue: {
     color: UI_COLORS.textStrong,
-    ...UI_TYPOGRAPHY.bodyStrong,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 19,
   },
-  listCard: {
-    borderRadius: 22,
+  summaryValueHighlight: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  sectionCard: {
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    backgroundColor: UI_COLORS.surfaceSoft,
+    borderColor: '#EADBCB',
+    backgroundColor: '#F7EFE4',
     paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 6,
+    paddingVertical: 14,
+    marginTop: 16,
   },
-  listHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
     gap: 12,
+    marginBottom: 12,
   },
-  listTitle: {
+  sectionCopy: {
+    flex: 1,
+  },
+  sectionEyebrow: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 5,
+  },
+  sectionTitle: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.cardTitle,
   },
-  listHint: {
-    color: UI_COLORS.mutedStrong,
-    fontSize: 12,
+  sectionCountPill: {
+    minWidth: 36,
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: 'rgba(79, 122, 74, 0.11)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  sectionCountLabel: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 13,
+    fontWeight: '800',
     lineHeight: 16,
   },
   productRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: UI_RADIUS.lg,
-    paddingVertical: 10,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#EEE1D4',
+    backgroundColor: '#FFFDF9',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 10,
   },
   productRowPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: '#FFF7EE',
+    borderColor: '#E9D5C0',
   },
   productImageWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    backgroundColor: UI_COLORS.surface,
+    width: 62,
+    height: 62,
+    borderRadius: 20,
+    backgroundColor: '#FFF3E4',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 8,
+    padding: 10,
     marginRight: 12,
   },
   productImage: {
     width: '100%',
     height: '100%',
   },
-  productCopy: {
+  productBody: {
     flex: 1,
-    marginRight: 12,
   },
-  productName: {
-    color: UI_COLORS.textStrong,
-    ...UI_TYPOGRAPHY.bodyStrong,
+  productTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 5,
   },
-  productMeta: {
+  productCategory: {
+    flex: 1,
     color: UI_COLORS.mutedStrong,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 3,
-  },
-  productMetaColumn: {
-    alignItems: 'flex-end',
-    minWidth: 92,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.32,
   },
   productPrice: {
     color: UI_COLORS.textStrong,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     lineHeight: 20,
-    marginBottom: 6,
+  },
+  productName: {
+    color: UI_COLORS.textStrong,
+    fontSize: 17,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  productBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 10,
   },
   productStatusPill: {
     borderRadius: UI_RADIUS.round,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
   },
   productStatusPillAvailable: {
     backgroundColor: UI_COLORS.successSoft,
@@ -549,7 +945,7 @@ const styles = StyleSheet.create({
   },
   productStatusLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     lineHeight: 14,
   },
   productStatusLabelAvailable: {
@@ -558,16 +954,39 @@ const styles = StyleSheet.create({
   productStatusLabelUnavailable: {
     color: UI_COLORS.accentRed,
   },
+  productHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  productHintLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    marginRight: 4,
+  },
+  emptyStateCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#EEE1D4',
+    backgroundColor: '#FFFDF9',
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+  },
+  emptyStateTitle: {
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.bodyStrong,
+    marginBottom: 4,
+  },
   emptyStateText: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.meta,
-    paddingVertical: 12,
   },
   noteCard: {
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    backgroundColor: UI_COLORS.surface,
+    borderColor: '#EADBCB',
+    backgroundColor: '#FFF4EA',
     paddingHorizontal: 14,
     paddingVertical: 14,
     marginTop: 14,
@@ -575,7 +994,7 @@ const styles = StyleSheet.create({
   noteTitle: {
     color: UI_COLORS.textStrong,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     lineHeight: 18,
     marginBottom: 6,
   },
@@ -583,13 +1002,77 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     fontSize: 13,
     lineHeight: 18,
+    marginTop: 3,
   },
-  buttonStack: {
-    marginTop: 18,
-    gap: 10,
+  footerCard: {
+    borderTopWidth: 1,
+    borderTopColor: '#E8D7C4',
+    paddingTop: 14,
+    marginTop: 8,
+  },
+  footerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  footerCopy: {
+    flex: 1,
+  },
+  footerEyebrow: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.32,
+    marginBottom: 4,
+  },
+  footerValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 24,
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+  footerBadge: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: '#F2E6D8',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  footerBadgeLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+  },
+  footerNote: {
+    color: UI_COLORS.mutedStrong,
+    ...UI_TYPOGRAPHY.meta,
+    marginTop: 8,
+    marginBottom: 14,
   },
   primaryButton: {
     marginBottom: 0,
+  },
+  closeButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 46,
+    marginTop: 10,
+    borderRadius: UI_RADIUS.xl,
+    backgroundColor: '#F3E7D9',
+    borderWidth: 1,
+    borderColor: '#E6D5C2',
+  },
+  closeButtonPressed: {
+    opacity: 0.88,
+  },
+  closeButtonLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
   },
 });
 

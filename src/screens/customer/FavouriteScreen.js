@@ -269,20 +269,20 @@ function FavouriteScreen({ navigation }) {
                   style={styles.emptyImage}
                 />
               </View>
-              <Text style={styles.emptyTitle}>No saved items yet</Text>
+              <Text style={styles.emptyTitle}>No saved groceries yet</Text>
               <Text style={styles.emptySubtitle}>
-                Tap the heart on a product to keep it here for later.
+                Save regular items so you can buy them again quickly.
               </Text>
               <ScalePressable
                 android_ripple={{ color: '#3D5F39' }}
-                onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
+                onPress={() => navigation.navigate(CUSTOMER_ROUTES.EXPLORE)}
                 pressScale={0.985}
                 style={({ pressed }) => [
                   styles.primaryButton,
                   pressed && styles.primaryButtonPressed,
                 ]}
               >
-                <Text style={styles.primaryButtonLabel}>Go to shop</Text>
+                <Text style={styles.primaryButtonLabel}>Explore products</Text>
               </ScalePressable>
             </View>
           ) : null}
@@ -463,7 +463,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   primaryButton: {
-    minWidth: 180,
+    width: '100%',
+    maxWidth: 240,
     minHeight: UI_LAYOUT.ctaHeight,
     backgroundColor: UI_COLORS.accentGreen,
     borderRadius: 16,

@@ -342,13 +342,9 @@ function CartScreen({ navigation }) {
                   style={styles.emptyImage}
                 />
               </View>
-              <Text style={styles.emptyTitle}>Your cart is empty</Text>
+              <Text style={styles.emptyTitle}>Your basket is empty</Text>
               <Text style={styles.emptySubtitle}>
-                Add a few groceries to start building your order.
-              </Text>
-              <Text style={styles.emptyHint}>
-                Smart baskets, budget picks, and recipe bundles will show up
-                here once you add them.
+                Try a Smart Basket to get started faster.
               </Text>
               <ScalePressable
                 android_ripple={{ color: '#3D5F39' }}
@@ -360,7 +356,7 @@ function CartScreen({ navigation }) {
                 ]}
               >
                 <Text style={styles.emptyStateButtonLabel}>
-                  Continue shopping
+                  Browse Smart Baskets
                 </Text>
               </ScalePressable>
             </View>
@@ -587,17 +583,12 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyHint: {
-    color: UI_COLORS.successText,
-    ...UI_TYPOGRAPHY.meta,
     marginBottom: 22,
     textAlign: 'center',
   },
   emptyStateButton: {
-    minWidth: 220,
+    width: '100%',
+    maxWidth: 260,
     minHeight: UI_LAYOUT.ctaHeight,
     backgroundColor: UI_COLORS.accentGreen,
     borderRadius: UI_RADIUS.xl,

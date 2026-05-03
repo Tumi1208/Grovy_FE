@@ -71,6 +71,25 @@ function getCollectionHint(collection) {
   return 'Waiting for matching products';
 }
 
+function getCollectionEyebrow(variant) {
+  return variant === 'recipe' ? 'Recipe to cart' : 'Smart basket';
+}
+
+function getCollectionAvailabilitySummary(collection) {
+  const totalCount = Number(collection?.itemCount) || 0;
+  const addableCount = Number(collection?.addableCount) || 0;
+
+  if (!totalCount) {
+    return 'Matching groceries will appear here as the catalog refreshes.';
+  }
+
+  if (addableCount >= totalCount) {
+    return 'All ingredients are ready for one-tap add.';
+  }
+
+  return `${addableCount} of ${totalCount} groceries are ready right now.`;
+}
+
 function getBudgetHint(budget, estimatedTotal) {
   const normalizedBudget = Number(budget);
   const normalizedTotal = Number(estimatedTotal);
@@ -147,7 +166,7 @@ function CollectionActionButton({ disabled, label, onPress }) {
       android_ripple={{ color: '#3C6240' }}
       disabled={disabled}
       onPress={onPress}
-      pressScale={0.96}
+      pressScale={0.985}
       style={({ pressed }) => [
         styles.actionButton,
         disabled && styles.actionButtonDisabled,
@@ -182,7 +201,7 @@ function SmartCollectionCard({
       android_ripple={{ color: '#EFE5D8' }}
       disabled={!collection.previewProducts?.length}
       onPress={() => onPress?.(collection)}
-      pressScale={0.992}
+      pressScale={0.988}
       style={({ pressed }) => [
         styles.collectionCard,
         {
@@ -193,22 +212,60 @@ function SmartCollectionCard({
         pressed && styles.collectionCardPressed,
       ]}
     >
-      <View style={styles.collectionTopRow}>
-        <PreviewStack products={collection.previewProducts} variant={variant} />
-        <View
-          style={[
-            styles.collectionBadge,
-            { backgroundColor: variantStyles.badgeBackground },
-          ]}
-        >
-          <Text
+      <View
+        style={[
+          styles.collectionPreviewPanel,
+          { borderColor: variantStyles.previewBorder },
+        ]}
+      >
+        <View style={styles.collectionTopRow}>
+          <View
             style={[
-              styles.collectionBadgeLabel,
-              { color: variantStyles.badgeText },
+              styles.collectionEyebrowBadge,
+              { backgroundColor: variantStyles.badgeBackground },
             ]}
           >
-            {getItemCountLabel(collection.itemCount)}
-          </Text>
+            <Text
+              style={[
+                styles.collectionEyebrowBadgeLabel,
+                { color: variantStyles.badgeText },
+              ]}
+            >
+              {getCollectionEyebrow(variant)}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.collectionBadge,
+              { backgroundColor: variantStyles.previewBackground },
+            ]}
+          >
+            <Text
+              style={[
+                styles.collectionBadgeLabel,
+                { color: variantStyles.badgeText },
+              ]}
+            >
+              {getItemCountLabel(collection.itemCount)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.collectionPreviewContent}>
+          <PreviewStack
+            products={collection.previewProducts}
+            variant={variant}
+          />
+          <View style={styles.collectionPreviewSummary}>
+            <Text style={styles.collectionPreviewSummaryLabel}>Grovy note</Text>
+            <Text
+              numberOfLines={2}
+              style={styles.collectionPreviewSummaryValue}
+            >
+              {getCollectionAvailabilitySummary(collection)}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -244,9 +301,12 @@ function SmartCollectionCard({
         </View>
       </View>
 
-      <Text numberOfLines={2} style={styles.collectionHint}>
-        {getCollectionHint(collection)}
-      </Text>
+      <View style={styles.collectionHintCard}>
+        <Text style={styles.collectionHintEyebrow}>Why it helps</Text>
+        <Text numberOfLines={2} style={styles.collectionHint}>
+          {getCollectionHint(collection)}
+        </Text>
+      </View>
 
       <CollectionActionButton
         disabled={!hasAddableProducts}
@@ -274,7 +334,9 @@ export function HomeSmartCollectionRow({
 
   return (
     <FlatList
+      bounces={false}
       horizontal
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.railContent}
       data={items}
       decelerationRate="fast"
@@ -312,6 +374,10 @@ export function HomeBudgetModePanel({
   const hiddenProductCount = hasSuggestion
     ? Math.max(0, suggestion.products.length - previewProducts.length)
     : 0;
+  const selectedBudget = Number(selectedPreset?.budget) || 0;
+  const remainingBudget = hasSuggestion
+    ? Math.max(0, selectedBudget - suggestion.estimatedTotal)
+    : selectedBudget;
 
   return (
     <View style={styles.budgetPanel}>
@@ -332,13 +398,21 @@ export function HomeBudgetModePanel({
               key={preset.id}
               android_ripple={{ color: '#DCE8D9' }}
               onPress={() => onSelectPreset?.(preset)}
-              pressScale={0.97}
+              pressScale={0.985}
               style={({ pressed }) => [
                 styles.budgetPresetChip,
                 isActive && styles.budgetPresetChipActive,
                 pressed && styles.budgetPresetChipPressed,
               ]}
             >
+              <Text
+                style={[
+                  styles.budgetPresetChipAmount,
+                  isActive && styles.budgetPresetChipAmountActive,
+                ]}
+              >
+                {formatCurrency(preset.budget)}
+              </Text>
               <Text
                 style={[
                   styles.budgetPresetChipLabel,
@@ -350,6 +424,26 @@ export function HomeBudgetModePanel({
             </ScalePressable>
           );
         })}
+      </View>
+
+      <View style={styles.budgetPresetSummaryCard}>
+        <View style={styles.budgetPresetSummaryCopy}>
+          <Text style={styles.budgetPresetSummaryEyebrow}>Selected mode</Text>
+          <Text style={styles.budgetPresetSummaryTitle}>
+            {selectedPreset?.label || 'Budget basket'}
+          </Text>
+          <Text style={styles.budgetPresetSummarySubtitle}>
+            {selectedPreset?.description ||
+              'Let Grovy balance your essentials within a budget.'}
+          </Text>
+        </View>
+
+        <View style={styles.budgetPresetSummaryPill}>
+          <Text style={styles.budgetPresetSummaryPillLabel}>Cap</Text>
+          <Text style={styles.budgetPresetSummaryPillValue}>
+            {formatCurrency(selectedBudget)}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.budgetResultCard}>
@@ -373,6 +467,27 @@ export function HomeBudgetModePanel({
             <Text style={styles.budgetTotalCaption}>Estimated</Text>
             <Text style={styles.budgetTotalLabel}>
               {formatCurrency(suggestion.estimatedTotal)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.budgetMetricRow}>
+          <View style={styles.budgetMetricCard}>
+            <Text style={styles.budgetMetricLabel}>Budget cap</Text>
+            <Text style={styles.budgetMetricValue}>
+              {formatCurrency(selectedBudget)}
+            </Text>
+          </View>
+          <View style={styles.budgetMetricCard}>
+            <Text style={styles.budgetMetricLabel}>Items picked</Text>
+            <Text style={styles.budgetMetricValue}>
+              {suggestion.products.length}
+            </Text>
+          </View>
+          <View style={styles.budgetMetricCard}>
+            <Text style={styles.budgetMetricLabel}>Left to spend</Text>
+            <Text style={styles.budgetMetricValue}>
+              {formatCurrency(remainingBudget)}
             </Text>
           </View>
         </View>
@@ -472,17 +587,36 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 1,
     padding: 18,
-    minHeight: 268,
+    minHeight: 318,
     ...UI_SHADOWS.card,
   },
   collectionCardPressed: {
-    opacity: 0.97,
+    opacity: 0.985,
+  },
+  collectionPreviewPanel: {
+    borderRadius: 22,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.48)',
+    padding: 14,
+    marginBottom: 18,
   },
   collectionTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    marginBottom: 14,
+  },
+  collectionEyebrowBadge: {
+    borderRadius: UI_RADIUS.round,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  collectionEyebrowBadgeLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.32,
   },
   collectionBadge: {
     borderRadius: UI_RADIUS.round,
@@ -495,16 +629,38 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 16,
   },
+  collectionPreviewContent: {
+    alignItems: 'flex-start',
+  },
+  collectionPreviewSummary: {
+    width: '100%',
+    marginTop: 12,
+  },
+  collectionPreviewSummaryLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.36,
+    marginBottom: 6,
+  },
+  collectionPreviewSummaryValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
   collectionTitle: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.title,
-    minHeight: 52,
+    minHeight: 48,
   },
   collectionSubtitle: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.meta,
     marginTop: 6,
-    minHeight: 40,
+    minHeight: 38,
   },
   collectionTagRow: {
     flexDirection: 'row',
@@ -562,6 +718,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     minHeight: 34,
+  },
+  collectionHintCard: {
+    marginTop: 2,
+    marginBottom: 2,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.56)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  collectionHintEyebrow: {
+    color: UI_COLORS.textStrong,
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.36,
+    marginBottom: 5,
   },
   actionButton: {
     marginTop: 'auto',
@@ -634,7 +809,19 @@ const styles = StyleSheet.create({
     borderColor: '#D7E4D4',
   },
   budgetPresetChipPressed: {
-    opacity: 0.9,
+    opacity: 0.95,
+  },
+  budgetPresetChipAmount: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 3,
+  },
+  budgetPresetChipAmountActive: {
+    color: UI_COLORS.accentGreen,
   },
   budgetPresetChipLabel: {
     color: UI_COLORS.mutedStrong,
@@ -644,6 +831,66 @@ const styles = StyleSheet.create({
   },
   budgetPresetChipLabelActive: {
     color: UI_COLORS.accentGreen,
+  },
+  budgetPresetSummaryCard: {
+    borderRadius: 20,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  budgetPresetSummaryCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  budgetPresetSummaryEyebrow: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.36,
+    marginBottom: 5,
+  },
+  budgetPresetSummaryTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 20,
+  },
+  budgetPresetSummarySubtitle: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  budgetPresetSummaryPill: {
+    borderRadius: 16,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minWidth: 82,
+    alignItems: 'center',
+  },
+  budgetPresetSummaryPillLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.34,
+    marginBottom: 4,
+  },
+  budgetPresetSummaryPillValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 18,
   },
   budgetResultCard: {
     borderRadius: 24,
@@ -692,6 +939,35 @@ const styles = StyleSheet.create({
   budgetTotalLabel: {
     color: UI_COLORS.textStrong,
     fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  budgetMetricRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  budgetMetricCard: {
+    flex: 1,
+    borderRadius: 18,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  budgetMetricLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.34,
+    marginBottom: 4,
+  },
+  budgetMetricValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 14,
     fontWeight: '800',
     lineHeight: 18,
   },

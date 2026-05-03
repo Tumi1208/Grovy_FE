@@ -1,13 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  LayoutAnimation,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  UIManager,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryFallbackImage } from '../../assets/productImages';
 import DirectionalHint from '../../components/DirectionalHint';
+import HomeProductCard from '../../components/home/HomeProductCard';
 import PrimaryButton from '../../components/PrimaryButton';
-import ProductCard from '../../components/ProductCard';
 import ProductImage from '../../components/ProductImage';
 import ProductQuickActionsSheet from '../../components/ProductQuickActionsSheet';
 import ScalePressable from '../../components/ScalePressable';
+import { getProductImage } from '../../constants/productImages';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
@@ -33,6 +43,13 @@ const FALLBACK_CATEGORY_COLORS = Object.freeze({
   backgroundColor: '#F2EEE8',
   borderColor: '#E2D8CC',
 });
+
+if (
+  Platform.OS === 'android' &&
+  typeof UIManager.setLayoutAnimationEnabledExperimental === 'function'
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 function normalizeLookupKey(value) {
   return typeof value === 'string' && value.trim()
@@ -62,16 +79,78 @@ function createDerivedCategoryCard(category) {
   };
 }
 
-function SearchGlyph({ color = UI_COLORS.mutedStrong }) {
+function configureExploreFilterLayout() {
+  LayoutAnimation.configureNext({
+    duration: 180,
+    create: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+    update: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+    },
+    delete: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+  });
+}
+
+function SearchGlyph({ color = UI_COLORS.mutedStrong, style }) {
   return (
-    <View style={styles.searchGlyph}>
+    <View style={[styles.searchGlyph, style]}>
       <View style={[styles.searchGlyphCircle, { borderColor: color }]} />
       <View style={[styles.searchGlyphHandle, { backgroundColor: color }]} />
     </View>
   );
 }
 
-function ExploreCategoryCard({ card, itemCount, onPress }) {
+function ExploreFilterChip({
+  count,
+  isActive = false,
+  label,
+  onPress,
+  testID,
+}) {
+  return (
+    <ScalePressable
+      android_ripple={{ color: '#E6EEE3' }}
+      onPress={onPress}
+      pressScale={0.98}
+      style={styles.filterChipShell}
+      testID={testID}
+    >
+      <View style={[styles.filterChip, isActive && styles.filterChipActive]}>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.filterChipLabel,
+            isActive && styles.filterChipLabelActive,
+          ]}
+        >
+          {label}
+        </Text>
+        <View
+          style={[
+            styles.filterChipCount,
+            isActive && styles.filterChipCountActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.filterChipCountLabel,
+              isActive && styles.filterChipCountLabelActive,
+            ]}
+          >
+            {count}
+          </Text>
+        </View>
+      </View>
+    </ScalePressable>
+  );
+}
+
+function ExploreCategoryCard({ card, isActive = false, itemCount, onPress }) {
   return (
     <ScalePressable
       android_ripple={{ color: '#EDE4D8' }}
@@ -83,6 +162,7 @@ function ExploreCategoryCard({ card, itemCount, onPress }) {
           backgroundColor: card.backgroundColor,
           borderColor: card.borderColor,
         },
+        isActive && styles.categoryCardActive,
         pressed && styles.categoryCardPressed,
       ]}
     >
@@ -93,6 +173,20 @@ function ExploreCategoryCard({ card, itemCount, onPress }) {
               {formatResultCount(itemCount, 'item')}
             </Text>
           </View>
+          {isActive ? (
+            <View style={styles.categorySelectionPill}>
+              <Text style={styles.categorySelectionPillLabel}>
+                Quick filter on
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        <Text style={styles.categoryLabel}>{card.title}</Text>
+        <Text style={styles.categoryDescription}>{card.description}</Text>
+
+        <View style={styles.categoryFooterRow}>
+          <Text style={styles.categoryActionLabel}>Open aisle</Text>
           <DirectionalHint
             chevronSize={8}
             color={UI_COLORS.mutedStrong}
@@ -101,9 +195,6 @@ function ExploreCategoryCard({ card, itemCount, onPress }) {
             style={styles.categoryIndicator}
           />
         </View>
-
-        <Text style={styles.categoryLabel}>{card.title}</Text>
-        <Text style={styles.categoryDescription}>{card.description}</Text>
       </View>
 
       <View style={styles.categoryImageWrap}>
@@ -120,11 +211,13 @@ function ExploreCategoryCard({ card, itemCount, onPress }) {
 
 function ExploreScreen({ navigation }) {
   const { addToCart } = useCart();
-  const { addToFavourites, isFavourite, toggleFavourite } = useFavourite();
+  const { addToFavourites, isFavourite } = useFavourite();
   const [products, setProducts] = useState(CUSTOMER_DEMO_PRODUCTS);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedQuickActionProduct, setSelectedQuickActionProduct] =
     useState(null);
 
@@ -167,6 +260,10 @@ function ExploreScreen({ navigation }) {
     [searchQuery],
   );
   const hasSearchQuery = Boolean(normalizedQuery);
+  const selectedCategoryKey = useMemo(
+    () => normalizeLookupKey(selectedCategory),
+    [selectedCategory],
+  );
 
   const categoryCounts = useMemo(
     () =>
@@ -206,6 +303,24 @@ function ExploreScreen({ navigation }) {
     return Array.from(cardsByCategory.values());
   }, [products]);
 
+  const selectedCategoryCard = useMemo(
+    () =>
+      searchableCategories.find(
+        card => normalizeLookupKey(card.category) === selectedCategoryKey,
+      ) || null,
+    [searchableCategories, selectedCategoryKey],
+  );
+
+  const selectedCategoryProducts = useMemo(() => {
+    if (!selectedCategoryKey) {
+      return [];
+    }
+
+    return products.filter(
+      product => normalizeLookupKey(product.category) === selectedCategoryKey,
+    );
+  }, [products, selectedCategoryKey]);
+
   const productMatches = useMemo(() => {
     if (!hasSearchQuery) {
       return [];
@@ -218,7 +333,7 @@ function ExploreScreen({ navigation }) {
 
   const categoryMatches = useMemo(() => {
     if (!hasSearchQuery) {
-      return EXPLORE_CATEGORY_CARDS;
+      return searchableCategories;
     }
 
     return searchableCategories.filter(card =>
@@ -226,22 +341,75 @@ function ExploreScreen({ navigation }) {
     );
   }, [hasSearchQuery, normalizedQuery, searchableCategories]);
 
-  const visibleCategories = hasSearchQuery
-    ? categoryMatches
-    : EXPLORE_CATEGORY_CARDS;
-  const hasNoResults =
-    hasSearchQuery &&
-    productMatches.length === 0 &&
-    categoryMatches.length === 0;
+  const visibleCategories = categoryMatches;
+  const visibleProducts = hasSearchQuery
+    ? productMatches
+    : selectedCategoryProducts;
+  const hasSelectedCategory = Boolean(selectedCategoryCard);
+  const hasProductResults = visibleProducts.length > 0;
+  const hasNoResults = hasSearchQuery
+    ? productMatches.length === 0 && categoryMatches.length === 0
+    : hasSelectedCategory && selectedCategoryProducts.length === 0;
   const resultLabel = hasSearchQuery
     ? `${formatResultCount(
         productMatches.length,
         'product',
       )}, ${formatResultCount(categoryMatches.length, 'aisle')}`
-    : formatResultCount(visibleCategories.length, 'aisle');
+    : hasSelectedCategory
+    ? `${formatResultCount(selectedCategoryProducts.length, 'product')} in ${
+        selectedCategoryCard.title
+      }`
+    : `${formatResultCount(visibleCategories.length, 'aisle')} to browse`;
+  const resultSupportLabel = hasSearchQuery
+    ? hasSelectedCategory
+      ? `Search is showing matches across every aisle. Clear search to return to ${selectedCategoryCard.title}.`
+      : 'Search checks specific products first, then matching aisle cards.'
+    : hasSelectedCategory
+    ? `Quick filter is previewing ${selectedCategoryCard.title}. Tap the aisle card below to open the full aisle page.`
+    : 'Use a quick aisle filter for product previews or open an aisle card for the full page.';
+  const productSectionTitle = hasSearchQuery
+    ? 'Products'
+    : selectedCategoryCard
+    ? `Browse ${selectedCategoryCard.title}`
+    : 'Products';
+  const productSectionMeta = hasSearchQuery
+    ? formatResultCount(productMatches.length, 'match', 'matches')
+    : formatResultCount(selectedCategoryProducts.length, 'product');
+  const categorySectionTitle = hasSearchQuery
+    ? 'Matching aisles'
+    : 'Aisles to browse';
+  const emptyStateTitle = hasSearchQuery
+    ? `No matches for "${searchQuery.trim()}"`
+    : `No items in ${selectedCategoryCard?.title || 'this aisle'} yet`;
+  const emptyStateSubtitle = hasSearchQuery
+    ? 'Try another product keyword or browse the aisle list below.'
+    : 'Clear the aisle filter to jump back to every aisle.';
 
   function handleClearSearch() {
+    configureExploreFilterLayout();
     setSearchQuery('');
+  }
+
+  function handleSelectCategory(card) {
+    if (!card?.category) {
+      return;
+    }
+
+    configureExploreFilterLayout();
+    setSelectedCategory(currentCategory =>
+      normalizeLookupKey(currentCategory) === normalizeLookupKey(card.category)
+        ? ''
+        : card.category,
+    );
+  }
+
+  function handleClearCategoryFilter() {
+    if (!selectedCategoryKey) {
+      return;
+    }
+
+    configureExploreFilterLayout();
+    setSelectedCategory('');
   }
 
   function getCategoryCount(category) {
@@ -327,10 +495,30 @@ function ExploreScreen({ navigation }) {
             </View>
           ) : null}
 
-          <View style={styles.searchBar}>
-            <SearchGlyph />
+          <View
+            style={[
+              styles.searchBar,
+              isSearchFocused && styles.searchBarFocused,
+            ]}
+          >
+            <View
+              style={[
+                styles.searchGlyphWrap,
+                isSearchFocused && styles.searchGlyphWrapFocused,
+              ]}
+            >
+              <SearchGlyph
+                color={
+                  isSearchFocused
+                    ? UI_COLORS.accentGreen
+                    : UI_COLORS.mutedStrong
+                }
+              />
+            </View>
             <TextInput
               onChangeText={setSearchQuery}
+              onBlur={() => setIsSearchFocused(false)}
+              onFocus={() => setIsSearchFocused(true)}
               placeholder="Search groceries and aisles"
               placeholderTextColor={UI_COLORS.muted}
               style={styles.searchInput}
@@ -350,29 +538,76 @@ function ExploreScreen({ navigation }) {
               </ScalePressable>
             ) : null}
           </View>
+          <Text style={styles.searchHelper}>
+            Search specific groceries like eggs, apples, or cola, or jump into
+            an aisle below.
+          </Text>
 
           <View style={styles.resultRow}>
             <Text style={styles.resultLabel}>{resultLabel}</Text>
+            <Text style={styles.resultSupportLabel}>{resultSupportLabel}</Text>
           </View>
 
-          {hasSearchQuery && productMatches.length > 0 ? (
+          <View style={styles.filterPanel}>
+            <View style={styles.filterHeader}>
+              <View style={styles.filterHeaderCopy}>
+                <Text style={styles.filterTitle}>Quick aisle filters</Text>
+                <Text style={styles.filterSubtitle}>
+                  Preview products from one aisle without leaving Explore.
+                </Text>
+              </View>
+              {hasSelectedCategory ? (
+                <ScalePressable
+                  android_ripple={{ color: '#E8DED2' }}
+                  onPress={handleClearCategoryFilter}
+                  pressScale={0.96}
+                  style={styles.clearFilterButtonShell}
+                  testID="explore-clear-filter"
+                >
+                  <View style={styles.clearFilterButton}>
+                    <Text style={styles.clearFilterButtonLabel}>
+                      Clear filter
+                    </Text>
+                  </View>
+                </ScalePressable>
+              ) : null}
+            </View>
+
+            <ScrollView
+              horizontal
+              contentContainerStyle={styles.filterScrollerContent}
+              showsHorizontalScrollIndicator={false}
+            >
+              {searchableCategories.map(card => (
+                <ExploreFilterChip
+                  count={getCategoryCount(card.category)}
+                  isActive={
+                    selectedCategoryKey === normalizeLookupKey(card.category)
+                  }
+                  key={card.id}
+                  label={card.title}
+                  onPress={() => handleSelectCategory(card)}
+                  testID={`explore-filter-chip-${card.id}`}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          {hasProductResults ? (
             <>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Products</Text>
-                <Text style={styles.sectionMeta}>
-                  {formatResultCount(productMatches.length, 'match', 'matches')}
-                </Text>
+                <Text style={styles.sectionTitle}>{productSectionTitle}</Text>
+                <Text style={styles.sectionMeta}>{productSectionMeta}</Text>
               </View>
 
               <View style={styles.productGrid}>
-                {productMatches.map(product => (
-                  <ProductCard
-                    isFavourite={isFavourite(product.id)}
+                {visibleProducts.map(product => (
+                  <HomeProductCard
                     key={product.id}
+                    imageSource={getProductImage(product.imageKey)}
                     onAddToCart={handleQuickAddToCart}
                     onLongPress={handleOpenQuickActions}
                     onPress={handleOpenProduct}
-                    onToggleFavourite={toggleFavourite}
                     product={product}
                     style={styles.productCardCell}
                   />
@@ -383,22 +618,25 @@ function ExploreScreen({ navigation }) {
 
           {visibleCategories.length > 0 ? (
             <>
-              {hasSearchQuery ? (
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Aisles</Text>
-                  <Text style={styles.sectionMeta}>
-                    {formatResultCount(
-                      visibleCategories.length,
-                      'match',
-                      'matches',
-                    )}
-                  </Text>
-                </View>
-              ) : null}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{categorySectionTitle}</Text>
+                <Text style={styles.sectionMeta}>
+                  {hasSearchQuery
+                    ? formatResultCount(
+                        visibleCategories.length,
+                        'match',
+                        'matches',
+                      )
+                    : formatResultCount(visibleCategories.length, 'aisle')}
+                </Text>
+              </View>
 
               {visibleCategories.map(card => (
                 <ExploreCategoryCard
                   card={card}
+                  isActive={
+                    selectedCategoryKey === normalizeLookupKey(card.category)
+                  }
                   itemCount={getCategoryCount(card.category)}
                   key={card.id}
                   onPress={handleOpenCategory}
@@ -409,15 +647,26 @@ function ExploreScreen({ navigation }) {
 
           {hasNoResults ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateTitle}>No results found</Text>
+              <View style={styles.emptyStateGlyphWrap}>
+                <SearchGlyph
+                  color={UI_COLORS.accentGreen}
+                  style={styles.emptyStateGlyph}
+                />
+              </View>
+              <Text style={styles.emptyStateEyebrow}>Keep exploring</Text>
+              <Text style={styles.emptyStateTitle}>{emptyStateTitle}</Text>
               <Text style={styles.emptyStateSubtitle}>
-                Try another keyword or browse all aisles.
+                {emptyStateSubtitle}
               </Text>
               <View style={styles.emptyStateActionWrap}>
                 <PrimaryButton
-                  onPress={handleClearSearch}
+                  onPress={
+                    hasSearchQuery
+                      ? handleClearSearch
+                      : handleClearCategoryFilter
+                  }
                   style={styles.emptyStateButton}
-                  title="Clear Search"
+                  title={hasSearchQuery ? 'Clear Search' : 'Clear Filter'}
                   variant="secondary"
                 />
               </View>
@@ -453,7 +702,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingTop: 12,
-    paddingBottom: 132,
+    paddingBottom: UI_LAYOUT.bottomNavContentInset + 48,
   },
   title: {
     color: UI_COLORS.textStrong,
@@ -494,17 +743,34 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.surface,
     borderRadius: UI_RADIUS.xl,
     borderWidth: 1,
-    borderColor: UI_COLORS.border,
-    paddingHorizontal: 16,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 12,
     minHeight: UI_LAYOUT.searchHeight,
-    marginBottom: 14,
     ...UI_SHADOWS.card,
+  },
+  searchBarFocused: {
+    borderColor: '#D7E4D4',
+    backgroundColor: UI_COLORS.surfaceWarm,
+  },
+  searchGlyphWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  searchGlyphWrapFocused: {
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderColor: '#D7E4D4',
   },
   searchGlyph: {
     width: 18,
     height: 18,
     position: 'relative',
-    marginRight: 12,
   },
   searchGlyphCircle: {
     position: 'absolute',
@@ -531,6 +797,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     paddingVertical: 8,
   },
+  searchHelper: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 8,
+  },
   clearSearchButton: {
     width: 28,
     height: 28,
@@ -550,13 +822,121 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   resultRow: {
-    marginBottom: 14,
+    marginTop: 14,
+    marginBottom: 16,
   },
   resultLabel: {
     color: UI_COLORS.mutedStrong,
+    fontSize: 13.5,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  resultSupportLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  filterPanel: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 16,
+    marginBottom: 18,
+    ...UI_SHADOWS.card,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  filterHeaderCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  filterTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  filterSubtitle: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  clearFilterButtonShell: {
+    marginLeft: 10,
+  },
+  clearFilterButton: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  clearFilterButtonLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  filterScrollerContent: {
+    paddingRight: 2,
+  },
+  filterChipShell: {
+    marginRight: 10,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingLeft: 14,
+    paddingRight: 8,
+    paddingVertical: 9,
+  },
+  filterChipActive: {
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderColor: '#D7E4D4',
+  },
+  filterChipLabel: {
+    color: UI_COLORS.textStrong,
     fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 17,
+    fontWeight: '700',
+    lineHeight: 16,
+    maxWidth: 124,
+  },
+  filterChipLabelActive: {
+    color: UI_COLORS.accentGreen,
+  },
+  filterChipCount: {
+    minWidth: 24,
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surface,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChipCountActive: {
+    backgroundColor: '#EAF3E8',
+  },
+  filterChipCountLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 13,
+  },
+  filterChipCountLabelActive: {
+    color: UI_COLORS.accentGreen,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -593,7 +973,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: UI_COLORS.surface,
     ...UI_SHADOWS.card,
+  },
+  categoryCardActive: {
+    borderColor: '#C7DABF',
+    shadowOpacity: 0.11,
   },
   categoryCardPressed: {
     opacity: 0.98,
@@ -622,8 +1007,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 13,
   },
+  categorySelectionPill: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: '#EEF5EB',
+    borderWidth: 1,
+    borderColor: '#D7E4D4',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginLeft: 10,
+  },
+  categorySelectionPillLabel: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 13,
+  },
   categoryIndicator: {
-    marginLeft: 12,
+    marginLeft: 2,
   },
   categoryLabel: {
     color: UI_COLORS.textStrong,
@@ -636,6 +1036,18 @@ const styles = StyleSheet.create({
     ...UI_TYPOGRAPHY.meta,
     marginTop: 8,
     maxWidth: '88%',
+  },
+  categoryFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  categoryActionLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 17,
+    marginRight: 6,
   },
   categoryImageWrap: {
     width: 88,
@@ -660,6 +1072,30 @@ const styles = StyleSheet.create({
     marginTop: 8,
     alignItems: 'center',
     ...UI_SHADOWS.card,
+  },
+  emptyStateGlyphWrap: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderWidth: 1,
+    borderColor: '#D7E4D4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyStateGlyph: {
+    width: 20,
+    height: 20,
+  },
+  emptyStateEyebrow: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.42,
+    marginBottom: 8,
   },
   emptyStateTitle: {
     color: UI_COLORS.textStrong,

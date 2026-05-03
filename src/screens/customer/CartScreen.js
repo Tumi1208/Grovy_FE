@@ -15,6 +15,7 @@ import {
 } from 'react-native-safe-area-context';
 import { defaultProductImage } from '../../assets/productImages';
 import ProductImage from '../../components/ProductImage';
+import PrimaryButton from '../../components/PrimaryButton';
 import ScalePressable from '../../components/ScalePressable';
 import CartHealthCard from '../../components/cart/CartHealthCard';
 import CartItemRow from '../../components/cart/CartItemRow';
@@ -79,6 +80,8 @@ function CartScreen({ navigation }) {
   const feedbackActionRef = useRef(null);
 
   const hasItems = items.length > 0;
+  const totalItemsLabel = `${totalItems} item${totalItems === 1 ? '' : 's'}`;
+  const subtotalLabel = formatCurrency(subtotal);
 
   const clearFeedbackTimer = useCallback(() => {
     if (!feedbackTimeoutRef.current) {
@@ -265,19 +268,36 @@ function CartScreen({ navigation }) {
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.screen}>
         <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.headerEyebrow}>Grovy assistant</Text>
-            <Text style={styles.headerTitle}>Ready to checkout</Text>
-            <Text style={styles.headerSubtitle}>
-              Review your basket before checkout.
-            </Text>
-          </View>
+          <View style={styles.headerCard}>
+            <View style={styles.headerTopRow}>
+              <View style={styles.headerCopy}>
+                <Text style={styles.headerEyebrow}>Grovy assistant</Text>
+                <Text style={styles.headerTitle}>Ready to checkout</Text>
+                <Text style={styles.headerSubtitle}>
+                  Review your basket before checkout.
+                </Text>
+              </View>
 
-          <View style={styles.headerPill}>
-            <Text style={styles.headerPillValue}>{totalItems}</Text>
-            <Text style={styles.headerPillLabel}>
-              item{totalItems === 1 ? '' : 's'}
-            </Text>
+              <View style={styles.headerPill}>
+                <Text style={styles.headerPillLabel}>Basket</Text>
+                <Text style={styles.headerPillValue}>{totalItems}</Text>
+                <Text style={styles.headerPillMeta}>
+                  item{totalItems === 1 ? '' : 's'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.headerMetaRow}>
+              <View style={[styles.headerMetaCard, styles.headerMetaCardSpaced]}>
+                <Text style={styles.headerMetaLabel}>Items ready</Text>
+                <Text style={styles.headerMetaValue}>{totalItemsLabel}</Text>
+              </View>
+
+              <View style={styles.headerMetaCard}>
+                <Text style={styles.headerMetaLabel}>Current subtotal</Text>
+                <Text style={styles.headerMetaValue}>{subtotalLabel}</Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -307,27 +327,37 @@ function CartScreen({ navigation }) {
 
             <View style={styles.footer}>
               <View style={styles.footerSummary}>
-                <Text style={styles.footerSummaryLabel}>Subtotal</Text>
-                <Text style={styles.footerSummaryValue}>
-                  {formatCurrency(subtotal)}
-                </Text>
-                <Text style={styles.footerSummaryNote}>
-                  Delivery, payment, and final order review on the next step
-                </Text>
+                <Text style={styles.footerSummaryLabel}>Checkout summary</Text>
+                <Text style={styles.footerSummaryValue}>{subtotalLabel}</Text>
+                <View style={styles.footerMetaRow}>
+                  <View style={styles.footerMetaPill}>
+                    <Text style={styles.footerMetaPillLabel}>
+                      {totalItemsLabel}
+                    </Text>
+                  </View>
+                  <Text style={styles.footerSummaryNote}>
+                    Delivery and payment on the next step
+                  </Text>
+                </View>
               </View>
 
               <ScalePressable
                 android_ripple={{ color: '#3D5F39' }}
-                onPress={() => navigation.navigate(CUSTOMER_ROUTES.CHECKOUT)}
+                onPress={handleCheckout}
                 pressScale={0.985}
                 style={({ pressed }) => [
                   styles.checkoutButton,
                   pressed && styles.checkoutButtonPressed,
                 ]}
               >
-                <Text style={styles.checkoutButtonLabel}>
-                  Continue to checkout
-                </Text>
+                <View style={styles.checkoutButtonCopy}>
+                  <Text style={styles.checkoutButtonLabel}>
+                    Continue to checkout
+                  </Text>
+                  <Text style={styles.checkoutButtonHint}>
+                    Review delivery and payment
+                  </Text>
+                </View>
               </ScalePressable>
             </View>
           </>
@@ -342,23 +372,22 @@ function CartScreen({ navigation }) {
                   style={styles.emptyImage}
                 />
               </View>
+              <Text style={styles.emptyEyebrow}>Smart Basket shortcut</Text>
               <Text style={styles.emptyTitle}>Your basket is empty</Text>
               <Text style={styles.emptySubtitle}>
-                Try a Smart Basket to get started faster.
+                Try a Smart Basket to get started faster and return here ready
+                to checkout.
               </Text>
-              <ScalePressable
-                android_ripple={{ color: '#3D5F39' }}
-                onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
-                pressScale={0.985}
-                style={({ pressed }) => [
-                  styles.emptyStateButton,
-                  pressed && styles.emptyStateButtonPressed,
-                ]}
-              >
-                <Text style={styles.emptyStateButtonLabel}>
-                  Browse Smart Baskets
+              <View style={styles.emptyHintPill}>
+                <Text style={styles.emptyHintPillLabel}>
+                  Curated staples for a quicker checkout
                 </Text>
-              </ScalePressable>
+              </View>
+              <PrimaryButton
+                onPress={() => navigation.navigate(CUSTOMER_ROUTES.HOME)}
+                style={styles.emptyActionButton}
+                title="Browse Smart Baskets"
+              />
             </View>
           </View>
         )}
@@ -431,12 +460,22 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.screenLight,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingTop: 10,
     paddingBottom: 18,
+  },
+  headerCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.hero,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 18,
+    ...UI_SHADOWS.card,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
   headerCopy: {
     flex: 1,
@@ -460,25 +499,64 @@ const styles = StyleSheet.create({
     ...UI_TYPOGRAPHY.meta,
     marginTop: 4,
   },
+  headerMetaRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+  },
+  headerMetaCard: {
+    flex: 1,
+    borderRadius: UI_RADIUS.xl,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  headerMetaCardSpaced: {
+    marginRight: 10,
+  },
+  headerMetaLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.32,
+    marginBottom: 6,
+  },
+  headerMetaValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 20,
+  },
   headerPill: {
-    minWidth: 72,
+    minWidth: 86,
     borderRadius: 24,
     backgroundColor: UI_COLORS.accentGreenSoft,
     borderWidth: 1,
     borderColor: '#D6E4D2',
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 6,
+    paddingVertical: 10,
+    marginTop: 4,
     alignItems: 'center',
-    ...UI_SHADOWS.card,
   },
   headerPillValue: {
     color: UI_COLORS.accentGreen,
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
-    lineHeight: 22,
+    lineHeight: 24,
   },
   headerPillLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.32,
+    marginBottom: 4,
+  },
+  headerPillMeta: {
     color: UI_COLORS.mutedStrong,
     fontSize: 12,
     fontWeight: '700',
@@ -487,7 +565,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
-    paddingTop: 2,
+    paddingTop: 6,
     paddingBottom: 214,
   },
   footer: {
@@ -499,13 +577,14 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 9,
+    padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
     ...UI_SHADOWS.floating,
   },
   footerSummary: {
     flex: 1,
+    minWidth: 0,
     paddingHorizontal: 12,
     paddingRight: 10,
   },
@@ -520,30 +599,60 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 24,
   },
+  footerMetaRow: {
+    marginTop: 6,
+  },
+  footerMetaPill: {
+    alignSelf: 'flex-start',
+    borderRadius: UI_RADIUS.pill,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 6,
+  },
+  footerMetaPillLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
   footerSummaryNote: {
     color: UI_COLORS.mutedStrong,
     fontSize: 12,
     lineHeight: 16,
-    marginTop: 4,
-    maxWidth: 172,
   },
   checkoutButton: {
     minHeight: UI_LAYOUT.ctaHeight,
-    minWidth: 176,
+    minWidth: 172,
     backgroundColor: UI_COLORS.accentGreen,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: UI_COLORS.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   checkoutButtonPressed: {
     backgroundColor: UI_COLORS.accentGreenPressed,
   },
+  checkoutButtonCopy: {
+    alignItems: 'center',
+  },
   checkoutButtonLabel: {
     color: UI_COLORS.surface,
     ...UI_TYPOGRAPHY.buttonLarge,
+    textAlign: 'center',
+  },
+  checkoutButtonHint: {
+    color: 'rgba(255, 253, 252, 0.86)',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    marginTop: 2,
+    textAlign: 'center',
   },
   emptyContainer: {
     flex: 1,
@@ -573,6 +682,15 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
   },
+  emptyEyebrow: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.38,
+    marginBottom: 8,
+  },
   emptyTitle: {
     color: UI_COLORS.textStrong,
     fontSize: 24,
@@ -583,27 +701,28 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
-    marginBottom: 22,
+    marginBottom: 14,
     textAlign: 'center',
   },
-  emptyStateButton: {
+  emptyHintPill: {
+    borderRadius: UI_RADIUS.pill,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginBottom: 20,
+  },
+  emptyHintPillLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  emptyActionButton: {
     width: '100%',
     maxWidth: 260,
-    minHeight: UI_LAYOUT.ctaHeight,
-    backgroundColor: UI_COLORS.accentGreen,
-    borderRadius: UI_RADIUS.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 18,
-  },
-  emptyStateButtonPressed: {
-    backgroundColor: UI_COLORS.accentGreenPressed,
-  },
-  emptyStateButtonLabel: {
-    color: UI_COLORS.surface,
-    ...UI_TYPOGRAPHY.buttonLarge,
-    textAlign: 'center',
   },
   feedbackToastContainer: {
     position: 'absolute',

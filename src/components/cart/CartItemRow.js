@@ -74,6 +74,9 @@ function CartItemRow({
   const isAvailable = item.product.stock > 0;
   const isIncreaseDisabled =
     !isAvailable || item.quantity >= item.product.stock;
+  const stockLabel = isAvailable
+    ? `${item.product.stock} in stock`
+    : 'Unavailable';
   const totalPriceLabel = useMemo(
     () => formatCurrency(item.product.price * item.quantity),
     [item.product.price, item.quantity],
@@ -383,20 +386,23 @@ function CartItemRow({
         pointerEvents={isOpen ? 'auto' : 'none'}
         style={[styles.actionRail, styles.leftActionRail]}
       >
-        <ScalePressable
-          accessibilityLabel={`Delete ${item.product.name} from cart`}
-          android_ripple={{ color: '#9D2B2B' }}
-          onPress={handleRemovePress}
-          pressScale={0.97}
-          style={({ pressed }) => [
-            styles.actionButton,
-            styles.deleteActionButton,
-            pressed && styles.deleteActionButtonPressed,
-          ]}
-          testID={`cart-item-delete-action-${item.product.id}`}
-        >
-          <Text style={styles.actionButtonLabel}>Delete</Text>
-        </ScalePressable>
+        <View style={[styles.actionRailPanel, styles.deleteActionRailPanel]}>
+          <ScalePressable
+            accessibilityLabel={`Delete ${item.product.name} from cart`}
+            android_ripple={{ color: '#9D2B2B' }}
+            onPress={handleRemovePress}
+            pressScale={0.97}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.deleteActionButton,
+              pressed && styles.deleteActionButtonPressed,
+            ]}
+            testID={`cart-item-delete-action-${item.product.id}`}
+          >
+            <Text style={styles.actionHintLabel}>Swipe right</Text>
+            <Text style={styles.actionButtonLabel}>Delete</Text>
+          </ScalePressable>
+        </View>
       </View>
 
       <View
@@ -405,20 +411,23 @@ function CartItemRow({
         pointerEvents={isOpen ? 'auto' : 'none'}
         style={[styles.actionRail, styles.rightActionRail]}
       >
-        <ScalePressable
-          accessibilityLabel={`Checkout with ${item.product.name} in cart`}
-          android_ripple={{ color: '#3D5F39' }}
-          onPress={handleCheckoutPress}
-          pressScale={0.97}
-          style={({ pressed }) => [
-            styles.actionButton,
-            styles.checkoutActionButton,
-            pressed && styles.checkoutActionButtonPressed,
-          ]}
-          testID={`cart-item-checkout-action-${item.product.id}`}
-        >
-          <Text style={styles.actionButtonLabel}>Checkout</Text>
-        </ScalePressable>
+        <View style={[styles.actionRailPanel, styles.checkoutActionRailPanel]}>
+          <ScalePressable
+            accessibilityLabel={`Checkout with ${item.product.name} in cart`}
+            android_ripple={{ color: '#3D5F39' }}
+            onPress={handleCheckoutPress}
+            pressScale={0.97}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.checkoutActionButton,
+              pressed && styles.checkoutActionButtonPressed,
+            ]}
+            testID={`cart-item-checkout-action-${item.product.id}`}
+          >
+            <Text style={styles.actionHintLabel}>Swipe left</Text>
+            <Text style={styles.actionButtonLabel}>Checkout</Text>
+          </ScalePressable>
+        </View>
       </View>
 
       <Animated.View
@@ -449,6 +458,21 @@ function CartItemRow({
                     {item.product.category}
                   </Text>
                 </View>
+                <View
+                  style={[
+                    styles.itemStatusPill,
+                    !isAvailable && styles.itemStatusPillUnavailable,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.itemStatusLabel,
+                      !isAvailable && styles.itemStatusLabelUnavailable,
+                    ]}
+                  >
+                    {stockLabel}
+                  </Text>
+                </View>
               </View>
               <Text numberOfLines={2} style={styles.itemName}>
                 {item.product.name}
@@ -457,16 +481,6 @@ function CartItemRow({
                 {subtitle}
               </Text>
               <View style={styles.itemInfoRow}>
-                <Text
-                  style={[
-                    styles.itemStock,
-                    !isAvailable && styles.itemStockUnavailable,
-                  ]}
-                >
-                  {isAvailable
-                    ? `${item.product.stock} available`
-                    : 'Unavailable'}
-                </Text>
                 <Text style={styles.itemEachPrice}>
                   Each {formatCurrency(item.product.price)}
                 </Text>
@@ -481,12 +495,15 @@ function CartItemRow({
                 onPress={() => onDecrease(item.product.id)}
                 testID={`cart-item-decrease-${item.product.id}`}
               />
-              <Animated.Text
-                style={[styles.quantityValue, animatedQuantityValueStyle]}
-                testID={`cart-item-quantity-value-${item.product.id}`}
-              >
-                {item.quantity}
-              </Animated.Text>
+              <View style={styles.quantityValueBadge}>
+                <Text style={styles.quantityValueCaption}>Qty</Text>
+                <Animated.Text
+                  style={[styles.quantityValue, animatedQuantityValueStyle]}
+                  testID={`cart-item-quantity-value-${item.product.id}`}
+                >
+                  {item.quantity}
+                </Animated.Text>
+              </View>
               <QuantityButton
                 disabled={isIncreaseDisabled}
                 isAccent
@@ -537,11 +554,25 @@ const styles = StyleSheet.create({
     padding: ACTION_RAIL_PADDING,
     justifyContent: 'center',
   },
+  actionRailPanel: {
+    flex: 1,
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 8,
+  },
   leftActionRail: {
     left: 0,
   },
   rightActionRail: {
     right: 0,
+  },
+  deleteActionRailPanel: {
+    backgroundColor: UI_COLORS.accentRedSoft,
+    borderColor: '#E9C8C0',
+  },
+  checkoutActionRailPanel: {
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderColor: '#D6E4D2',
   },
   actionButton: {
     flex: 1,
@@ -549,7 +580,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
-    ...UI_SHADOWS.card,
   },
   deleteActionButton: {
     backgroundColor: UI_COLORS.accentRed,
@@ -568,6 +598,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     lineHeight: 18,
+    textAlign: 'center',
+  },
+  actionHintLabel: {
+    color: 'rgba(255, 253, 252, 0.82)',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 4,
     textAlign: 'center',
   },
   itemRowAnimated: {
@@ -601,6 +641,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
     marginBottom: 10,
   },
   itemCategoryPill: {
@@ -611,12 +654,37 @@ const styles = StyleSheet.create({
     borderColor: UI_COLORS.borderSoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
+    marginRight: 8,
+    marginBottom: 6,
   },
   itemCategoryLabel: {
     color: UI_COLORS.mutedStrong,
     fontSize: 11,
     fontWeight: '700',
     lineHeight: 14,
+  },
+  itemStatusPill: {
+    alignSelf: 'flex-start',
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderWidth: 1,
+    borderColor: '#D6E4D2',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 6,
+  },
+  itemStatusPillUnavailable: {
+    backgroundColor: UI_COLORS.accentRedSoft,
+    borderColor: '#E9C8C0',
+  },
+  itemStatusLabel: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
+  itemStatusLabelUnavailable: {
+    color: UI_COLORS.accentRed,
   },
   itemName: {
     color: UI_COLORS.textStrong,
@@ -634,41 +702,32 @@ const styles = StyleSheet.create({
   itemInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  itemStock: {
-    color: UI_COLORS.accentGreen,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 16,
-  },
-  itemStockUnavailable: {
-    color: UI_COLORS.accentRed,
   },
   itemEachPrice: {
     color: UI_COLORS.mutedStrong,
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '700',
     lineHeight: 16,
   },
   itemFooter: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 16,
   },
   quantityGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: UI_COLORS.surfaceSoft,
-    borderRadius: UI_RADIUS.xl,
+    backgroundColor: UI_COLORS.surfaceWarm,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 5,
-    paddingVertical: 5,
+    borderColor: UI_COLORS.border,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
   },
   quantityButton: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: 12,
     backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
@@ -699,23 +758,44 @@ const styles = StyleSheet.create({
   quantityButtonTextAccent: {
     color: UI_COLORS.accentGreen,
   },
+  quantityValueBadge: {
+    minWidth: 54,
+    borderRadius: 14,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginHorizontal: 10,
+  },
+  quantityValueCaption: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.28,
+    marginBottom: 2,
+  },
   quantityValue: {
     color: UI_COLORS.textStrong,
     fontSize: 16,
-    fontWeight: '700',
-    minWidth: 24,
+    fontWeight: '800',
+    minWidth: 20,
     textAlign: 'center',
-    marginHorizontal: 12,
   },
   itemPriceBlock: {
     alignItems: 'flex-end',
+    minWidth: 116,
     marginLeft: 16,
-    backgroundColor: UI_COLORS.surfaceSoft,
+    backgroundColor: UI_COLORS.surfaceWarm,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: UI_COLORS.border,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
   },
   itemPriceLabel: {
     color: UI_COLORS.mutedStrong,

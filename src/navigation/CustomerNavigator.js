@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import CustomerBottomNav from '../components/CustomerBottomNav';
@@ -29,36 +29,12 @@ import FavouriteScreen from '../screens/customer/FavouriteScreen';
 import HomeScreen from '../screens/customer/HomeScreen';
 import OrderSuccessScreen from '../screens/customer/OrderSuccessScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
+import {
+  CUSTOMER_PRIMARY_ROUTES,
+  getCustomerScreenTransitionOptions,
+} from './transitionConfig';
 
 const Stack = createNativeStackNavigator();
-const PRIMARY_NAV_ROUTES = new Set([
-  CUSTOMER_ROUTES.HOME,
-  CUSTOMER_ROUTES.EXPLORE,
-  CUSTOMER_ROUTES.CART,
-  CUSTOMER_ROUTES.FAVOURITE,
-  CUSTOMER_ROUTES.ACCOUNT,
-]);
-
-function getCustomerScreenTransitionOptions(routeName) {
-  if (PRIMARY_NAV_ROUTES.has(routeName)) {
-    return {
-      animation: 'fade',
-      animationDuration: 200,
-    };
-  }
-
-  if (routeName === CUSTOMER_ROUTES.ORDER_SUCCESS) {
-    return {
-      animation: 'fade_from_bottom',
-      animationDuration: 220,
-      gestureEnabled: false,
-    };
-  }
-
-  return {
-    animation: Platform.OS === 'android' ? 'slide_from_right' : 'default',
-  };
-}
 
 const screenOptions = {
   headerStyle: {
@@ -102,7 +78,7 @@ function CustomerNavigationChrome({ activeRouteName, navigationRef }) {
 
   return (
     <>
-      {PRIMARY_NAV_ROUTES.has(activeRouteName) ? (
+      {CUSTOMER_PRIMARY_ROUTES.has(activeRouteName) ? (
         <View
           pointerEvents="box-none"
           style={[styles.bottomNavLayer, { bottom: bottomOffset }]}

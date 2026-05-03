@@ -32,6 +32,7 @@ import { getCartSummary } from '../../utils/cartSummary';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 const FLOATING_BOTTOM_OFFSET = 94;
+const PRODUCT_DETAIL_EXTRA_BOTTOM_OFFSET = 28;
 const AUTO_COLLAPSE_DELAY_MS = 3000;
 const EXPAND_ANIMATION_DURATION_MS = UI_MOTION.normal;
 const VISIBLE_ROUTES = new Set([
@@ -257,6 +258,10 @@ function FloatingCartButton({
       },
     ],
   };
+  const resolvedBottomOffset =
+    currentRouteName === CUSTOMER_ROUTES.PRODUCT_DETAIL
+      ? FLOATING_BOTTOM_OFFSET + PRODUCT_DETAIL_EXTRA_BOTTOM_OFFSET
+      : FLOATING_BOTTOM_OFFSET;
 
   return (
     <View
@@ -264,7 +269,7 @@ function FloatingCartButton({
       style={[
         styles.container,
         {
-          bottom: insets.bottom + FLOATING_BOTTOM_OFFSET,
+          bottom: insets.bottom + resolvedBottomOffset,
         },
       ]}
     >

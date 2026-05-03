@@ -23,7 +23,7 @@ import {
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
 import {
-  formatOrderDate,
+  getOrderStatusMeta,
   normalizeOrderStatus,
 } from '../../utils/accountFormatting';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -32,8 +32,12 @@ import PrimaryButton from '../PrimaryButton';
 import ScalePressable from '../ScalePressable';
 
 const ORDER_SUCCESS_ILLUSTRATION = require('../../assets/illustrations/order_success.png');
-const MODAL_ENTER_DURATION_MS = 220;
-const MODAL_EXIT_DURATION_MS = 170;
+const MODAL_ENTER_DURATION_MS = 260;
+const MODAL_EXIT_DURATION_MS = 180;
+const CARD_ENTER_SCALE = 0.9;
+const CARD_EXIT_SCALE = 0.97;
+const CARD_ENTER_OFFSET = 22;
+const CARD_EXIT_OFFSET = 14;
 const COMING_SOON_BASKET_ALERT =
   'Coming soon: save this basket for next time.';
 
@@ -133,11 +137,31 @@ function SmartActionRow({
   );
 }
 
-function SummaryRow({ isLast = false, label, value }) {
+function SummaryRow({
+  isLast = false,
+  label,
+  value,
+  valueEllipsizeMode = 'tail',
+  valueNode = null,
+  valueNumberOfLines = 1,
+  valueStyle,
+}) {
   return (
     <View style={[styles.summaryRow, !isLast && styles.summaryRowBorder]}>
       <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
+      <View style={styles.summaryValueWrap}>
+        {valueNode ? (
+          valueNode
+        ) : (
+          <Text
+            ellipsizeMode={valueEllipsizeMode}
+            numberOfLines={valueNumberOfLines}
+            style={[styles.summaryValue, valueStyle]}
+          >
+            {value}
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -145,7 +169,6 @@ function SummaryRow({ isLast = false, label, value }) {
 function OrderSuccessCard({
   isDisabled = false,
   onBackToHome,
-  onBuySimilarBasketAgain,
   onExploreSmartBaskets,
   onSaveBasket,
   onTrackOrder,
@@ -154,17 +177,22 @@ function OrderSuccessCard({
   const itemCount = getOrderItemCount(order);
   const orderItems = getOrderItems(order);
   const hasOrderItems = orderItems.length > 0;
+  const itemCountLabel = `${itemCount} item${itemCount === 1 ? '' : 's'}`;
+  const orderReference = order?.id || order?._id || 'Pending';
   const statusLabel = normalizeOrderStatus(order?.status || 'processing');
+  const statusMeta = getOrderStatusMeta(order?.status || 'processing');
   const handleSaveBasketPress = onSaveBasket
     ? onSaveBasket
     : () => Alert.alert(COMING_SOON_BASKET_ALERT);
-  const handleBuySimilarBasketAgainPress = onBuySimilarBasketAgain
-    ? onBuySimilarBasketAgain
-    : () => Alert.alert(COMING_SOON_BASKET_ALERT);
+  const showSmartActions = Boolean(onExploreSmartBaskets || hasOrderItems);
+  const showOrderDetails =
+    Boolean(order) || itemCount > 0 || Boolean(order?.totalAmount);
 
   return (
     <View>
       <View style={styles.illustrationWrap}>
+        <View style={styles.illustrationHaloLarge} />
+        <View style={styles.illustrationHaloSmall} />
         <Image
           resizeMode="contain"
           source={ORDER_SUCCESS_ILLUSTRATION}
@@ -173,83 +201,102 @@ function OrderSuccessCard({
       </View>
 
       <View style={styles.statusPill}>
-        <Text style={styles.statusPillLabel}>Order confirmed</Text>
+        <Text style={styles.statusPillLabel}>Success</Text>
       </View>
 
-      <Text style={styles.title}>Your basket is on the way</Text>
+      <Text style={styles.title}>Your order has been accepted</Text>
       <Text style={styles.subtitle}>
-        Grovy has your items and is preparing them for delivery.
+        We're getting your groceries ready now.
       </Text>
 
-      {order?.id ? (
+      {showOrderDetails ? (
         <View style={styles.summaryCard}>
-          <SummaryRow label="Order reference" value={order.id} />
+          <Text style={styles.summaryCardTitle}>Order details</Text>
+          <SummaryRow
+            label="Reference"
+            value={orderReference}
+            valueEllipsizeMode="middle"
+            valueStyle={styles.summaryValueReference}
+          />
+          <SummaryRow label="Item count" value={itemCountLabel} />
           <SummaryRow
             label="Total"
-            value={formatCurrency(order.totalAmount || 0)}
+            value={formatCurrency(order?.totalAmount || 0)}
           />
-          <SummaryRow label="Items" value={`${itemCount}`} />
-          <SummaryRow label="Status" value={statusLabel} />
           <SummaryRow
             isLast
-            label="Placed"
-            value={formatOrderDate(order.createdAt)}
+            label="Status"
+            valueNode={
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: statusMeta.backgroundColor,
+                    borderColor: statusMeta.borderColor,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusBadgeLabel,
+                    {
+                      color: statusMeta.textColor,
+                    },
+                  ]}
+                >
+                  {statusLabel}
+                </Text>
+              </View>
+            }
           />
         </View>
       ) : null}
 
-      <View style={styles.smartActionCard}>
-        <Text style={styles.smartActionEyebrow}>Smart actions</Text>
-        <Text style={styles.smartActionTitle}>
-          Want to shop faster next time?
-        </Text>
-        <Text style={styles.smartActionSubtitle}>
-          Keep your next grocery run simple with a few quick shortcuts.
-        </Text>
-        <View style={styles.smartActionStack}>
-          <SmartActionRow
-            description="Jump back to Home and open the Smart Baskets section."
-            isDisabled={isDisabled}
-            isHighlighted
-            onPress={onExploreSmartBaskets}
-            statusLabel="Ready now"
-            statusTone="live"
-            title="Explore Smart Baskets"
-          />
-          {hasOrderItems ? (
-            <SmartActionRow
-              description="Keep this mix ready for a future checkout."
-              isDisabled={isDisabled}
-              onPress={handleSaveBasketPress}
-              statusLabel="Coming soon"
-              statusTone="soon"
-              title="Save this basket"
-            />
-          ) : null}
-          {hasOrderItems ? (
-            <SmartActionRow
-              description="Start from this order and fine-tune it later."
-              isDisabled={isDisabled}
-              onPress={handleBuySimilarBasketAgainPress}
-              statusLabel="Coming soon"
-              statusTone="soon"
-              title="Buy similar basket again"
-            />
-          ) : null}
+      {showSmartActions ? (
+        <View style={styles.smartActionCard}>
+          <Text style={styles.smartActionEyebrow}>Smart next steps</Text>
+          <Text style={styles.smartActionTitle}>Make the next shop easier</Text>
+          <Text style={styles.smartActionSubtitle}>
+            Keep a couple of quick shortcuts handy for later.
+          </Text>
+          <View style={styles.smartActionStack}>
+            {onExploreSmartBaskets ? (
+              <SmartActionRow
+                description="Jump back home and open Smart Baskets in one tap."
+                isDisabled={isDisabled}
+                isHighlighted
+                onPress={onExploreSmartBaskets}
+                statusLabel="Ready now"
+                statusTone="live"
+                title="Explore Smart Baskets"
+              />
+            ) : null}
+            {hasOrderItems ? (
+              <SmartActionRow
+                description="Save this mix as a shortcut for a future checkout."
+                isDisabled={isDisabled}
+                onPress={handleSaveBasketPress}
+                statusLabel="Coming soon"
+                statusTone="soon"
+                title="Save this basket"
+              />
+            ) : null}
+          </View>
         </View>
-      </View>
+      ) : null}
 
+      <PrimaryButton
+        disabled={isDisabled}
+        onPress={onBackToHome}
+        style={styles.primaryButton}
+        title="Back to Home"
+      />
       <PrimaryButton
         disabled={isDisabled}
         onPress={onTrackOrder}
         style={styles.secondaryButton}
-        title="Track order"
+        title="Track Order"
         variant="secondary"
-      />
-      <PrimaryButton
-        disabled={isDisabled}
-        onPress={onBackToHome}
-        title="Back to Home"
       />
     </View>
   );
@@ -257,7 +304,6 @@ function OrderSuccessCard({
 
 function OrderSuccessModal({
   onBackToHome,
-  onBuySimilarBasketAgain,
   onExploreSmartBaskets,
   onRequestClose,
   onSaveBasket,
@@ -272,51 +318,73 @@ function OrderSuccessModal({
   const [isClosing, setIsClosing] = useState(false);
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
-  const cardScale = useRef(new Animated.Value(0.94)).current;
-  const cardTranslateY = useRef(new Animated.Value(14)).current;
+  const cardScale = useRef(new Animated.Value(CARD_ENTER_SCALE)).current;
+  const cardTranslateY = useRef(new Animated.Value(CARD_ENTER_OFFSET)).current;
 
   const animateCard = useCallback(
     ({ isEntering, onComplete } = {}) => {
-      Animated.parallel([
-        Animated.timing(overlayOpacity, {
-          toValue: isEntering ? 1 : 0,
-          duration: isEntering
-            ? MODAL_ENTER_DURATION_MS
-            : MODAL_EXIT_DURATION_MS,
-          easing: isEntering ? Easing.out(Easing.quad) : Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(cardOpacity, {
-          toValue: isEntering ? 1 : 0,
-          duration: isEntering
-            ? MODAL_ENTER_DURATION_MS
-            : MODAL_EXIT_DURATION_MS,
-          easing: isEntering
-            ? Easing.out(Easing.cubic)
-            : Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(cardScale, {
-          toValue: isEntering ? 1 : 0.96,
-          duration: isEntering
-            ? MODAL_ENTER_DURATION_MS
-            : MODAL_EXIT_DURATION_MS,
-          easing: isEntering
-            ? Easing.out(Easing.back(1.1))
-            : Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(cardTranslateY, {
-          toValue: isEntering ? 0 : 10,
-          duration: isEntering
-            ? MODAL_ENTER_DURATION_MS
-            : MODAL_EXIT_DURATION_MS,
-          easing: isEntering
-            ? Easing.out(Easing.cubic)
-            : Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
+      const animations = isEntering
+        ? [
+            Animated.timing(overlayOpacity, {
+              toValue: 1,
+              duration: MODAL_ENTER_DURATION_MS,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }),
+            Animated.timing(cardOpacity, {
+              toValue: 1,
+              duration: MODAL_ENTER_DURATION_MS - 20,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }),
+            Animated.spring(cardScale, {
+              toValue: 1,
+              tension: 52,
+              friction: 7,
+              useNativeDriver: true,
+            }),
+            Animated.spring(cardTranslateY, {
+              toValue: 0,
+              tension: 58,
+              friction: 8,
+              useNativeDriver: true,
+            }),
+          ]
+        : [
+            Animated.timing(overlayOpacity, {
+              toValue: 0,
+              duration: MODAL_EXIT_DURATION_MS,
+              easing: Easing.in(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.timing(cardOpacity, {
+              toValue: 0,
+              duration: MODAL_EXIT_DURATION_MS,
+              easing: Easing.in(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.timing(cardScale, {
+              toValue: CARD_EXIT_SCALE,
+              duration: MODAL_EXIT_DURATION_MS,
+              easing: Easing.inOut(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.timing(cardTranslateY, {
+              toValue: CARD_EXIT_OFFSET,
+              duration: MODAL_EXIT_DURATION_MS,
+              easing: Easing.in(Easing.quad),
+              useNativeDriver: true,
+            }),
+          ];
+
+      if (isEntering) {
+        overlayOpacity.setValue(0);
+        cardOpacity.setValue(0);
+        cardScale.setValue(CARD_ENTER_SCALE);
+        cardTranslateY.setValue(CARD_ENTER_OFFSET);
+      }
+
+      Animated.parallel(animations).start(() => {
         onComplete?.();
       });
     },
@@ -412,7 +480,6 @@ function OrderSuccessModal({
           <OrderSuccessCard
             isDisabled={isClosing}
             onBackToHome={handleBackToHomePress}
-            onBuySimilarBasketAgain={onBuySimilarBasketAgain}
             onExploreSmartBaskets={handleExploreSmartBasketsPress}
             onSaveBasket={onSaveBasket}
             onTrackOrder={handleTrackOrderPress}
@@ -444,17 +511,24 @@ function OrderSuccessModal({
       transparent
       visible={isMounted}
     >
-      <Animated.View style={[styles.overlay, animatedOverlayStyle]}>
+      <View style={styles.modalCanvas}>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.overlay, animatedOverlayStyle]}
+        />
         {content}
-      </Animated.View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(24, 20, 18, 0.48)',
+  },
+  modalCanvas: {
     flex: 1,
-    backgroundColor: 'rgba(23, 18, 15, 0.42)',
   },
   screenCanvas: {
     flex: 1,
@@ -470,7 +544,7 @@ const styles = StyleSheet.create({
   centeredContent: {
     alignItems: 'center',
     paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingVertical: 20,
   },
   card: {
     width: '100%',
@@ -480,14 +554,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 22,
+    paddingTop: 22,
+    paddingBottom: 24,
     ...UI_SHADOWS.floating,
   },
   illustrationWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    height: 160,
+    marginBottom: 8,
+    position: 'relative',
+  },
+  illustrationHaloLarge: {
+    position: 'absolute',
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    backgroundColor: 'rgba(84, 122, 78, 0.11)',
+  },
+  illustrationHaloSmall: {
+    position: 'absolute',
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: 'rgba(84, 122, 78, 0.07)',
   },
   successIllustration: {
     width: 148,
@@ -496,12 +586,12 @@ const styles = StyleSheet.create({
   statusPill: {
     alignSelf: 'center',
     borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.accentGreenSoft,
+    backgroundColor: '#EEF6EC',
     borderWidth: 1,
-    borderColor: '#D6E4D2',
-    paddingHorizontal: 12,
+    borderColor: '#D6E7D1',
+    paddingHorizontal: 13,
     paddingVertical: 7,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   statusPillLabel: {
     color: UI_COLORS.accentGreen,
@@ -513,26 +603,31 @@ const styles = StyleSheet.create({
   },
   title: {
     color: UI_COLORS.textStrong,
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
-    lineHeight: 32,
+    lineHeight: 34,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   subtitle: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.meta,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   summaryCard: {
-    backgroundColor: UI_COLORS.surfaceSoft,
+    backgroundColor: '#FCFAF6',
     borderRadius: UI_RADIUS.xl,
     borderWidth: 1,
     borderColor: UI_COLORS.borderSoft,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 16,
+    paddingVertical: 14,
+    marginBottom: 18,
+  },
+  summaryCardTitle: {
+    color: UI_COLORS.textStrong,
+    ...UI_TYPOGRAPHY.cardTitle,
+    marginBottom: 4,
   },
   smartActionCard: {
     backgroundColor: '#FBF7F0',
@@ -647,13 +742,13 @@ const styles = StyleSheet.create({
   },
   summaryRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   summaryRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: UI_COLORS.border,
+    borderBottomColor: UI_COLORS.borderSoft,
   },
   summaryLabel: {
     color: UI_COLORS.mutedStrong,
@@ -661,14 +756,36 @@ const styles = StyleSheet.create({
     paddingRight: 16,
     flex: 1,
   },
+  summaryValueWrap: {
+    flex: 1,
+    alignItems: 'flex-end',
+    minWidth: 0,
+  },
   summaryValue: {
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.bodyStrong,
-    flex: 1,
     textAlign: 'right',
   },
-  secondaryButton: {
+  summaryValueReference: {
+    letterSpacing: 0.2,
+  },
+  statusBadge: {
+    borderRadius: UI_RADIUS.round,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  statusBadgeLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+    letterSpacing: 0.2,
+  },
+  primaryButton: {
     marginBottom: 12,
+  },
+  secondaryButton: {
+    marginBottom: 2,
   },
 });
 

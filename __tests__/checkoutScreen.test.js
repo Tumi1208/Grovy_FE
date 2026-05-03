@@ -17,6 +17,7 @@ jest.mock('react-native-safe-area-context', () => ({
 
     return <View>{children}</View>;
   },
+  useSafeAreaInsets: () => ({ bottom: 0 }),
 }));
 
 jest.mock('../src/context/CartContext', () => ({
@@ -306,5 +307,31 @@ describe('CheckoutScreen order summary', () => {
     expect(
       renderer.root.findByProps({ testID: 'mock-order-success-modal' }),
     ).toBeTruthy();
+  });
+
+  it('does not clear the cart or show success when order submission fails', async () => {
+    const orderPayload = { id: 'payload-2' };
+    const { context, renderer } = renderScreen();
+
+    mockBuildCreateOrderPayload.mockReturnValue(orderPayload);
+    mockSubmitOrder.mockRejectedValue(new Error('Network unavailable'));
+
+    await act(async () => {
+      findPressableByText(renderer.root, 'Place order').props.onPress();
+    });
+
+    expect(mockSubmitOrder).toHaveBeenCalledWith(orderPayload);
+    expect(context.addCheckoutOrder).not.toHaveBeenCalled();
+    expect(context.clearCart).not.toHaveBeenCalled();
+    expect(
+      renderer.root.findAllByProps({ testID: 'mock-order-success-modal' }),
+    ).toHaveLength(0);
+    expect(
+      renderer.root.findAll(
+        node =>
+          node.type === Text &&
+          getNodeText(node).includes('Network unavailable'),
+      ),
+    ).not.toHaveLength(0);
   });
 });

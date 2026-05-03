@@ -1,6 +1,7 @@
 import TestRenderer, { act } from 'react-test-renderer';
 import { Alert } from 'react-native';
 import HomeScreen from '../src/screens/customer/HomeScreen';
+import { CUSTOMER_ROUTES } from '../src/constants/routes';
 import { DEMO_PRODUCTS } from '../src/data/demoProducts';
 
 const mockUseApp = jest.fn();
@@ -208,9 +209,9 @@ describe('HomeScreen smart basket preview', () => {
     });
 
     expect(addToCart).not.toHaveBeenCalled();
-    expect(findAllByTestId(renderer.root, 'mock-smart-basket-preview')).toHaveLength(
-      1,
-    );
+    expect(
+      findAllByTestId(renderer.root, 'mock-smart-basket-preview'),
+    ).toHaveLength(1);
 
     act(() => {
       renderer.root
@@ -232,9 +233,9 @@ describe('HomeScreen smart basket preview', () => {
     expect(addToCart.mock.calls.every(([, quantity]) => quantity === 1)).toBe(
       true,
     );
-    expect(findAllByTestId(renderer.root, 'mock-smart-basket-preview')).toHaveLength(
-      0,
-    );
+    expect(
+      findAllByTestId(renderer.root, 'mock-smart-basket-preview'),
+    ).toHaveLength(0);
     expect(alertSpy).toHaveBeenCalledWith(
       'Weekly Fresh Basket',
       'Added 6 items to cart.',
@@ -251,7 +252,8 @@ describe('HomeScreen smart basket preview', () => {
     });
 
     expect(
-      renderer.root.findByProps({ placeholder: 'Search groceries' }).props.value,
+      renderer.root.findByProps({ placeholder: 'Search groceries' }).props
+        .value,
     ).toBe('zzzz');
 
     act(() => {
@@ -265,12 +267,45 @@ describe('HomeScreen smart basket preview', () => {
     });
 
     expect(
-      renderer.root.findByProps({ placeholder: 'Search groceries' }).props.value,
+      renderer.root.findByProps({ placeholder: 'Search groceries' }).props
+        .value,
     ).toBe('');
     expect(
       renderer.root.findAll(
         node => node.type === 'Text' && getNodeText(node) === 'Smart Baskets',
       ).length,
     ).toBeGreaterThan(0);
+  });
+
+  it('shows search results near the top and hides smart sections while searching', async () => {
+    const renderer = await renderScreen();
+
+    act(() => {
+      renderer.root
+        .findByProps({ placeholder: 'Search groceries' })
+        .props.onChangeText('apple');
+    });
+
+    expect(
+      renderer.root.findAll(
+        node => node.type === 'Text' && getNodeText(node) === 'Search results',
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      renderer.root.findAll(
+        node => node.type === 'Text' && getNodeText(node) === 'Smart Baskets',
+      ),
+    ).toHaveLength(0);
+
+    act(() => {
+      findClosestPressableForText(renderer.root, 'Crisp Apple').props.onPress();
+    });
+
+    expect(navigation.navigate).toHaveBeenCalledWith(
+      CUSTOMER_ROUTES.PRODUCT_DETAIL,
+      expect.objectContaining({
+        productId: 'grovy-apple-001',
+      }),
+    );
   });
 });

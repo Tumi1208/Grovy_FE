@@ -95,7 +95,7 @@ function HomeProductCard({
             event.stopPropagation();
             onAddToCart?.(product);
           }}
-          pressScale={UI_PRESS.scale.strong}
+          pressScale={UI_PRESS.scale.button}
           style={({ pressed }) => [
             styles.addButton,
             !isAvailable && styles.addButtonDisabled,
@@ -168,18 +168,20 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.surface,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: UI_COLORS.border,
+    borderColor: UI_COLORS.borderSoft,
     padding: 16,
     minHeight: 262,
     ...UI_SHADOWS.card,
   },
   cardPressed: {
-    opacity: UI_PRESS.opacity.subtle,
+    opacity: UI_PRESS.opacity.soft,
   },
   imageWrap: {
     height: 144,
     borderRadius: 24,
     backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,

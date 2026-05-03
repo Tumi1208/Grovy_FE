@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AUTH_ROUTES } from '../constants/routes';
+import { getAuthScreenTransitionOptions } from './transitionConfig';
 import SignInScreen from '../screens/auth/SignInScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import {
@@ -17,35 +18,21 @@ const Stack = createNativeStackNavigator();
 const screenOptions = {
   headerShown: false,
   animation: 'slide_from_right',
+  animationDuration: 240,
 };
 
 function AuthNavigator({ initialRouteName = AUTH_ROUTES.SPLASH }) {
   return (
     <Stack.Navigator
       initialRouteName={initialRouteName}
-      screenOptions={screenOptions}
+      screenOptions={({ route }) => ({
+        ...screenOptions,
+        ...getAuthScreenTransitionOptions(route.name),
+      })}
     >
-      <Stack.Screen
-        name={AUTH_ROUTES.SPLASH}
-        component={SplashScreen}
-        options={{
-          animation: 'fade',
-          gestureEnabled: false,
-        }}
-      />
-      <Stack.Screen
-        name={AUTH_ROUTES.ONBOARDING}
-        component={WelcomeScreen}
-        options={{
-          animation: 'fade_from_bottom',
-          gestureEnabled: false,
-        }}
-      />
-      <Stack.Screen
-        name={AUTH_ROUTES.ENTRY}
-        component={EntryScreen}
-        options={{ animation: 'fade_from_bottom' }}
-      />
+      <Stack.Screen name={AUTH_ROUTES.SPLASH} component={SplashScreen} />
+      <Stack.Screen name={AUTH_ROUTES.ONBOARDING} component={WelcomeScreen} />
+      <Stack.Screen name={AUTH_ROUTES.ENTRY} component={EntryScreen} />
       <Stack.Screen
         name={AUTH_ROUTES.SIGN_IN}
         component={SignInScreen}

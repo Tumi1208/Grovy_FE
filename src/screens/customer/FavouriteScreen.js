@@ -15,11 +15,13 @@ import {
 } from 'react-native-safe-area-context';
 import FavouriteItemRow from '../../components/favourites/FavouriteItemRow';
 import ProductImage from '../../components/ProductImage';
+import PrimaryButton from '../../components/PrimaryButton';
 import ScalePressable from '../../components/ScalePressable';
 import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
   UI_LAYOUT,
+  UI_RADIUS,
   UI_SHADOWS,
   UI_TYPOGRAPHY,
 } from '../../constants/ui';
@@ -68,6 +70,9 @@ function FavouriteScreen({ navigation }) {
   const feedbackTranslateY = useRef(new Animated.Value(10)).current;
   const feedbackTimeoutRef = useRef(null);
   const feedbackActionRef = useRef(null);
+  const savedCountLabel = `${favourites.length} item${
+    favourites.length === 1 ? '' : 's'
+  }`;
 
   const clearFeedbackTimer = useCallback(() => {
     if (!feedbackTimeoutRef.current) {
@@ -191,8 +196,11 @@ function FavouriteScreen({ navigation }) {
 
   const handleAddSavedItemToCart = useCallback(
     product => {
+      setOpenItemId(currentItemId =>
+        currentItemId === product.id ? null : currentItemId,
+      );
       addToCart(product, 1);
-      showFeedback('Added to cart');
+      showFeedback(`${product.name} added to cart`);
     },
     [addToCart, showFeedback],
   );
@@ -245,17 +253,36 @@ function FavouriteScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <View style={styles.headerCopy}>
-              <Text style={styles.headerEyebrow}>Buy again</Text>
-              <Text style={styles.title}>Saved for later</Text>
-              <Text style={styles.subtitle}>
-                Keep your regular groceries close at hand.
-              </Text>
-            </View>
+            <View style={styles.headerCard}>
+              <View style={styles.headerTopRow}>
+                <View style={styles.headerCopy}>
+                  <Text style={styles.headerEyebrow}>Buy again</Text>
+                  <Text style={styles.title}>Saved for later</Text>
+                  <Text style={styles.subtitle}>
+                    Keep your regular groceries close at hand.
+                  </Text>
+                </View>
 
-            <View style={styles.countPill}>
-              <Text style={styles.countPillValue}>{favourites.length}</Text>
-              <Text style={styles.countPillLabel}>items</Text>
+                <View style={styles.countPill}>
+                  <Text style={styles.countPillLabel}>Saved</Text>
+                  <Text style={styles.countPillValue}>{favourites.length}</Text>
+                  <Text style={styles.countPillMeta}>items</Text>
+                </View>
+              </View>
+
+              <View style={styles.headerMetaRow}>
+                <View style={[styles.headerMetaCard, styles.headerMetaCardSpaced]}>
+                  <Text style={styles.headerMetaLabel}>Ready to buy again</Text>
+                  <Text style={styles.headerMetaValue}>{savedCountLabel}</Text>
+                </View>
+
+                <View style={styles.headerMetaCard}>
+                  <Text style={styles.headerMetaLabel}>Quick actions</Text>
+                  <Text style={styles.headerMetaValue}>
+                    Swipe left to add, right to remove
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -269,21 +296,21 @@ function FavouriteScreen({ navigation }) {
                   style={styles.emptyImage}
                 />
               </View>
+              <Text style={styles.emptyEyebrow}>Saved staples</Text>
               <Text style={styles.emptyTitle}>No saved groceries yet</Text>
               <Text style={styles.emptySubtitle}>
                 Save regular items so you can buy them again quickly.
               </Text>
-              <ScalePressable
-                android_ripple={{ color: '#3D5F39' }}
+              <View style={styles.emptyHintPill}>
+                <Text style={styles.emptyHintPillLabel}>
+                  Start with Explore and keep your regular picks here
+                </Text>
+              </View>
+              <PrimaryButton
                 onPress={() => navigation.navigate(CUSTOMER_ROUTES.EXPLORE)}
-                pressScale={0.985}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.primaryButtonPressed,
-                ]}
-              >
-                <Text style={styles.primaryButtonLabel}>Explore products</Text>
-              </ScalePressable>
+                style={styles.emptyPrimaryButton}
+                title="Explore products"
+              />
             </View>
           ) : null}
 
@@ -369,25 +396,35 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: UI_LAYOUT.screenPadding,
     paddingTop: 12,
-    paddingBottom: 132,
+    paddingBottom: UI_LAYOUT.bottomNavContentInset + 48,
   },
   header: {
+    marginBottom: 20,
+  },
+  headerCard: {
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: UI_RADIUS.hero,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: 18,
+    ...UI_SHADOWS.card,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 20,
   },
   headerCopy: {
     flex: 1,
     paddingRight: 16,
   },
   headerEyebrow: {
-    color: UI_COLORS.mutedStrong,
+    color: UI_COLORS.accentGreen,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     lineHeight: 16,
     textTransform: 'uppercase',
-    letterSpacing: 0.35,
+    letterSpacing: 0.4,
     marginBottom: 4,
   },
   title: {
@@ -398,28 +435,66 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     marginTop: 6,
-    maxWidth: '82%',
   },
-  countPill: {
-    minWidth: 72,
-    borderRadius: 24,
-    backgroundColor: UI_COLORS.surface,
+  headerMetaRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+  },
+  headerMetaCard: {
+    flex: 1,
+    borderRadius: UI_RADIUS.xl,
+    backgroundColor: UI_COLORS.surfaceSoft,
     borderWidth: 1,
-    borderColor: UI_COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
+    borderColor: UI_COLORS.borderSoft,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    ...UI_SHADOWS.card,
+  },
+  headerMetaCardSpaced: {
+    marginRight: 10,
+  },
+  headerMetaLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 6,
+  },
+  headerMetaValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  countPill: {
+    minWidth: 86,
+    borderRadius: 24,
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderWidth: 1,
+    borderColor: '#D6E4D2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   countPillValue: {
-    color: UI_COLORS.textStrong,
-    fontSize: 20,
+    color: UI_COLORS.accentGreen,
+    fontSize: 22,
     fontWeight: '800',
-    lineHeight: 22,
+    lineHeight: 24,
   },
   countPillLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.32,
+    marginBottom: 4,
+  },
+  countPillMeta: {
     color: UI_COLORS.mutedStrong,
     fontSize: 12,
     fontWeight: '700',
@@ -449,6 +524,15 @@ const styles = StyleSheet.create({
     width: 98,
     height: 98,
   },
+  emptyEyebrow: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.38,
+    marginBottom: 8,
+  },
   emptyTitle: {
     color: UI_COLORS.textStrong,
     fontSize: 22,
@@ -460,27 +544,27 @@ const styles = StyleSheet.create({
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
     textAlign: 'center',
+    marginBottom: 14,
+  },
+  emptyHintPill: {
+    borderRadius: UI_RADIUS.pill,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     marginBottom: 20,
   },
-  primaryButton: {
+  emptyHintPillLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  emptyPrimaryButton: {
     width: '100%',
     maxWidth: 240,
-    minHeight: UI_LAYOUT.ctaHeight,
-    backgroundColor: UI_COLORS.accentGreen,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: UI_COLORS.accentGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  primaryButtonPressed: {
-    backgroundColor: UI_COLORS.accentGreenPressed,
-  },
-  primaryButtonLabel: {
-    color: UI_COLORS.surface,
-    ...UI_TYPOGRAPHY.buttonLarge,
   },
   feedbackToastContainer: {
     position: 'absolute',

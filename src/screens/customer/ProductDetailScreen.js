@@ -1,13 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import DirectionalHint from '../../components/DirectionalHint';
 import ChevronIcon from '../../components/icons/ChevronIcon';
 import PrimaryButton from '../../components/PrimaryButton';
@@ -18,6 +23,7 @@ import { CUSTOMER_ROUTES } from '../../constants/routes';
 import {
   UI_COLORS,
   UI_LAYOUT,
+  UI_MOTION,
   UI_RADIUS,
   UI_SHADOWS,
   UI_SPACING,
@@ -30,6 +36,9 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { getProductSubtitle } from '../../utils/productPresentation';
 
 const MIN_QUANTITY = 1;
+const HERO_ENTRANCE_OFFSET = 18;
+const CONTENT_ENTRANCE_OFFSET = 22;
+const FOOTER_ENTRANCE_OFFSET = 20;
 
 const PRODUCT_ASSISTANT_SUGGESTIONS = Object.freeze({
   fruits: {
@@ -107,7 +116,26 @@ function getProductAssistantSuggestion(product = {}) {
   );
 }
 
-function HeaderButton({ children, onPress, style }) {
+function buildProductMetaLabels(product = {}, fallbackSubtitle = '') {
+  const unitSizeLabel = [product.unit, product.size]
+    .filter(Boolean)
+    .join(' · ');
+
+  return [unitSizeLabel, fallbackSubtitle]
+    .map(label => (typeof label === 'string' ? label.trim() : ''))
+    .filter(Boolean)
+    .filter(
+      (label, index, labels) =>
+        index ===
+        labels.findIndex(
+          candidate =>
+            normalizeLookupKey(candidate) === normalizeLookupKey(label),
+        ),
+    )
+    .slice(0, 2);
+}
+
+function HeaderButton({ children, onPress, style, testID }) {
   return (
     <ScalePressable
       android_ripple={{ color: '#EDE5DB' }}
@@ -118,13 +146,20 @@ function HeaderButton({ children, onPress, style }) {
         style,
         pressed && styles.headerButtonPressed,
       ]}
+      testID={testID}
     >
       {children}
     </ScalePressable>
   );
 }
 
-function QuantityButton({ disabled = false, label, onPress }) {
+function QuantityButton({
+  disabled = false,
+  isAccent = false,
+  label,
+  onPress,
+  testID,
+}) {
   return (
     <ScalePressable
       android_ripple={{ color: '#EFE7DD' }}
@@ -133,14 +168,17 @@ function QuantityButton({ disabled = false, label, onPress }) {
       pressScale={0.94}
       style={({ pressed }) => [
         styles.quantityButton,
+        isAccent && styles.quantityButtonAccent,
         disabled && styles.quantityButtonDisabled,
         pressed && !disabled && styles.quantityButtonPressed,
+        pressed && !disabled && isAccent && styles.quantityButtonPressedAccent,
       ]}
+      testID={testID}
     >
       <Text
         style={[
           styles.quantityButtonLabel,
-          label === '+' ? styles.quantityButtonLabelAccent : null,
+          isAccent && styles.quantityButtonLabelAccent,
         ]}
       >
         {label}
@@ -195,6 +233,7 @@ function DetailRow({
 }
 
 function ProductDetailScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const initialProduct = route.params?.initialProduct || null;
   const productId =
     normalizeRouteProductId(route.params?.productId) ||
@@ -207,10 +246,26 @@ function ProductDetailScreen({ navigation, route }) {
   const [expandedSection, setExpandedSection] = useState('details');
   const { addToCart, totalItems } = useCart();
   const { isFavourite, toggleFavourite } = useFavourite();
+  const heroOpacity = useRef(new Animated.Value(0)).current;
+  const heroTranslateY = useRef(
+    new Animated.Value(HERO_ENTRANCE_OFFSET),
+  ).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const contentTranslateY = useRef(
+    new Animated.Value(CONTENT_ENTRANCE_OFFSET),
+  ).current;
+  const footerOpacity = useRef(new Animated.Value(0)).current;
+  const footerTranslateY = useRef(
+    new Animated.Value(FOOTER_ENTRANCE_OFFSET),
+  ).current;
+  const imageScale = useRef(new Animated.Value(0.96)).current;
+  const quantityScale = useRef(new Animated.Value(1)).current;
+  const previousQuantityRef = useRef(MIN_QUANTITY);
 
   useEffect(() => {
     setQuantity(MIN_QUANTITY);
     setExpandedSection('details');
+    previousQuantityRef.current = MIN_QUANTITY;
   }, [productId]);
 
   useEffect(() => {
@@ -257,8 +312,114 @@ function ProductDetailScreen({ navigation, route }) {
     };
   }, [initialProduct, productId, reloadKey]);
 
+  useEffect(() => {
+    if (!product?.id) {
+      return undefined;
+    }
+
+    heroOpacity.stopAnimation();
+    heroTranslateY.stopAnimation();
+    contentOpacity.stopAnimation();
+    contentTranslateY.stopAnimation();
+    footerOpacity.stopAnimation();
+    footerTranslateY.stopAnimation();
+    imageScale.stopAnimation();
+
+    heroOpacity.setValue(0);
+    heroTranslateY.setValue(HERO_ENTRANCE_OFFSET);
+    contentOpacity.setValue(0);
+    contentTranslateY.setValue(CONTENT_ENTRANCE_OFFSET);
+    footerOpacity.setValue(0);
+    footerTranslateY.setValue(FOOTER_ENTRANCE_OFFSET);
+    imageScale.setValue(0.96);
+
+    const entranceAnimation = Animated.stagger(55, [
+      Animated.parallel([
+        Animated.timing(heroOpacity, {
+          toValue: 1,
+          duration: UI_MOTION.slow,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroTranslateY, {
+          toValue: 0,
+          duration: UI_MOTION.slow,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(imageScale, {
+          toValue: 1,
+          duration: UI_MOTION.slow,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: UI_MOTION.slow,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentTranslateY, {
+          toValue: 0,
+          duration: UI_MOTION.slow,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(footerOpacity, {
+          toValue: 1,
+          duration: UI_MOTION.normal,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(footerTranslateY, {
+          toValue: 0,
+          duration: UI_MOTION.normal,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+    ]);
+
+    entranceAnimation.start();
+
+    return () => {
+      entranceAnimation.stop();
+    };
+  }, [
+    contentOpacity,
+    contentTranslateY,
+    footerOpacity,
+    footerTranslateY,
+    heroOpacity,
+    heroTranslateY,
+    imageScale,
+    product?.id,
+  ]);
+
+  useEffect(() => {
+    if (previousQuantityRef.current === quantity) {
+      return;
+    }
+
+    previousQuantityRef.current = quantity;
+    quantityScale.stopAnimation();
+    quantityScale.setValue(0.92);
+
+    Animated.spring(quantityScale, {
+      toValue: 1,
+      damping: 10,
+      mass: 0.7,
+      stiffness: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [quantity, quantityScale]);
+
   function handleBack() {
-    if (navigation.canGoBack()) {
+    if (typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
       navigation.goBack();
       return;
     }
@@ -339,6 +500,7 @@ function ProductDetailScreen({ navigation, route }) {
   const isIncreaseDisabled =
     isOutOfStock || (product.stock > 0 && quantity >= product.stock);
   const productSubtitle = getProductSubtitle(product);
+  const productMetaLabels = buildProductMetaLabels(product, productSubtitle);
   const totalPriceLabel = formatCurrency(product.price * quantity);
   const favouriteActive = isFavourite(product.id);
   const nutritionValue =
@@ -346,6 +508,37 @@ function ProductDetailScreen({ navigation, route }) {
   const nutritionDescription =
     'Nutrition details will appear here when available.';
   const assistantSuggestion = getProductAssistantSuggestion(product);
+  const footerBottomOffset = Math.max(
+    UI_LAYOUT.footerBottom,
+    insets.bottom + 8,
+  );
+  const stickyCtaLabel = isOutOfStock
+    ? 'Unavailable today'
+    : `Add ${quantity} to Cart · ${totalPriceLabel}`;
+  const selectedQuantityLabel = `${quantity} item${quantity === 1 ? '' : 's'}`;
+  const summaryDescription = product.description || 'No description available.';
+  const contentContainerStyle = [
+    styles.content,
+    { paddingBottom: footerBottomOffset + 112 },
+  ];
+  const animatedHeroStyle = {
+    opacity: heroOpacity,
+    transform: [{ translateY: heroTranslateY }],
+  };
+  const animatedImageStyle = {
+    transform: [{ scale: imageScale }],
+  };
+  const animatedContentStyle = {
+    opacity: contentOpacity,
+    transform: [{ translateY: contentTranslateY }],
+  };
+  const animatedFooterStyle = {
+    opacity: footerOpacity,
+    transform: [{ translateY: footerTranslateY }],
+  };
+  const animatedQuantityStyle = {
+    transform: [{ scale: quantityScale }],
+  };
 
   function handleOpenAssistantSuggestion() {
     if (!assistantSuggestion?.ctaCategory) {
@@ -366,7 +559,7 @@ function ProductDetailScreen({ navigation, route }) {
       />
       <View style={styles.screen}>
         <View style={styles.headerRow}>
-          <HeaderButton onPress={handleBack}>
+          <HeaderButton onPress={handleBack} testID="product-detail-back">
             <ChevronIcon
               color={UI_COLORS.textStrong}
               direction="left"
@@ -389,7 +582,7 @@ function ProductDetailScreen({ navigation, route }) {
         </View>
 
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={contentContainerStyle}
           showsVerticalScrollIndicator={false}
         >
           {loading ? (
@@ -409,7 +602,7 @@ function ProductDetailScreen({ navigation, route }) {
             </View>
           ) : null}
 
-          <View style={styles.heroCard}>
+          <Animated.View style={[styles.heroCard, animatedHeroStyle]}>
             <View style={styles.heroToneLarge} />
             <View style={styles.heroToneSmall} />
             <View style={styles.heroTopRow}>
@@ -438,149 +631,207 @@ function ProductDetailScreen({ navigation, route }) {
               </ScalePressable>
             </View>
 
-            <ProductImage
-              name={product.name}
-              resizeMode="contain"
-              source={imageSource}
-              style={styles.productImage}
-            />
-          </View>
+            <Animated.View
+              style={[styles.productImageFrame, animatedImageStyle]}
+            >
+              <View style={styles.productImageGlow} />
+              <ProductImage
+                name={product.name}
+                resizeMode="contain"
+                source={imageSource}
+                style={styles.productImage}
+              />
+            </Animated.View>
+          </Animated.View>
 
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryMetaRow}>
-              <View
-                style={[
-                  styles.metaPill,
-                  isOutOfStock
-                    ? styles.metaPillWarning
-                    : styles.metaPillSuccess,
-                ]}
-              >
-                <Text
+          <Animated.View style={animatedContentStyle}>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryMetaRow}>
+                <View
                   style={[
-                    styles.metaPillLabel,
+                    styles.metaPill,
                     isOutOfStock
-                      ? styles.metaPillLabelWarning
-                      : styles.metaPillLabelSuccess,
+                      ? styles.metaPillWarning
+                      : styles.metaPillSuccess,
                   ]}
                 >
-                  {isOutOfStock ? 'Out of stock' : `${product.stock} available`}
-                </Text>
-              </View>
-              <Text style={styles.summaryMetaText}>
-                {isOutOfStock
-                  ? 'Unavailable today'
-                  : `${product.stock} left today`}
-              </Text>
-            </View>
-
-            <Text style={styles.productName}>{product.name}</Text>
-            <Text style={styles.productSubtitle}>{productSubtitle}</Text>
-            <Text style={styles.productDescription}>{product.description}</Text>
-
-            <View style={styles.priceRow}>
-              <View style={styles.priceBlock}>
-                <Text style={styles.priceCaption}>Price</Text>
-                <Text style={styles.priceValue}>
-                  {formatCurrency(product.price)}
-                </Text>
-              </View>
-
-              <View style={styles.quantityBlock}>
-                <Text style={styles.quantityCaption}>Quantity</Text>
-                <View style={styles.quantityStepper}>
-                  <QuantityButton
-                    disabled={isOutOfStock || quantity <= MIN_QUANTITY}
-                    label="-"
-                    onPress={handleDecreaseQuantity}
-                  />
-                  <Text style={styles.quantityValue}>{quantity}</Text>
-                  <QuantityButton
-                    disabled={isIncreaseDisabled}
-                    label="+"
-                    onPress={handleIncreaseQuantity}
-                  />
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {assistantSuggestion ? (
-            <ScalePressable
-              android_ripple={{ color: '#EEE5D8' }}
-              onPress={handleOpenAssistantSuggestion}
-              pressScale={0.99}
-              style={({ pressed }) => [
-                styles.assistantCard,
-                pressed && styles.assistantCardPressed,
-              ]}
-            >
-              <View style={styles.assistantCardHeader}>
-                <View>
-                  <Text style={styles.assistantCardEyebrow}>
-                    Smart suggestion
-                  </Text>
-                  <Text style={styles.assistantCardTitle}>
-                    {assistantSuggestion.title}
+                  <Text
+                    style={[
+                      styles.metaPillLabel,
+                      isOutOfStock
+                        ? styles.metaPillLabelWarning
+                        : styles.metaPillLabelSuccess,
+                    ]}
+                  >
+                    {isOutOfStock
+                      ? 'Out of stock'
+                      : `${product.stock} in stock`}
                   </Text>
                 </View>
-                <DirectionalHint
-                  chevronSize={8}
-                  color={UI_COLORS.mutedStrong}
-                  mode="plain"
-                  size={22}
-                />
+                <Text style={styles.summaryMetaText}>
+                  {isOutOfStock
+                    ? 'Currently unavailable for checkout.'
+                    : 'Fresh and ready for your cart today.'}
+                </Text>
               </View>
 
-              <Text style={styles.assistantCardDescription}>
-                {assistantSuggestion.description}
+              <Text style={styles.productName}>{product.name}</Text>
+
+              {productMetaLabels.length > 0 ? (
+                <View style={styles.productMetaChipRow}>
+                  {productMetaLabels.map(label => (
+                    <View key={label} style={styles.productMetaChip}>
+                      <Text style={styles.productMetaChipLabel}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              <Text numberOfLines={3} style={styles.productDescription}>
+                {summaryDescription}
               </Text>
 
-              <View style={styles.assistantTagRow}>
-                {assistantSuggestion.tags?.map(tag => (
-                  <View key={tag} style={styles.assistantTag}>
-                    <Text style={styles.assistantTagLabel}>{tag}</Text>
+              <View style={styles.purchasePanel}>
+                <View style={styles.priceRow}>
+                  <View style={styles.priceBlock}>
+                    <Text style={styles.priceCaption}>Price</Text>
+                    <Text style={styles.priceValue}>
+                      {formatCurrency(product.price)}
+                    </Text>
+                    <Text style={styles.priceSupportText}>
+                      {productMetaLabels[0] || 'Per item'}
+                    </Text>
                   </View>
-                ))}
+
+                  <View style={styles.quantityBlock}>
+                    <Text style={styles.quantityCaption}>Quantity</Text>
+                    <View style={styles.quantityStepper}>
+                      <QuantityButton
+                        disabled={isOutOfStock || quantity <= MIN_QUANTITY}
+                        label="-"
+                        onPress={handleDecreaseQuantity}
+                        testID="product-detail-quantity-decrease"
+                      />
+                      <Animated.View
+                        style={[
+                          styles.quantityValueBadge,
+                          animatedQuantityStyle,
+                        ]}
+                      >
+                        <Text
+                          style={styles.quantityValue}
+                          testID="product-detail-quantity-value"
+                        >
+                          {quantity}
+                        </Text>
+                      </Animated.View>
+                      <QuantityButton
+                        disabled={isIncreaseDisabled}
+                        isAccent
+                        label="+"
+                        onPress={handleIncreaseQuantity}
+                        testID="product-detail-quantity-increase"
+                      />
+                    </View>
+                  </View>
+                </View>
               </View>
+            </View>
 
-              <Text style={styles.assistantCardAction}>
-                {assistantSuggestion.ctaLabel}
-              </Text>
-            </ScalePressable>
-          ) : null}
+            {assistantSuggestion ? (
+              <ScalePressable
+                android_ripple={{ color: '#EEE5D8' }}
+                onPress={handleOpenAssistantSuggestion}
+                pressScale={0.99}
+                style={({ pressed }) => [
+                  styles.assistantCard,
+                  pressed && styles.assistantCardPressed,
+                ]}
+              >
+                <View style={styles.assistantCardHeader}>
+                  <View style={styles.assistantCardCopy}>
+                    <Text style={styles.assistantCardEyebrow}>
+                      Smart suggestion
+                    </Text>
+                    <Text style={styles.assistantCardTitle}>
+                      {assistantSuggestion.title}
+                    </Text>
+                  </View>
+                  <DirectionalHint
+                    chevronSize={8}
+                    color={UI_COLORS.mutedStrong}
+                    mode="plain"
+                    size={22}
+                  />
+                </View>
 
-          <View style={styles.detailsCard}>
-            <Text style={styles.detailsTitle}>Product information</Text>
+                <Text style={styles.assistantCardDescription}>
+                  {assistantSuggestion.description}
+                </Text>
 
-            <DetailRow
-              expanded={expandedSection === 'details'}
-              onPress={() => handleToggleSection('details')}
-              subtitle={product.description}
-              title="About this item"
-            />
-            <DetailRow
-              expanded={expandedSection === 'nutrition'}
-              onPress={() => handleToggleSection('nutrition')}
-              subtitle={nutritionDescription}
-              title="Nutrition"
-              value={nutritionValue}
-            />
-            <DetailRow
-              expanded={expandedSection === 'reviews'}
-              isLast
-              onPress={() => handleToggleSection('reviews')}
-              subtitle="Customer reviews will show here once this item has ratings."
-              title="Reviews"
-              value="0"
-            />
-          </View>
+                <View style={styles.assistantTagRow}>
+                  {assistantSuggestion.tags?.map(tag => (
+                    <View key={tag} style={styles.assistantTag}>
+                      <Text style={styles.assistantTagLabel}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={styles.assistantCardFooter}>
+                  {assistantSuggestion.ctaTitle ? (
+                    <View style={styles.assistantDestinationPill}>
+                      <Text style={styles.assistantDestinationPillLabel}>
+                        {assistantSuggestion.ctaTitle}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Text style={styles.assistantCardAction}>
+                    {assistantSuggestion.ctaLabel}
+                  </Text>
+                </View>
+              </ScalePressable>
+            ) : null}
+
+            <View style={styles.detailsCard}>
+              <Text style={styles.detailsTitle}>Product information</Text>
+
+              <DetailRow
+                expanded={expandedSection === 'details'}
+                onPress={() => handleToggleSection('details')}
+                subtitle={summaryDescription}
+                title="About this item"
+              />
+              <DetailRow
+                expanded={expandedSection === 'nutrition'}
+                onPress={() => handleToggleSection('nutrition')}
+                subtitle={nutritionDescription}
+                title="Nutrition"
+                value={nutritionValue}
+              />
+              <DetailRow
+                expanded={expandedSection === 'reviews'}
+                isLast
+                onPress={() => handleToggleSection('reviews')}
+                subtitle="Customer reviews will show here once this item has ratings."
+                title="Reviews"
+                value="0"
+              />
+            </View>
+          </Animated.View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <Animated.View
+          style={[
+            styles.footer,
+            { bottom: footerBottomOffset },
+            animatedFooterStyle,
+          ]}
+        >
           <View style={styles.footerSummary}>
-            <Text style={styles.footerSummaryLabel}>Total</Text>
-            <Text style={styles.footerSummaryValue}>{totalPriceLabel}</Text>
+            <Text style={styles.footerSummaryLabel}>Selected</Text>
+            <Text style={styles.footerSummaryValue}>
+              {selectedQuantityLabel}
+            </Text>
           </View>
 
           <ScalePressable
@@ -593,12 +844,32 @@ function ProductDetailScreen({ navigation, route }) {
               isOutOfStock && styles.addToCartButtonDisabled,
               pressed && !isOutOfStock && styles.addToCartButtonPressed,
             ]}
+            testID="product-detail-add-to-cart"
           >
-            <Text style={styles.addToCartTitle}>
-              {isOutOfStock ? 'Unavailable' : `Add ${quantity} to cart`}
-            </Text>
+            <View style={styles.addToCartButtonContent}>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.addToCartTitle,
+                  isOutOfStock && styles.addToCartTitleDisabled,
+                ]}
+                testID="product-detail-add-to-cart-label"
+              >
+                {stickyCtaLabel}
+              </Text>
+              <Text
+                style={[
+                  styles.addToCartSubtitle,
+                  isOutOfStock && styles.addToCartSubtitleDisabled,
+                ]}
+              >
+                {isOutOfStock
+                  ? 'Check back after the next restock.'
+                  : 'Tap to add and open your cart.'}
+              </Text>
+            </View>
           </ScalePressable>
-        </View>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
@@ -733,35 +1004,35 @@ const styles = StyleSheet.create({
     borderColor: '#DEE4D7',
     paddingHorizontal: 22,
     paddingTop: 18,
-    paddingBottom: 18,
-    marginBottom: 14,
+    paddingBottom: 22,
+    marginBottom: 16,
     position: 'relative',
     overflow: 'hidden',
     ...UI_SHADOWS.card,
   },
   heroToneLarge: {
     position: 'absolute',
-    right: -28,
-    bottom: -26,
-    width: 182,
-    height: 182,
-    borderRadius: 91,
-    backgroundColor: 'rgba(215, 155, 90, 0.12)',
+    right: -34,
+    bottom: -36,
+    width: 212,
+    height: 212,
+    borderRadius: 106,
+    backgroundColor: 'rgba(215, 155, 90, 0.14)',
   },
   heroToneSmall: {
     position: 'absolute',
-    left: -20,
-    top: 66,
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+    left: -24,
+    top: 74,
+    width: 108,
+    height: 108,
+    borderRadius: 54,
     backgroundColor: 'rgba(84, 122, 78, 0.1)',
   },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 12,
   },
   categoryPill: {
     borderRadius: UI_RADIUS.round,
@@ -801,9 +1072,27 @@ const styles = StyleSheet.create({
   favouriteIconActive: {
     color: UI_COLORS.accentRed,
   },
+  productImageFrame: {
+    minHeight: 312,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.46)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+  },
+  productImageGlow: {
+    position: 'absolute',
+    width: 216,
+    height: 216,
+    borderRadius: 108,
+    backgroundColor: 'rgba(255, 255, 255, 0.52)',
+  },
   productImage: {
     width: '100%',
-    height: 248,
+    height: 276,
     zIndex: 1,
   },
   summaryCard: {
@@ -812,12 +1101,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 24,
-    marginBottom: 14,
+    marginBottom: 16,
     ...UI_SHADOWS.card,
   },
   summaryMetaRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 16,
   },
@@ -845,7 +1134,7 @@ const styles = StyleSheet.create({
   },
   summaryMetaText: {
     color: UI_COLORS.mutedStrong,
-    fontSize: 13,
+    fontSize: 12.5,
     lineHeight: 18,
     marginLeft: 12,
     flex: 1,
@@ -853,21 +1142,42 @@ const styles = StyleSheet.create({
   },
   productName: {
     color: UI_COLORS.textStrong,
-    fontSize: 30,
+    fontSize: 31,
     fontWeight: '800',
-    lineHeight: 36,
-    marginBottom: 6,
+    lineHeight: 37,
   },
-  productSubtitle: {
+  productMetaChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 14,
+    marginBottom: 14,
+  },
+  productMetaChip: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  productMetaChipLabel: {
     color: UI_COLORS.mutedStrong,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 15,
   },
   productDescription: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.body,
-    marginBottom: 24,
+    marginBottom: 22,
+  },
+  purchasePanel: {
+    backgroundColor: UI_COLORS.surfaceWarm,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    padding: 16,
   },
   assistantCard: {
     backgroundColor: UI_COLORS.surface,
@@ -875,7 +1185,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 18,
-    marginBottom: 14,
+    marginBottom: 16,
     ...UI_SHADOWS.card,
   },
   assistantCardPressed: {
@@ -885,6 +1195,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+  },
+  assistantCardCopy: {
+    flex: 1,
+    paddingRight: 12,
   },
   assistantCardEyebrow: {
     color: UI_COLORS.accentGreen,
@@ -926,16 +1240,38 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 13,
   },
+  assistantCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+  },
+  assistantDestinationPill: {
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.accentSoft,
+    borderWidth: 1,
+    borderColor: '#EBCFB7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 12,
+  },
+  assistantDestinationPillLabel: {
+    color: UI_COLORS.textStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 13,
+  },
   assistantCardAction: {
     color: UI_COLORS.accentGreen,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
-    marginTop: 14,
+    flex: 1,
+    textAlign: 'right',
   },
   priceRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
   },
   priceBlock: {
@@ -951,9 +1287,15 @@ const styles = StyleSheet.create({
     color: UI_COLORS.textStrong,
     ...UI_TYPOGRAPHY.priceLarge,
   },
+  priceSupportText: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12.5,
+    lineHeight: 17,
+    marginTop: 6,
+  },
   quantityBlock: {
     alignItems: 'flex-end',
-    minWidth: 150,
+    minWidth: 168,
   },
   quantityCaption: {
     color: UI_COLORS.mutedStrong,
@@ -967,12 +1309,12 @@ const styles = StyleSheet.create({
     borderRadius: UI_RADIUS.xl,
     borderWidth: 1,
     borderColor: UI_COLORS.borderSoft,
-    paddingHorizontal: 5,
-    paddingVertical: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
   },
   quantityButton: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
@@ -980,8 +1322,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  quantityButtonAccent: {
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderColor: '#D7E3D5',
+  },
   quantityButtonPressed: {
     opacity: 0.95,
+  },
+  quantityButtonPressedAccent: {
+    backgroundColor: '#DCE8D6',
   },
   quantityButtonDisabled: {
     opacity: 0.42,
@@ -995,12 +1344,22 @@ const styles = StyleSheet.create({
   quantityButtonLabelAccent: {
     color: UI_COLORS.accentGreen,
   },
+  quantityValueBadge: {
+    minWidth: 48,
+    borderRadius: 14,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.borderSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   quantityValue: {
     color: UI_COLORS.textStrong,
     fontSize: 18,
     fontWeight: '800',
-    marginHorizontal: 14,
-    minWidth: 22,
     textAlign: 'center',
   },
   detailsCard: {
@@ -1009,6 +1368,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     overflow: 'hidden',
+    marginBottom: 4,
     ...UI_SHADOWS.card,
   },
   detailsTitle: {
@@ -1074,19 +1434,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: UI_LAYOUT.footerSide,
     right: UI_LAYOUT.footerSide,
-    bottom: UI_LAYOUT.footerBottom,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: UI_COLORS.surface,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: 9,
+    padding: 10,
     ...UI_SHADOWS.floating,
   },
   footerSummary: {
     paddingHorizontal: 12,
-    paddingRight: 10,
+    paddingRight: 8,
   },
   footerSummaryLabel: {
     color: UI_COLORS.mutedStrong,
@@ -1095,14 +1454,14 @@ const styles = StyleSheet.create({
   },
   footerSummaryValue: {
     color: UI_COLORS.textStrong,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     lineHeight: 22,
   },
   addToCartButton: {
     flex: 1,
-    minHeight: UI_LAYOUT.ctaHeight,
-    borderRadius: 16,
+    minHeight: 64,
+    borderRadius: 18,
     backgroundColor: UI_COLORS.accentGreen,
     borderWidth: 1,
     borderColor: UI_COLORS.accentGreen,
@@ -1110,15 +1469,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 18,
   },
+  addToCartButtonContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   addToCartButtonPressed: {
     backgroundColor: UI_COLORS.accentGreenPressed,
   },
   addToCartButtonDisabled: {
     backgroundColor: UI_COLORS.surfaceTint,
+    borderColor: UI_COLORS.surfaceTint,
   },
   addToCartTitle: {
     color: UI_COLORS.surface,
     ...UI_TYPOGRAPHY.buttonLarge,
+    textAlign: 'center',
+  },
+  addToCartTitleDisabled: {
+    color: UI_COLORS.textStrong,
+  },
+  addToCartSubtitle: {
+    color: 'rgba(255, 255, 255, 0.84)',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  addToCartSubtitleDisabled: {
+    color: UI_COLORS.mutedStrong,
   },
 });
 

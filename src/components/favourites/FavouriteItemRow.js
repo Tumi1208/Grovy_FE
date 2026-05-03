@@ -38,6 +38,9 @@ function FavouriteItemRow({
   const subtitle = getProductSubtitle(product);
   const imageSource = getProductImageSource(product);
   const isAvailable = product.stock > 0;
+  const availabilityLabel = isAvailable
+    ? `${product.stock} in stock`
+    : 'Unavailable';
   const translateX = useRef(new Animated.Value(0)).current;
   const currentTranslateXRef = useRef(0);
   const dragStartXRef = useRef(0);
@@ -216,20 +219,23 @@ function FavouriteItemRow({
         pointerEvents={isOpen ? 'auto' : 'none'}
         style={[styles.actionRail, styles.leftActionRail]}
       >
-        <ScalePressable
-          accessibilityLabel={`Remove ${product.name} from saved items`}
-          android_ripple={{ color: '#9D2B2B' }}
-          onPress={handleRemovePress}
-          pressScale={0.97}
-          style={({ pressed }) => [
-            styles.actionButton,
-            styles.removeActionButton,
-            pressed && styles.removeActionButtonPressed,
-          ]}
-          testID={`favourite-item-remove-action-${product.id}`}
-        >
-          <Text style={styles.actionButtonLabel}>Remove</Text>
-        </ScalePressable>
+        <View style={[styles.actionRailPanel, styles.removeActionRailPanel]}>
+          <ScalePressable
+            accessibilityLabel={`Remove ${product.name} from saved items`}
+            android_ripple={{ color: '#9D2B2B' }}
+            onPress={handleRemovePress}
+            pressScale={0.97}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.removeActionButton,
+              pressed && styles.removeActionButtonPressed,
+            ]}
+            testID={`favourite-item-remove-action-${product.id}`}
+          >
+            <Text style={styles.actionHintLabel}>Swipe right</Text>
+            <Text style={styles.actionButtonLabel}>Remove</Text>
+          </ScalePressable>
+        </View>
       </View>
 
       <View
@@ -238,20 +244,23 @@ function FavouriteItemRow({
         pointerEvents={isOpen ? 'auto' : 'none'}
         style={[styles.actionRail, styles.rightActionRail]}
       >
-        <ScalePressable
-          accessibilityLabel={`Add ${product.name} to cart`}
-          android_ripple={{ color: '#3D5F39' }}
-          onPress={handleAddPress}
-          pressScale={0.97}
-          style={({ pressed }) => [
-            styles.actionButton,
-            styles.addActionButton,
-            pressed && styles.addActionButtonPressed,
-          ]}
-          testID={`favourite-item-add-action-${product.id}`}
-        >
-          <Text style={styles.actionButtonLabel}>Add</Text>
-        </ScalePressable>
+        <View style={[styles.actionRailPanel, styles.addActionRailPanel]}>
+          <ScalePressable
+            accessibilityLabel={`Add ${product.name} to cart`}
+            android_ripple={{ color: '#3D5F39' }}
+            onPress={handleAddPress}
+            pressScale={0.97}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.addActionButton,
+              pressed && styles.addActionButtonPressed,
+            ]}
+            testID={`favourite-item-add-action-${product.id}`}
+          >
+            <Text style={styles.actionHintLabel}>Swipe left</Text>
+            <Text style={styles.actionButtonLabel}>Add to cart</Text>
+          </ScalePressable>
+        </View>
       </View>
 
       <Animated.View
@@ -264,69 +273,90 @@ function FavouriteItemRow({
         ]}
         testID={`favourite-item-row-${product.id}`}
       >
-        <ScalePressable
-          android_ripple={{ color: '#EEE7DC' }}
-          onPress={handleRowPress}
-          pressScale={0.992}
-          style={({ pressed }) => [
-            styles.itemRow,
-            pressed && styles.itemRowPressed,
-          ]}
-        >
-          <View style={styles.rowTop}>
-            <View style={styles.imageWrap}>
-              <ProductImage
-                name={product.name}
-                resizeMode="contain"
-                source={imageSource}
-                style={styles.image}
-              />
-            </View>
-
-            <View style={styles.copy}>
-              <View style={styles.rowMetaRow}>
-                <View style={styles.categoryPill}>
-                  <Text style={styles.categoryPillLabel}>
-                    {product.category}
-                  </Text>
-                </View>
-                <DirectionalHint
-                  chevronSize={8}
-                  color={UI_COLORS.mutedStrong}
-                  mode="plain"
-                  style={styles.rowIndicator}
+        <View style={styles.itemRow}>
+          <ScalePressable
+            android_ripple={{ color: '#EEE7DC' }}
+            onPress={handleRowPress}
+            pressScale={0.992}
+            style={({ pressed }) => [
+              styles.itemMainButton,
+              pressed && styles.itemRowPressed,
+            ]}
+          >
+            <View style={styles.rowTop}>
+              <View style={styles.imageWrap}>
+                <ProductImage
+                  name={product.name}
+                  resizeMode="contain"
+                  source={imageSource}
+                  style={styles.image}
                 />
               </View>
-              <Text numberOfLines={2} style={styles.name}>
-                {product.name}
-              </Text>
-              <Text numberOfLines={1} style={styles.meta}>
-                {subtitle}
-              </Text>
-              <Text
-                style={[
-                  styles.availability,
-                  isAvailable
-                    ? styles.availabilityInStock
-                    : styles.availabilityOutOfStock,
-                ]}
-              >
-                {isAvailable ? `${product.stock} available` : 'Unavailable'}
-              </Text>
+
+              <View style={styles.copy}>
+                <View style={styles.rowMetaRow}>
+                  <View style={styles.categoryPill}>
+                    <Text style={styles.categoryPillLabel}>
+                      {product.category}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      !isAvailable && styles.statusPillUnavailable,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusPillLabel,
+                        !isAvailable && styles.statusPillLabelUnavailable,
+                      ]}
+                    >
+                      {availabilityLabel}
+                    </Text>
+                  </View>
+                  <DirectionalHint
+                    chevronSize={8}
+                    color={UI_COLORS.mutedStrong}
+                    mode="plain"
+                    style={styles.rowIndicator}
+                  />
+                </View>
+                <Text numberOfLines={2} style={styles.name}>
+                  {product.name}
+                </Text>
+                <Text numberOfLines={1} style={styles.meta}>
+                  {subtitle}
+                </Text>
+              </View>
             </View>
-          </View>
+          </ScalePressable>
 
           <View style={styles.rowFooter}>
-            <View>
-              <Text style={styles.priceLabel}>Price</Text>
+            <View style={styles.priceBlock}>
+              <Text style={styles.priceLabel}>Buy again</Text>
               <Text style={styles.price}>{formatCurrency(product.price)}</Text>
             </View>
 
-            <View style={styles.swipeHintPill}>
-              <Text style={styles.swipeHintLabel}>Swipe for actions</Text>
+            <View style={styles.footerActions}>
+              <View style={styles.swipeHintPill}>
+                <Text style={styles.swipeHintLabel}>Swipe for more</Text>
+              </View>
+              <ScalePressable
+                android_ripple={{ color: '#3D5F39' }}
+                onPress={handleAddPress}
+                pressScale={0.97}
+                style={({ pressed }) => [
+                  styles.quickAddButton,
+                  pressed && styles.quickAddButtonPressed,
+                ]}
+                testID={`favourite-item-quick-add-${product.id}`}
+              >
+                <Text style={styles.quickAddButtonLabel}>Quick add</Text>
+              </ScalePressable>
             </View>
           </View>
-        </ScalePressable>
+        </View>
       </Animated.View>
     </View>
   );
@@ -344,11 +374,25 @@ const styles = StyleSheet.create({
     padding: ACTION_RAIL_PADDING,
     justifyContent: 'center',
   },
+  actionRailPanel: {
+    flex: 1,
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 8,
+  },
   leftActionRail: {
     left: 0,
   },
   rightActionRail: {
     right: 0,
+  },
+  addActionRailPanel: {
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderColor: '#D6E4D2',
+  },
+  removeActionRailPanel: {
+    backgroundColor: UI_COLORS.accentRedSoft,
+    borderColor: '#E9C8C0',
   },
   actionButton: {
     flex: 1,
@@ -356,7 +400,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
-    ...UI_SHADOWS.card,
   },
   addActionButton: {
     backgroundColor: UI_COLORS.accentGreen,
@@ -377,6 +420,16 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
   },
+  actionHintLabel: {
+    color: 'rgba(255, 253, 252, 0.82)',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
   itemRowAnimated: {
     ...UI_SHADOWS.card,
   },
@@ -386,6 +439,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     padding: 17,
+  },
+  itemMainButton: {
+    borderRadius: 18,
   },
   itemRowPressed: {
     opacity: 0.98,
@@ -412,8 +468,8 @@ const styles = StyleSheet.create({
   },
   rowMetaRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginBottom: 10,
   },
   categoryPill: {
@@ -424,6 +480,8 @@ const styles = StyleSheet.create({
     borderColor: UI_COLORS.borderSoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
+    marginRight: 8,
+    marginBottom: 6,
   },
   categoryPillLabel: {
     color: UI_COLORS.mutedStrong,
@@ -431,8 +489,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 14,
   },
+  statusPill: {
+    alignSelf: 'flex-start',
+    borderRadius: UI_RADIUS.round,
+    backgroundColor: UI_COLORS.accentGreenSoft,
+    borderWidth: 1,
+    borderColor: '#D6E4D2',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 6,
+  },
+  statusPillUnavailable: {
+    backgroundColor: UI_COLORS.accentRedSoft,
+    borderColor: '#E9C8C0',
+  },
+  statusPillLabel: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
+  statusPillLabelUnavailable: {
+    color: UI_COLORS.accentRed,
+  },
   rowIndicator: {
-    marginLeft: 8,
+    marginLeft: 'auto',
   },
   name: {
     color: UI_COLORS.textStrong,
@@ -444,24 +525,15 @@ const styles = StyleSheet.create({
   meta: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.meta,
-    marginBottom: 6,
-  },
-  availability: {
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 16,
-  },
-  availabilityInStock: {
-    color: UI_COLORS.accentGreen,
-  },
-  availabilityOutOfStock: {
-    color: UI_COLORS.accentRed,
   },
   rowFooter: {
     marginTop: 16,
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  priceBlock: {
+    minWidth: 96,
   },
   priceLabel: {
     color: UI_COLORS.mutedStrong,
@@ -474,12 +546,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 26,
   },
+  footerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   swipeHintPill: {
-    marginLeft: 16,
     borderRadius: UI_RADIUS.round,
-    backgroundColor: UI_COLORS.surfaceSoft,
+    backgroundColor: UI_COLORS.surfaceWarm,
     borderWidth: 1,
-    borderColor: UI_COLORS.borderSoft,
+    borderColor: UI_COLORS.border,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -488,6 +563,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 14,
+  },
+  quickAddButton: {
+    minHeight: 42,
+    borderRadius: 14,
+    backgroundColor: UI_COLORS.accentGreen,
+    borderWidth: 1,
+    borderColor: UI_COLORS.accentGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    marginLeft: 10,
+  },
+  quickAddButtonPressed: {
+    backgroundColor: UI_COLORS.accentGreenPressed,
+  },
+  quickAddButtonLabel: {
+    color: UI_COLORS.surface,
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 18,
   },
 });
 

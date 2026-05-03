@@ -23,6 +23,13 @@ const GROUP_SUGGESTIONS = Object.freeze({
   pantry: 'Add pantry basics like rice or noodles.',
   beverageOrDairy: 'Add juice or dairy for easy pairings.',
 });
+const GROUP_ORDER = Object.freeze([
+  'fruit',
+  'vegetable',
+  'protein',
+  'pantry',
+  'beverageOrDairy',
+]);
 
 function formatList(items = []) {
   if (!items.length) {
@@ -89,6 +96,8 @@ function CartHealthCard({ items }) {
   const positiveMessage = getPositiveMessage(health.presentGroups);
   const suggestions = getVisibleSuggestions(health.missingGroups, health.score);
   const visiblePositives = getVisiblePositives(health.positives);
+  const presentGroupSet = new Set(health.presentGroups);
+  const coveredGroups = health.presentGroups.length;
 
   return (
     <View style={styles.card}>
@@ -117,15 +126,45 @@ function CartHealthCard({ items }) {
         />
       </View>
 
-      <View style={styles.labelRow}>
+      <View style={styles.snapshotRow}>
         <View style={styles.labelPill}>
           <Text style={styles.labelText}>{health.label}</Text>
         </View>
-        <Text style={styles.positiveText}>{positiveMessage}</Text>
+        <Text style={styles.coverageText}>
+          {coveredGroups}/5 groups covered
+        </Text>
+      </View>
+      <Text style={styles.positiveText}>{positiveMessage}</Text>
+
+      <View style={styles.groupSection}>
+        {GROUP_ORDER.map(group => {
+          const isPresent = presentGroupSet.has(group);
+
+          return (
+            <View
+              key={group}
+              style={[
+                styles.groupChip,
+                isPresent ? styles.groupChipActive : styles.groupChipMuted,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.groupChipLabel,
+                  isPresent
+                    ? styles.groupChipLabelActive
+                    : styles.groupChipLabelMuted,
+                ]}
+              >
+                {GROUP_LABELS[group]}
+              </Text>
+            </View>
+          );
+        })}
       </View>
 
       {visiblePositives.length ? (
-        <View style={styles.positiveSection}>
+        <View style={styles.sectionCard}>
           <Text style={styles.sectionLabel}>Looking good</Text>
           {visiblePositives.map(positive => (
             <View key={positive} style={styles.positiveRow}>
@@ -137,8 +176,8 @@ function CartHealthCard({ items }) {
       ) : null}
 
       {suggestions.length ? (
-        <View style={styles.suggestionSection}>
-          <Text style={styles.sectionLabel}>Try next</Text>
+        <View style={[styles.sectionCard, styles.suggestionSection]}>
+          <Text style={styles.sectionLabel}>Round it out</Text>
           {suggestions.map(suggestion => (
             <View key={suggestion} style={styles.suggestionRow}>
               <View style={styles.suggestionDot} />
@@ -201,8 +240,10 @@ const styles = StyleSheet.create({
     borderRadius: UI_RADIUS.pill,
     backgroundColor: UI_COLORS.accentGreen,
   },
-  labelRow: {
-    marginBottom: 12,
+  snapshotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   labelPill: {
     alignSelf: 'flex-start',
@@ -218,6 +259,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 15,
+  },
+  coverageText: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
   },
   scoreBadge: {
     minWidth: 92,
@@ -253,7 +300,47 @@ const styles = StyleSheet.create({
   positiveText: {
     color: UI_COLORS.mutedStrong,
     ...UI_TYPOGRAPHY.meta,
-    marginTop: 8,
+    marginTop: 10,
+  },
+  groupSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 14,
+    marginBottom: 14,
+  },
+  groupChip: {
+    borderRadius: UI_RADIUS.pill,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  groupChipActive: {
+    backgroundColor: UI_COLORS.surface,
+    borderColor: '#D5E1D0',
+  },
+  groupChipMuted: {
+    backgroundColor: 'rgba(255, 253, 252, 0.45)',
+    borderColor: 'rgba(79, 122, 74, 0.14)',
+  },
+  groupChipLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  groupChipLabelActive: {
+    color: UI_COLORS.textStrong,
+  },
+  groupChipLabelMuted: {
+    color: UI_COLORS.mutedStrong,
+  },
+  sectionCard: {
+    borderRadius: UI_RADIUS.xl,
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: '#DDE7D7',
+    padding: 14,
   },
   sectionLabel: {
     color: UI_COLORS.textStrong,
@@ -263,9 +350,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.35,
     marginBottom: 8,
-  },
-  positiveSection: {
-    marginBottom: 10,
   },
   positiveRow: {
     flexDirection: 'row',

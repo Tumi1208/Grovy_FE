@@ -5,6 +5,7 @@ import { OWNER_ROUTES } from '../constants/routes';
 import ManageProductsScreen from '../screens/owner/ManageProductsScreen';
 import OwnerDashboardScreen from '../screens/owner/OwnerDashboardScreen';
 import ShopOrdersScreen from '../screens/owner/ShopOrdersScreen';
+import { getOwnerScreenTransitionOptions } from './transitionConfig';
 
 const Stack = createNativeStackNavigator();
 
@@ -24,7 +25,12 @@ const screenOptions = {
 
 function OwnerNavigator() {
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        ...screenOptions,
+        ...getOwnerScreenTransitionOptions(route.name),
+      })}
+    >
       <Stack.Screen
         name={OWNER_ROUTES.DASHBOARD}
         component={OwnerDashboardScreen}

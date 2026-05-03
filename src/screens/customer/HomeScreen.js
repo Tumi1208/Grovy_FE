@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -219,16 +225,14 @@ function HomeStatusBanner({ errorMessage, isLoading }) {
         ]}
       >
         {isLoading
-          ? 'Refreshing Grovy assistant picks and grocery assortment.'
-          : 'Showing your saved assortment while the catalog reconnects.'}
+          ? 'Grovy is preparing smart picks and refreshing the grocery assortment.'
+          : 'Showing your saved assortment while Grovy reconnects to the catalog.'}
       </Text>
     </View>
   );
 }
 
-function HomeHero({ banner, onPress }) {
-  const featureChips = ['Smart baskets', 'Budget picks', 'Recipe to cart'];
-
+function HomeHero({ banner, featureChips = [], insights = [], onPress }) {
   return (
     <View style={styles.heroCard}>
       <View style={styles.heroCircleLarge} />
@@ -244,12 +248,45 @@ function HomeHero({ banner, onPress }) {
         </Text>
 
         <View style={styles.heroTagRow}>
-          {featureChips.map(tag => (
-            <View key={tag} style={styles.heroTag}>
-              <Text style={styles.heroTagLabel}>{tag}</Text>
-            </View>
+          {featureChips.map(feature => (
+            <ScalePressable
+              key={feature.key}
+              android_ripple={{ color: '#ECE2D5' }}
+              disabled={!feature.onPress}
+              onPress={feature.onPress}
+              pressScale={0.985}
+              style={({ pressed }) => [
+                styles.heroTag,
+                feature.onPress && styles.heroTagInteractive,
+                pressed && feature.onPress && styles.heroTagPressed,
+              ]}
+            >
+              <View style={styles.heroTagRowInner}>
+                <Text style={styles.heroTagLabel}>{feature.label}</Text>
+                {feature.onPress ? (
+                  <DirectionalHint
+                    chevronSize={7}
+                    color={UI_COLORS.mutedStrong}
+                    mode="plain"
+                    size={18}
+                    style={styles.heroTagIcon}
+                  />
+                ) : null}
+              </View>
+            </ScalePressable>
           ))}
         </View>
+
+        {insights.length ? (
+          <View style={styles.heroInsightRow}>
+            {insights.map(insight => (
+              <View key={insight.key} style={styles.heroInsightCard}>
+                <Text style={styles.heroInsightValue}>{insight.value}</Text>
+                <Text style={styles.heroInsightLabel}>{insight.label}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <ScalePressable
           android_ripple={{ color: '#E6D7C3' }}
@@ -304,7 +341,9 @@ function HomeSectionRow({
 
   return (
     <FlatList
+      bounces={false}
       horizontal
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.horizontalRailContent}
       data={items}
       decelerationRate="fast"
@@ -363,7 +402,9 @@ function HomeCategoryRow({ cardWidth, items, onPressCategory }) {
 
   return (
     <FlatList
+      bounces={false}
       horizontal
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.horizontalRailContent}
       data={items}
       decelerationRate="fast"
@@ -396,9 +437,9 @@ function HomeScreenEmptyState({
     return (
       <View style={styles.emptyCard}>
         <ActivityIndicator color={UI_COLORS.accentGreen} size="small" />
-        <Text style={styles.emptyTitle}>Loading the shop</Text>
+        <Text style={styles.emptyTitle}>Loading your dashboard</Text>
         <Text style={styles.emptySubtitle}>
-          We&apos;re getting the latest grocery items ready.
+          Grovy is getting the latest products and assistant picks ready.
         </Text>
       </View>
     );
@@ -408,7 +449,9 @@ function HomeScreenEmptyState({
     return (
       <View style={styles.emptyCard}>
         <Text style={styles.emptyTitle}>Couldn&apos;t load the shop</Text>
-        <Text style={styles.emptySubtitle}>Please try again in a moment.</Text>
+        <Text style={styles.emptySubtitle}>
+          Please try again in a moment while Grovy reconnects to the catalog.
+        </Text>
         <View style={styles.emptySpacer} />
         <PrimaryButton title="Retry" onPress={onRetry} />
       </View>
@@ -420,7 +463,7 @@ function HomeScreenEmptyState({
       <View style={styles.emptyCard}>
         <Text style={styles.emptyTitle}>No items match this search</Text>
         <Text style={styles.emptySubtitle}>
-          Clear the search to see the full grocery assortment again.
+          Clear the search to bring back the full Grovy shopping dashboard.
         </Text>
         <View style={styles.emptySpacer} />
         <PrimaryButton
@@ -447,7 +490,7 @@ function HomeSearchEmptyState({ onOpenSmartBaskets, onResetFilters }) {
     <View style={styles.emptyCard}>
       <Text style={styles.emptyTitle}>No products found</Text>
       <Text style={styles.emptySubtitle}>
-        Try another keyword or explore Smart Baskets.
+        Try another keyword or jump back into Grovy&apos;s smart tools.
       </Text>
       <View style={styles.emptyActionGroup}>
         <PrimaryButton
@@ -482,6 +525,8 @@ function HomeScreen({ navigation, route }) {
   const scrollViewRef = useRef(null);
   const pendingSmartBasketScrollRef = useRef(false);
   const smartBasketsSectionOffsetRef = useRef(0);
+  const budgetSectionOffsetRef = useRef(0);
+  const recipeSectionOffsetRef = useRef(0);
   const { currentUser } = useApp();
   const { addToCart } = useCart();
   const { addToFavourites, isFavourite } = useFavourite();
@@ -706,13 +751,25 @@ function HomeScreen({ navigation, route }) {
   const trimmedSearchQuery = searchQuery.trim();
   const shouldShowSmartSections = hasCatalogItems && !hasSearchQuery;
 
-  const scrollToSmartBaskets = useCallback(() => {
+  const scrollToSectionOffset = useCallback(offset => {
     scrollViewRef.current?.scrollTo?.({
-      y: Math.max(smartBasketsSectionOffsetRef.current - UI_SPACING.md, 0),
+      y: Math.max(offset - UI_SPACING.lg, 0),
       animated: true,
     });
-    pendingSmartBasketScrollRef.current = false;
   }, []);
+
+  const scrollToSmartBaskets = useCallback(() => {
+    scrollToSectionOffset(smartBasketsSectionOffsetRef.current);
+    pendingSmartBasketScrollRef.current = false;
+  }, [scrollToSectionOffset]);
+
+  const scrollToBudgetMode = useCallback(() => {
+    scrollToSectionOffset(budgetSectionOffsetRef.current);
+  }, [scrollToSectionOffset]);
+
+  const scrollToRecipeToCart = useCallback(() => {
+    scrollToSectionOffset(recipeSectionOffsetRef.current);
+  }, [scrollToSectionOffset]);
 
   useEffect(() => {
     if (
@@ -796,7 +853,7 @@ function HomeScreen({ navigation, route }) {
     handleOpenExplore();
   }
 
-  function handleViewSmartBaskets() {
+  const handleViewSmartBaskets = useCallback(() => {
     pendingSmartBasketScrollRef.current = true;
 
     if (hasSearchQuery) {
@@ -805,7 +862,54 @@ function HomeScreen({ navigation, route }) {
     }
 
     scrollToSmartBaskets();
-  }
+  }, [hasSearchQuery, scrollToSmartBaskets]);
+
+  const heroFeatureChips = useMemo(
+    () => [
+      {
+        key: 'smart-baskets',
+        label: 'Smart baskets',
+        onPress: shouldShowSmartSections ? handleViewSmartBaskets : null,
+      },
+      {
+        key: 'budget-picks',
+        label: 'Budget picks',
+        onPress: shouldShowSmartSections ? scrollToBudgetMode : null,
+      },
+      {
+        key: 'recipe-to-cart',
+        label: 'Recipe to cart',
+        onPress: shouldShowSmartSections ? scrollToRecipeToCart : null,
+      },
+    ],
+    [
+      handleViewSmartBaskets,
+      scrollToBudgetMode,
+      scrollToRecipeToCart,
+      shouldShowSmartSections,
+    ],
+  );
+
+  const heroInsights = useMemo(
+    () => [
+      {
+        key: 'basket-plans',
+        label: 'basket plans',
+        value: `${SMART_BASKET_LIST.length}`,
+      },
+      {
+        key: 'budget-modes',
+        label: 'budget modes',
+        value: `${BUDGET_PRESET_LIST.length}`,
+      },
+      {
+        key: 'recipe-builds',
+        label: 'recipe builds',
+        value: `${RECIPE_BASKET_LIST.length}`,
+      },
+    ],
+    [],
+  );
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
@@ -835,6 +939,15 @@ function HomeScreen({ navigation, route }) {
             <View style={styles.brandBadge}>
               <Text style={styles.brandBadgeText}>Smart picks</Text>
             </View>
+          </View>
+
+          <View style={styles.searchLead}>
+            <Text style={styles.searchLeadEyebrow}>
+              Grovy Smart Shopping Assistant
+            </Text>
+            <Text style={styles.searchLeadTitle}>
+              Search groceries fast or let Grovy build the basket for you.
+            </Text>
           </View>
 
           <View style={styles.searchBar}>
@@ -922,7 +1035,12 @@ function HomeScreen({ navigation, route }) {
                 isLoading={isLoading}
               />
 
-              <HomeHero banner={homeData.banner} onPress={handleHeroCtaPress} />
+              <HomeHero
+                banner={homeData.banner}
+                featureChips={heroFeatureChips}
+                insights={heroInsights}
+                onPress={handleHeroCtaPress}
+              />
 
               {shouldShowSmartSections ? (
                 <>
@@ -935,7 +1053,7 @@ function HomeScreen({ navigation, route }) {
                   >
                     <SectionHeader
                       eyebrow="Smart shopping"
-                      subtitle="One-tap grocery bundles for real-life needs."
+                      subtitle="Grovy groups weekly staples, dinner starters, and easy top-ups for you."
                       title="Smart Baskets"
                     />
                     <View style={styles.horizontalRail}>
@@ -951,57 +1069,37 @@ function HomeScreen({ navigation, route }) {
 
                   <View style={styles.sectionBlock}>
                     <SectionHeader
-                      onSeeAll={handleOpenExplore}
-                      subtitle="Jump to the part of the store you need."
-                      title="Shop by aisle"
-                    />
-                    <View style={styles.horizontalRail}>
-                      <HomeCategoryRow
-                        cardWidth={categoryCardWidth}
-                        items={homeData.groceryCategories}
-                        onPressCategory={handleOpenCategory}
-                      />
-                    </View>
-                  </View>
-
-                  <View style={styles.sectionBlock}>
-                    <SectionHeader
-                      subtitle="Let Grovy build a basket around your spending limit."
+                      subtitle="Pick a spend limit and Grovy balances produce, pantry, and protein around it."
                       title="Shop by Budget"
                     />
-                    <HomeBudgetModePanel
-                      budgetPresets={BUDGET_PRESET_LIST}
-                      onAddSuggestion={handleAddBudgetBasket}
-                      onOpenProduct={handleOpenProduct}
-                      onSelectPreset={preset =>
-                        setSelectedBudgetPresetId(preset.id)
-                      }
-                      selectedPreset={selectedBudgetPreset}
-                      suggestion={budgetSuggestion}
-                    />
+                    <View
+                      onLayout={event => {
+                        budgetSectionOffsetRef.current =
+                          event.nativeEvent.layout.y;
+                      }}
+                    >
+                      <HomeBudgetModePanel
+                        budgetPresets={BUDGET_PRESET_LIST}
+                        onAddSuggestion={handleAddBudgetBasket}
+                        onOpenProduct={handleOpenProduct}
+                        onSelectPreset={preset =>
+                          setSelectedBudgetPresetId(preset.id)
+                        }
+                        selectedPreset={selectedBudgetPreset}
+                        suggestion={budgetSuggestion}
+                      />
+                    </View>
                   </View>
 
-                  {homeData.exclusiveOffer.length > 0 ? (
-                    <View style={styles.sectionBlock}>
-                      <SectionHeader
-                        onSeeAll={handleOpenExplore}
-                        title="Fresh picks"
-                      />
-                      <View style={styles.horizontalRail}>
-                        <HomeSectionRow
-                          cardWidth={horizontalCardWidth}
-                          items={homeData.exclusiveOffer}
-                          onAddToCart={handleQuickAddToCart}
-                          onLongPressProduct={handleOpenQuickActions}
-                          onOpenProduct={handleOpenProduct}
-                        />
-                      </View>
-                    </View>
-                  ) : null}
-
-                  <View style={styles.sectionBlock}>
+                  <View
+                    onLayout={event => {
+                      recipeSectionOffsetRef.current =
+                        event.nativeEvent.layout.y;
+                    }}
+                    style={styles.sectionBlock}
+                  >
                     <SectionHeader
-                      subtitle="Choose a meal idea and add ingredients in one tap."
+                      subtitle="Choose a meal idea and let Grovy collect the ingredients in one tap."
                       title="Recipe to Cart"
                     />
                     <View style={styles.horizontalRail}>
@@ -1016,11 +1114,45 @@ function HomeScreen({ navigation, route }) {
                     </View>
                   </View>
 
+                  <View style={styles.sectionBlock}>
+                    <SectionHeader
+                      onSeeAll={handleOpenExplore}
+                      subtitle="Jump into the aisle you need after Grovy plans the basket."
+                      title="Shop by aisle"
+                    />
+                    <View style={styles.horizontalRail}>
+                      <HomeCategoryRow
+                        cardWidth={categoryCardWidth}
+                        items={homeData.groceryCategories}
+                        onPressCategory={handleOpenCategory}
+                      />
+                    </View>
+                  </View>
+
+                  {homeData.exclusiveOffer.length > 0 ? (
+                    <View style={styles.sectionBlock}>
+                      <SectionHeader
+                        onSeeAll={handleOpenExplore}
+                        subtitle="Quick wins from this week's catalog refresh."
+                        title="Fresh picks"
+                      />
+                      <View style={styles.horizontalRail}>
+                        <HomeSectionRow
+                          cardWidth={horizontalCardWidth}
+                          items={homeData.exclusiveOffer}
+                          onAddToCart={handleQuickAddToCart}
+                          onLongPressProduct={handleOpenQuickActions}
+                          onOpenProduct={handleOpenProduct}
+                        />
+                      </View>
+                    </View>
+                  ) : null}
+
                   {homeData.bestSelling.length > 0 ? (
                     <View style={styles.sectionBlock}>
                       <SectionHeader
                         onSeeAll={handleOpenExplore}
-                        subtitle="Popular staples for quick replenishment."
+                        subtitle="Popular staples for quick replenishment after your smart picks."
                         title="Popular in store"
                       />
                       <View style={styles.horizontalRail}>
@@ -1039,7 +1171,7 @@ function HomeScreen({ navigation, route }) {
                     <View style={styles.sectionBlock}>
                       <SectionHeader
                         onSeeAll={handleOpenExplore}
-                        subtitle="Reliable essentials for quick lunches and dinners."
+                        subtitle="Reliable essentials to top up lunch, dinner, and pantry plans."
                         title="Pantry and protein"
                       />
                       <HomeGroceriesGrid
@@ -1178,6 +1310,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 16,
+  },
+  searchLead: {
+    marginBottom: 14,
+  },
+  searchLeadEyebrow: {
+    color: UI_COLORS.accentGreen,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.42,
+    marginBottom: 4,
+  },
+  searchLeadTitle: {
+    color: UI_COLORS.textStrong,
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 26,
+    maxWidth: '88%',
   },
   searchBar: {
     flexDirection: 'row',
@@ -1346,11 +1497,54 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 8,
   },
+  heroTagInteractive: {
+    paddingRight: 8,
+  },
+  heroTagPressed: {
+    opacity: 0.92,
+  },
+  heroTagRowInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   heroTagLabel: {
     color: UI_COLORS.textStrong,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 14,
+  },
+  heroTagIcon: {
+    marginLeft: 2,
+  },
+  heroInsightRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 10,
+    marginBottom: 8,
+    gap: 8,
+  },
+  heroInsightCard: {
+    flexGrow: 1,
+    flexBasis: '47%',
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.64)',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  heroInsightValue: {
+    color: UI_COLORS.textStrong,
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 22,
+  },
+  heroInsightLabel: {
+    color: UI_COLORS.mutedStrong,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+    marginTop: 2,
   },
   heroActionButton: {
     alignSelf: 'flex-start',
@@ -1416,7 +1610,7 @@ const styles = StyleSheet.create({
     marginBottom: 34,
   },
   searchResultsSection: {
-    marginTop: 18,
+    marginTop: 12,
     marginBottom: 34,
   },
   searchResultsHeader: {

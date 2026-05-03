@@ -51,6 +51,32 @@ jest.mock('../src/components/ProductQuickActionsSheet', () => {
   };
 });
 
+jest.mock('../src/components/home/HomeProductCard', () => {
+  return function MockHomeProductCard({
+    onAddToCart,
+    onLongPress,
+    onPress,
+    product,
+  }) {
+    const React = require('react');
+    const { Pressable, Text, View } = require('react-native');
+
+    return (
+      <Pressable
+        onLongPress={() => onLongPress?.(product)}
+        onPress={() => onPress?.(product)}
+      >
+        <View>
+          <Text>{product.name}</Text>
+          <Pressable onPress={() => onAddToCart?.(product)}>
+            <Text>Add</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    );
+  };
+});
+
 function getNodeText(node) {
   if (typeof node === 'string') {
     return node;
@@ -154,17 +180,85 @@ describe('ExploreScreen empty search actions', () => {
 
     expect(
       renderer.root.findAll(
-        node => node.type === 'Text' && getNodeText(node) === 'No results found',
+        node =>
+          node.type === 'Text' && getNodeText(node) === 'No matches for "zzzz"',
       ),
     ).toHaveLength(1);
 
     act(() => {
-      findClosestPressableForText(renderer.root, 'Clear Search').props.onPress();
+      findClosestPressableForText(
+        renderer.root,
+        'Clear Search',
+      ).props.onPress();
     });
 
     expect(
       renderer.root.findByProps({ placeholder: 'Search groceries and aisles' })
         .props.value,
     ).toBe('');
+  });
+
+  it('filters products by aisle and clears the active filter', async () => {
+    const renderer = await renderScreen();
+
+    act(() => {
+      renderer.root
+        .findByProps({ testID: 'explore-filter-chip-beverages' })
+        .props.onPress();
+    });
+
+    expect(
+      renderer.root.findAll(
+        node =>
+          node.type === 'Text' && getNodeText(node) === 'Browse Beverages',
+      ),
+    ).toHaveLength(1);
+    expect(
+      renderer.root.findAll(
+        node =>
+          node.type === 'Text' && getNodeText(node) === 'Classic Cola Can',
+      ),
+    ).toHaveLength(1);
+
+    act(() => {
+      renderer.root
+        .findByProps({ testID: 'explore-clear-filter' })
+        .props.onPress();
+    });
+
+    expect(
+      renderer.root.findAll(
+        node =>
+          node.type === 'Text' && getNodeText(node) === 'Browse Beverages',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('prioritizes product search over the selected aisle filter', async () => {
+    const renderer = await renderScreen();
+
+    act(() => {
+      renderer.root
+        .findByProps({ testID: 'explore-filter-chip-beverages' })
+        .props.onPress();
+    });
+
+    act(() => {
+      renderer.root
+        .findByProps({ placeholder: 'Search groceries and aisles' })
+        .props.onChangeText('egg');
+    });
+
+    expect(
+      renderer.root.findAll(
+        node => node.type === 'Text' && getNodeText(node) === 'Brown Eggs Tray',
+      ),
+    ).toHaveLength(1);
+    expect(
+      renderer.root.findAll(
+        node =>
+          node.type === 'Text' && getNodeText(node) === 'Browse Beverages',
+      ),
+    ).toHaveLength(0);
   });
 });
